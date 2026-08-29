@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "hi": "#REF!(amt)"
+  },
+  "kind": "eval"
+}

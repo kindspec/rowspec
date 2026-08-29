@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+
+# Build output
+dist/
+build/
+target/
+*.o
+*.so
+*.dylib
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal scratch (never committed)
+working/
+
+# Environment
+.env
+.env.local
+
+# Test / coverage
+coverage/
+*.out
+*.coverprofile
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# rowspec
+.cache/
+mutant_impl.py
+.venv/

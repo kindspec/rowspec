@@ -1,0 +1,6 @@
+| id | q‍ty | unit | total = qty * unit |
+| --- | --: | --: | --: |
+| r_01 | 10 | 12.00 |  |
+
+key := id
+grand := sum(total)

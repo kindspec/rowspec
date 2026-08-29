@@ -1,0 +1,6 @@
+| id | day | amt | run = cumulative(amt) |
+| --- | --: | --: | --: |
+
+key := id
+order := by(day)
+g := count(amt)

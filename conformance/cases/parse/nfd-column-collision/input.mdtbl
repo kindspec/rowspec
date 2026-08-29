@@ -1,0 +1,6 @@
+| id | café | café | qty |
+| --- | --- | --- | --: |
+| r_01 | a | b | 1 |
+
+key := id
+g := sum(qty)

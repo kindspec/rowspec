@@ -1,0 +1,10 @@
+{
+  "aggregates": {
+    "av": "#REF!(amt)",
+    "mn": "#REF!(amt)",
+    "mx": "#REF!(amt)",
+    "n": "#REF!(amt)",
+    "s": "#REF!(amt)"
+  },
+  "kind": "eval"
+}

@@ -1,0 +1,7 @@
+| id | customer | who = lookup(customers.mdtbl, customer, name) |
+| --- | --- | --- |
+| r_01 | c001 |  |
+| r_02 | c002 |  |
+
+key := id
+n := count(who)

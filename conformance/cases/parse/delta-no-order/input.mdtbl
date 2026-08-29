@@ -1,0 +1,7 @@
+| id | day | amt | d = delta(amt) |
+| --- | --: | --: | --: |
+| r_01 | 1 | 5 |  |
+| r_02 | 2 | 7 |  |
+
+key := id
+g := count(amt)

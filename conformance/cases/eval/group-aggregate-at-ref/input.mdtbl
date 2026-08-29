@@ -1,0 +1,9 @@
+| id | region | amount | region_total = sum(amount where region = @region) |
+| --- | --- | --: | --: |
+| r_01 | EU | 10 |  |
+| r_02 | EU | 5 |  |
+| r_03 | US | 3 |  |
+
+key := id
+mx := max(region_total)
+mn := min(region_total)

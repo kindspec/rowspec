@@ -1,0 +1,8 @@
+| id | qty | unit | total = qty * unit |
+| --- | --: | --: | --: |
+| r_01 | 2 | 3 |  |
+| r_02 | 4 | 5 |  |
+
+key := id
+order := by(total)
+g := sum(total)

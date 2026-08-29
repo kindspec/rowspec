@@ -1,0 +1,9 @@
+| id | region | qty | unit | total = qty * unit |
+| --- | --- | --: | --: | --: |
+| r_01 | EU | 10 | 1.00 |  |
+| r_02 | EU | 5 | 2.00 |  |
+| r_03 | US | 3 | 1.00 |  |
+
+key := id
+grand := sum(total)
+eu := sum(total where region = "EU")

@@ -1,0 +1,8 @@
+| id | day | amt | d = delta(amt) |
+| --- | --: | --: | --: |
+| r_01 | 9 | 1 |  |
+| r_02 | 10000000000 | 2 |  |
+
+key := id
+order := by(day)
+mx := max(d)

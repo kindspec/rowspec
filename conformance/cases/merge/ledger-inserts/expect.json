@@ -1,0 +1,8 @@
+{
+  "aggregates": {
+    "final": 138.0
+  },
+  "git_outcome": "clean",
+  "kind": "merge",
+  "then": "evaluate"
+}

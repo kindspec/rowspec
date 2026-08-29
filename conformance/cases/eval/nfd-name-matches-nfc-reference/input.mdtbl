@@ -1,0 +1,7 @@
+| id | café_qty | unit | total = café_qty * unit |
+| --- | --: | --: | --: |
+| r_01 | 10 | 12.00 |  |
+| r_02 | 5 | 24.00 |  |
+
+key := id
+grand := sum(total)

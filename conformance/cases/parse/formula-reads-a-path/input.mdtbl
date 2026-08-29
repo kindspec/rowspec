@@ -1,0 +1,6 @@
+| id | qty | x = open('/etc/hostname').read() |
+| --- | --: | --- |
+| r_01 | 1 |  |
+
+key := id
+g := sum(qty)

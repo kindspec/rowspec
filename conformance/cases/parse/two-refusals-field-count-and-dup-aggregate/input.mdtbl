@@ -1,0 +1,8 @@
+| id | qty | unit |
+| --- | --: | --: |
+| r_01 | 10 | 12.00 |
+| r_02 | 5 |
+
+key := id
+g := sum(qty)
+g := sum(unit)

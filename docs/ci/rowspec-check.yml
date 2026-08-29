@@ -1,0 +1,55 @@
+# Copy this file to .github/workflows/rowspec-check.yml in your repository.
+#
+# Why a workflow, and not a hook or a merge driver: a workflow file is the only
+# repository-resident configuration a forge actually executes. Hooks live in
+# .git/hooks and are never cloned. A merge driver needs `merge.<name>.driver`
+# in local config, which never travels with the repository, and a bare
+# repository -- which is what every forge merges in -- does not consult
+# .gitattributes at all. So this is the one place a check can live and still
+# run for a contributor who installed nothing.
+#
+# It validates every .csv, .tsv and .mdtbl file under the paths you list and
+# fails the run on a refusal, with the entity named in the annotation.
+
+name: rowspec
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # rowspec is standard-library-only, so this pulls in nothing else.
+      - run: pip install rowspec
+
+      # ---------------------------------------------------------------
+      # Change `data` to wherever your tables live. Several paths are fine:
+      #     rowspec check data reference tables/prices.csv
+      # A file's declarations, if it has any, live in `<file>.rowspec.json`
+      # next to it, or in one `.rowspec.json` per directory keyed by glob:
+      #     { "*.csv": { "key": "id" } }
+      # With no declaration file at all this still refuses committed conflict
+      # markers, duplicate column names, ragged rows, invalid UTF-8 and
+      # invisible characters in column names.
+      # ---------------------------------------------------------------
+      - name: validate tables
+        run: rowspec check --format github data
+
+      # Optional: also fail on CRLF line endings and a UTF-8 byte-order mark.
+      # Both are legal in CSV (RFC 4180 makes CRLF the default and Excel writes
+      # the BOM), so they are warnings by default. Turn this on only once the
+      # repository is already clean, or every pull request will be red.
+      #
+      # - name: no CRLF, no BOM
+      #   run: rowspec check --strict --format github data

@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "mn": 5.0,
+    "mx": 12.0
+  },
+  "kind": "eval"
+}

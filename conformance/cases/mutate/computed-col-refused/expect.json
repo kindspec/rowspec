@@ -1,0 +1,7 @@
+{
+  "column": "total",
+  "expect": "refuse",
+  "kind": "mutate",
+  "row_key": "r_0002",
+  "value": 1
+}

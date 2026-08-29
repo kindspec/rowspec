@@ -1,0 +1,6 @@
+| id | qty | x = __import__('os').getpid() |
+| --- | --: | --: |
+| r_01 | 1 |  |
+
+key := id
+g := sum(qty)

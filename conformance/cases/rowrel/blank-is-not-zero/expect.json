@@ -1,0 +1,6 @@
+{
+  "column": "c",
+  "kind": "rowrel",
+  "row_index": 1,
+  "value": "#REF!(a)"
+}

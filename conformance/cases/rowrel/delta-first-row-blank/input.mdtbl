@@ -1,0 +1,9 @@
+| id | day | amt | run = cumulative(amt) | prev = prior(amt) | chg = delta(amt) |
+| --- | --: | --: | --: | --: | --: |
+| r_01 | 1 | 100 |  |  |  |
+| r_02 | 2 | 30 |  |  |  |
+| r_03 | 3 | 70 |  |  |  |
+
+key := id
+order := by(day)
+n := count(amt)

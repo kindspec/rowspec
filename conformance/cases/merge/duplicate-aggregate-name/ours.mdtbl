@@ -1,0 +1,13 @@
+| id | item | qty | unit | total = qty * unit |
+| --- | --- | --: | --: | --: |
+| r_0001 | widget | 10 | 12.00 |  |
+| r_0002 | gadget | 20 | 6.00 |  |
+
+key := id
+tax := sum(qty)
+a1 := sum(qty)
+a2 := sum(unit)
+a3 := max(qty)
+a4 := min(qty)
+a5 := count(qty)
+grand := sum(total)

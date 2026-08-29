@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "eu": 20.0,
+    "grand": 23.0
+  },
+  "kind": "eval"
+}

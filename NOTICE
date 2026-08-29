@@ -1,0 +1,35 @@
+rowspec
+
+This project invokes the `git` binary as a subprocess. git is licensed
+GPL-2.0-only. Invoking a program as a subprocess does not create a derivative
+work, so rowspec's own licensing is unaffected; the dependency is recorded here
+because the conformance suite REQUIRES a real git binary and will not run
+without one. That is by design: the suite's central claim is about what stock
+git does, so it must use stock git.
+
+PRIOR ART
+
+rowspec is not the first system to address this problem, and two predecessors
+must be named.
+
+  Coopy / daff (Paul Fitzpatrick, 2013–)
+    Thirteen years of a shipping, row-ID-aware, git-integrated three-way merge
+    for CSV, with `--id` and `daff git csv`. It is the direct ancestor.
+    rowspec diverges deliberately: Coopy's own theory chose content-based row
+    matching and treated identifiers as an optional optimisation, whereas
+    rowspec makes an opaque row id mandatory. That divergence is a design
+    choice made against Coopy's stated reasoning, not an unawareness of it.
+
+  ClassSheets (Engels & Erwig, ASE 2005) and
+  Object Spreadsheets (McCutchen, Itzhaky & Jackson, Onward! 2016)
+    A formula belongs to the column or class, not to the cell. rowspec's
+    header-formula design is the plaintext, git-diffable form of that idea.
+
+  Lotus Improv (1991) and Javelin (1984)
+    Named-dimension modelling: formulas over names rather than coordinates.
+
+  org-mode `#+TBLFM:`
+    Roughly twenty years of nominal column addressing in a plaintext table,
+    and the most instructive negative control — its absolute `@row$col`
+    references do not adapt to structural edits, and its recalculation is
+    manual, so a committed file can contradict its own formulas.

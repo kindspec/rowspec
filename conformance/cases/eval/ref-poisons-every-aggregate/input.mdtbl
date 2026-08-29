@@ -1,0 +1,12 @@
+| id | amt |
+| --- | --- |
+| r_01 | 10 |
+| r_02 | 1,000 |
+| r_03 | 30 |
+
+key := id
+s := sum(amt)
+n := count(amt)
+mn := min(amt)
+mx := max(amt)
+av := avg(amt)

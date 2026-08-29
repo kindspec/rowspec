@@ -1,0 +1,7 @@
+| id | café | qty | unit | total = qty * unit |
+| --- | --- | --: | --: | --: |
+| r_0001 | éclair | 10 | 12.00 |  |
+| r_0002 | naïve | 20 | 6.00 |  |
+
+key := id
+grand := sum(total)

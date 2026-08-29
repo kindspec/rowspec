@@ -1,0 +1,9 @@
+| id | day | amt |
+| --- | --- | --: |
+| r_01 | 1 | 5 |
+| r_02 | 2 | 7 |
+| r_03 | inf | 9 |
+
+key := id
+order := by(day)
+g := sum(amt)

@@ -1,0 +1,16 @@
+name: check
+on: [push, pull_request]
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: just check
+      - name: conformance suite (stock git)
+        run: just conform
+      - name: the suite must be able to fail
+        run: just mutants
+      - name: corpus-scoped checks
+        run: uv run python conformance/corpus_check.py .

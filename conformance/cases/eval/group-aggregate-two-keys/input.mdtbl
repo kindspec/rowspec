@@ -1,0 +1,10 @@
+| id | region | rep | amount | rep_share = sum(amount where region = @region and rep = @rep) |
+| --- | --- | --- | --: | --: |
+| r_01 | EU | ann | 10 |  |
+| r_02 | EU | bob | 5 |  |
+| r_03 | EU | ann | 2 |  |
+| r_04 | US | ann | 7 |  |
+
+key := id
+mx := max(rep_share)
+mn := min(rep_share)

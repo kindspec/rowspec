@@ -1,0 +1,26 @@
+rowspec is licensed per directory. This is deliberate, not an oversight.
+
+  SPEC.md, docs/            CC-BY-4.0
+  conformance/cases/        CC0-1.0
+  conformance/*.py          MIT
+  reference/, tests/        Apache-2.0 OR MIT
+
+Full texts are in LICENSES/. Each directory carries its own LICENSE file, and
+source files carry SPDX headers.
+
+WHY THE SPLIT
+
+The point of this project is independent implementations. That makes the
+reusability of the SPEC and the FIXTURES more important than the licence on the
+reference code.
+
+CommonMark embeds its 655 conformance examples inside a CC-BY-SA spec document,
+so vendoring the test cases arguably vendors share-alike prose. This project's
+fixtures are larger and are certainly meant to be vendored, so they live in
+their own tree under CC0-1.0 with no prose attached: copy them into an
+implementation in any language, under any licence, without obligation.
+
+The opposite failure is SQLite's: the library is public domain but its most
+thorough test harness is proprietary. That arrangement works precisely because
+SQLite does not want plural implementations. This project does. Take SQLite's
+590:1 test-to-code ratio, not its licensing.

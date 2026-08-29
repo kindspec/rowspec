@@ -1,0 +1,3 @@
+| id | item | qty | unit | total = qty * unit |
+| --- | --- | --: | --: | --: |
+| r_0001 | widget | 10 | 12.00 |  |

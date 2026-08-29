@@ -1,0 +1,9 @@
+{
+  "aggregates": {
+    "grand": 529.0,
+    "n": 9
+  },
+  "git_outcome": "clean",
+  "kind": "merge",
+  "then": "evaluate"
+}

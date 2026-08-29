@@ -1,0 +1,7 @@
+{
+  "column": "item",
+  "expect": "visible",
+  "kind": "mutate",
+  "row_key": "r_0002",
+  "value": "WIDGETRON"
+}

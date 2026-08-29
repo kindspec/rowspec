@@ -1,0 +1,8 @@
+{
+  "aggregate": "grand",
+  "column": "qty",
+  "kind": "mutate",
+  "result": 540.0,
+  "row_key": "r_0002",
+  "value": 30
+}

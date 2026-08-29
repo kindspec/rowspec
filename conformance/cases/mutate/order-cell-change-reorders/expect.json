@@ -1,0 +1,8 @@
+{
+  "aggregate": "lo",
+  "column": "day",
+  "kind": "mutate",
+  "result": -30.0,
+  "row_key": "r_01",
+  "value": 9
+}

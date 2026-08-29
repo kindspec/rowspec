@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "grand": "#REF!(nope)"
+  },
+  "kind": "eval"
+}

@@ -1,0 +1,12 @@
+| id | day | amt |
+| --- | --: | --: |
+| r_01 | 1 | 5 |
+| r_02 | 2 | 7 |
+
+key := id
+order := by(day)
+a1 := sum(amt)
+a2 := max(amt)
+a3 := min(amt)
+a4 := count(amt)
+a5 := avg(amt)
