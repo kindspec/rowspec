@@ -199,8 +199,37 @@ MUTANTS = {
         "row_raws = [lines[i] for i in tbl_idx[2:]][::-1]",
     ),
     "canon-keeps-padding": (
-        'return "| " + " | ".join(cells) + " |"',
-        'return "| " + " | ".join(c.ljust(12) for c in cells) + " |"',
+        'return "| " + " | ".join(escape_cell(c) for c in cells) + " |"',
+        'return "| " + " | ".join(escape_cell(c).ljust(12) for c in cells) + " |"',
+    ),
+    # the escape is now the only thing that lets a real value contain a pipe;
+    # dropping it silently splits one cell into two
+    "render-does-not-escape-pipes": (
+        'return "| " + " | ".join(escape_cell(c) for c in cells) + " |"',
+        'return "| " + " | ".join(str(c) for c in cells) + " |"',
+    ),
+    # `render` replays unmodified rows from stored raw lines, so the serialiser
+    # is only reachable through `canon`. The path a real EDITOR takes is
+    # set_cell, and it is a different function.
+    "set-cell-does-not-escape-pipes": (
+        'st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |\\n"',
+        'st["row_raws"][i] = "| " + " | ".join(str(c) for c in cells) + " |\\n"',
+    ),
+    "unescape-applied-everywhere": (
+        'return [unescape_cell(c.strip(" \\t")) for c in _UNESCAPED_PIPE.split(body)]',
+        'return [c.strip(" \\t") for c in _UNESCAPED_PIPE.split(body)]',
+    ),
+    # the carve-out for `count` just moved, so pin it from BOTH sides
+    "count-poisons-on-unparseable-text": (
+        '    if fn == "count":\n        return len(vals)',
+        '    if fn == "count" and all(_isnum(v) for v in vals if v not in ("", None)):\n'
+        "        return len(vals)",
+    ),
+    "count-never-poisons": (
+        '    bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]',
+        '    bad = [] if fn == "count" else [\n'
+        '        v for v in vals if isinstance(v, str) and v.startswith("#REF!")\n'
+        "    ]",
     ),
     "canon-drops-formulas": (
         'hdr.append(f"{c} = {st[\'formulas\'][c]}" if c in st["formulas"] else c)',

@@ -1,0 +1,7 @@
+| id | name |
+| --- | -\|- |
+| r_01 | a |
+| r_02 | b |
+
+key := id
+g := count(id)

@@ -32,11 +32,28 @@ OPS = {
 ROWREL = {"cumulative", "prior", "delta"}
 
 
+_UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
+
+
+def unescape_cell(c):
+    return c.replace("\\|", "|")
+
+
+def escape_cell(c):
+    return str(c).replace("|", "\\|")
+
+
 def split_row(line):
-    # ASCII whitespace only. Non-ASCII spaces are NOT padding: SPEC §8 names
-    # them among the values that must not coerce, so stripping them would
-    # silently accept a cell the spec requires to be #REF!.
-    return [c.strip(" \t") for c in line.strip().strip("|").split("|")]
+    # Split on UNESCAPED pipes only. `\|` is the escape, as in GFM.
+    # ASCII whitespace only when trimming: SPEC §8 names non-ASCII spaces among
+    # the values that must not coerce, so stripping them would silently accept a
+    # cell the spec requires to be #REF!.
+    body = line.strip()
+    if body.startswith("|"):
+        body = body[1:]
+    if body.endswith("|") and not body.endswith("\\|"):
+        body = body[:-1]
+    return [unescape_cell(c.strip(" \t")) for c in _UNESCAPED_PIPE.split(body)]
 
 
 _ALIGN_CELL = re.compile(r":?-+:?")
@@ -305,14 +322,17 @@ def _agg(fn, vals, what):
     bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]
     if bad:
         return bad[0]
+    # `count` counts rows and never coerces: it is poisoned by a #REF! already
+    # present (handled above) but not by a value that merely is not a number,
+    # because it never uses one as an operand.
+    if fn == "count":
+        return len(vals)
     try:
         for v in vals:
             if v not in ("", None):
                 num(v)
     except (ValueError, TypeError):
         return f"#REF!({what})"
-    if fn == "count":
-        return len(vals)
     try:
         nums = [num(v) for v in vals if v not in ("", None)]
     except (ValueError, TypeError):
@@ -546,7 +566,7 @@ def canon(text):
     cols = st["cols"]
 
     def row(cells):
-        return "| " + " | ".join(cells) + " |"
+        return "| " + " | ".join(escape_cell(c) for c in cells) + " |"
 
     hdr = []
     for c in cols:
@@ -600,6 +620,6 @@ def set_cell(st, row_key, col, value):
             r[col] = str(value)
             cells = split_row(st["row_raws"][i])
             cells[idx] = str(value)
-            st["row_raws"][i] = "| " + " | ".join(cells) + " |\n"
+            st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |\n"
             return st
     raise Malformed(f"no row with {key}={row_key!r}")

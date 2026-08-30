@@ -1,0 +1,7 @@
+| id | region | amt | t = sum(amt where region = "KS TV \| Action") |
+| --- | --- | --: | --: |
+| r_01 | KS TV \| Action | 10 |  |
+| r_02 | other | 5 |  |
+
+key := id
+g := max(t)

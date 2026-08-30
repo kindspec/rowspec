@@ -1,0 +1,7 @@
+| id | name |
+| --- | --- |
+| r_01 | widget |
+| r_02 | gadget |
+
+key := id
+n := count(name)

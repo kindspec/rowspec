@@ -110,11 +110,17 @@ blank       = *WSP eol
 conflict    = ( 7"<" / 7"=" / 7">" / 7"|" ) *char eol
 annotation  = *WSP "#" *char eol
 table-line  = *WSP "|" 1*( cell "|" ) *WSP eol
-cell        = *( char - "|" )                 ; no escape exists
+cell        = *( escaped / ( char - "|" ) )
+escaped     = "\" "|"                        ; the sole escape
+;   `cell` is AMBIGUOUS as written -- `char` includes "\", so `\|` parses
+;   either as `escaped` or as a literal "\" ending the cell. The split is
+;   NORMATIVELY on unescaped pipes: `escaped` wins. The two readings give
+;   different FIELD COUNTS, which is the exact harm rule 3 exists to prevent.
+;   A backslash not followed by "|" is a literal backslash.
 declaration = *WSP ident *WSP ":=" *WSP rhs [ 1*WSP "#" *char ] eol
 rhs         = ident "(" *WSP arg *WSP ")" / ident
 arg         = ident [ 1*WSP "where" 1*WSP predicate ]        ; predicate: §7
-ident       = 1*( LETTER / MARK / NUM / "_" / "-" / "." )
+ident       = 1*( LETTER / MARK / NUM / "_" )
 align-cell  = [ ":" ] 1*"-" [ ":" ]
 number      = [ "-" ] 1*DIGIT [ "." 1*DIGIT ]
 date        = 1*4DIGIT "-" 1*2DIGIT "-" 1*2DIGIT
@@ -147,11 +153,31 @@ the table" and §4 calls the run contiguous, but the two readings left open
 how many rows the file has without saying so, which is the divergence §1 exists
 to prevent.
 
-**3. The pipe.** Both the leading and the closing `|` are required. **A cell can
-never contain `|`, because no escape exists and none may be invented.** An
-implementation that adds one — `\|`, `||`, a quoted cell — makes a file whose
-field count differs between readers, so one reader sees the row the author wrote
-and the other sees a row with an extra field or a truncated value. **[CHOICE]**
+**3. The pipe.** Both the leading and the closing `|` are required. A cell may
+contain a pipe **only** as `\|`, and that is the format's sole escape. A reader splits a
+**table line** on unescaped pipes and unescapes `\|` in each cell; a writer
+escapes every literal `|` it emits **into a table line**.
+
+Both halves are scoped to the table line, and the scoping is load-bearing. A
+declaration line is never unescaped, so the same string has two spellings
+depending on which line it sits on:
+
+    g := sum(amt where region = "KS TV | Action")       declaration: raw
+    | t = sum(amt where region = "KS TV \| Action") |   header cell: escaped
+
+Getting this wrong is silent: the escaped spelling in a declaration matches zero
+rows and reports `0`. No other escape exists and none may be
+invented — `||`, a quoted cell, a doubled delimiter — because an unrecognised
+escape makes a file whose field count differs between readers, so one sees the
+row the author wrote and the other sees an extra field or a truncated value.
+
+**[CHOICE], and a reversal.** An earlier draft admitted no escape at all, on the
+reasoning that an escape is parser complexity nobody needs. That was never paid
+for by evidence, and a replay of 7,446 real commits refuted it: **26.95% of real
+commits were unrepresentable, 95% of those because a value contained a pipe.**
+Ninety-three television channels in one public registry have a pipe in their own
+name, and from 2023-10-16 onward every single commit to that file was
+unwritable. The rule was elegant and the data did not care. **[CHOICE]**
 The closing `|` is required rather than optional as in GFM: it is the only thing
 that distinguishes a row truncated inside its final cell from a shorter one, and
 the field-count refusal (§9.6) cannot see that truncation because the field count
@@ -219,14 +245,20 @@ editions: interpretation is a function of the bytes alone.
 
 **9. Identifiers.** Column names, aggregate names, the argument of `key` and
 `order`, and the values of the key column are `ident`: one or more Unicode
-letters, marks or digits, `_`, `-`, `.`. Whitespace and `Cf` are excluded by
+letters, marks or digits, or `_`. Whitespace and `Cf` are excluded by
 construction, which is what §3 and §4 require; so are `|`, `=`, `:`, `#`, `(`,
 `)`, `,`, `"` and `@`, each of which is structural somewhere — a column named
 `total (USD)` would be unquotable inside a formula, and `#` would be
-indistinguishable from an annotation. **[CHOICE]** The set is an allowlist
-rather than a denylist so that the answer for a character nobody has thought of
-yet is *refused*, not *whatever this implementation's punctuation table happens
-to say*.
+indistinguishable from an annotation.
+
+**[CHOICE]** The set is an allowlist rather than a denylist so that the answer
+for a character nobody has thought of yet is *refused*, not *whatever this
+implementation's punctuation table happens to say*.
+
+**[CHOICE]** `-` and `.` are excluded, though an earlier draft admitted them.
+The formula language uses `-` as subtraction, so a column named `a-b` would be
+well-formed and permanently unreferenceable, and two readers would silently
+total different columns. The cost is the ability to name a column `a-b`.
 
 **10. Annotations.** Two forms, and only two. A whole-line annotation is a line
 whose first non-`WSP` character is `#`, outside the table; everything after the
@@ -236,8 +268,9 @@ channel exists. An inline annotation is `WSP` followed by `#` to end of line, on
 a **declaration line only**; `g := sum(v)# note` has no whitespace before the
 `#` and is a malformed declaration. **`#` inside a table line is data**, never
 an annotation: cells legitimately hold `#4`, `#widget` and `#ff8800`, there is
-no escape (rule 3), and an inline channel inside the table would make those
-values unwritable while silently truncating the rows that contain them.
+only one escape and it is for the pipe (rule 3), and an inline channel inside
+the table would make those values unwritable while silently truncating the rows
+that contain them.
 
 **11. Declarations.** `name := fn(arg)`, with optional `WSP` anywhere `*WSP`
 appears in the grammar; `key := col` is the sole bare form, because `key` names
@@ -333,6 +366,23 @@ in `conformance/reserved/`.
     eu    := sum(total where region = "EU")
 
 Functions: `sum`, `count`, `min`, `max`, `avg`. An unknown function is refused.
+
+**`count` counts rows and never coerces.** It is poisoned by a `#REF!` actually
+present in the column, because that is an error value — but not by a value that
+merely fails to parse as a number, because `count` never uses it as an operand.
+Without this, `count` can never count a text column, which is surprising for a
+counting function and follows from nothing anyone intended.
+
+The other four coerce, so for them a value that is not a number is `#REF!` under
+§8, and one bad cell poisons the aggregate rather than being skipped.
+
+The distinction is not arbitrary. `sum`, `min`, `max` and `avg` are
+**type-committed**: applying one *declares* numeric intent, so poisoning detects
+an intent the data violates. `count` is **type-agnostic** — poisoning it detects
+nothing, it only refuses to count. And the format had already committed to this
+elsewhere without noticing: `count` counts a blank cell, and a blank is exactly a
+value that cannot serve as a numeric operand. Poisoning on `1,000` while
+counting a blank was incoherent.
 
 ## 8. Errors propagate; they never degrade
 

@@ -1,0 +1,9 @@
+| id | amt | doubled = amt * 2 |
+| --- | --- | --: |
+| r_01 | 10 |  |
+| r_02 | 1,000 |  |
+| r_03 | 30 |  |
+
+key := id
+n := count(doubled)
+s := sum(doubled)

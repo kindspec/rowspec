@@ -1,0 +1,7 @@
+| id | name | qty |
+| --- | --- | --: |
+| r_01 | KS TV | Action | 10 |
+| r_02 | plain | 5 |
+
+key := id
+g := sum(qty)
