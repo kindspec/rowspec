@@ -24,6 +24,7 @@ class Malformed(Exception):
 
 CONFLICT = ("<<<<<<<", "=======", ">>>>>>>", "|||||||")
 ROWREL = {"cumulative", "prior", "delta"}
+INF = float("inf")
 
 
 _UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
@@ -1032,11 +1033,17 @@ def evaluate(text):
                 continue
             if fn == "cumulative":
                 acc += v
-                r[nm] = acc
+                # §8: `inf` is not a `number` under §4.1.6, so storing one
+                # writes a file this implementation could not read back and
+                # `canon` would not round-trip its own output. §7 keeps
+                # `cumulative` a step-by-step binary64 addition, which is
+                # exactly why it can overflow where the exact `sum` does not.
+                r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             elif fn == "prior":
                 r[nm] = prev if prev is not None else ""
             elif fn == "delta":
-                r[nm] = (v - prev) if prev is not None else ""
+                d = (v - prev) if prev is not None else ""
+                r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
             prev = v
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}

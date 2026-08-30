@@ -1017,7 +1017,15 @@ primitives gets both wrong:
 they are order-independent already. **`cumulative` is deliberately different.**
 It is a running total, and each of its values is one binary64 addition of the
 next value to the previous running total, taken over the **declared order**
-(§6). Its dependence on order is a dependence on the order the file *declares*,
+(§6). **That addition is an operation for the purposes of §4.2 rule 2**, so a
+step whose result is an infinity is `#REF!(overflow)` and propagates from there,
+and so is a `delta` whose subtraction leaves range. Said explicitly because a
+row-relative step is strictly neither an operation of `expr` nor a table-level
+aggregate, and those are the only two things the overflow rules otherwise name —
+leaving the one arithmetic in the format that could store an `inf` without any
+clause forbidding it. `cumulative` can therefore overflow on a table whose
+`sum` is an ordinary number, which is not a contradiction: the two compute
+different things, and only one of them is defined on the multiset. Its dependence on order is a dependence on the order the file *declares*,
 not on the positions rows happen to occupy, so §6 is satisfied — that rule is
 about file position, and `order := by(c)` exists precisely so a sequence can be
 declared rather than inferred.
