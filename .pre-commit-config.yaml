@@ -15,6 +15,8 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
     hooks:
+      # No --fix. An autofix that rewrites source during a commit once deleted a
+      # safety check in this repo, taking the evidence that it was never wired up
+      # with it. The hook reports; the author fixes.
       - id: ruff
-        args: [--fix]
       - id: ruff-format
