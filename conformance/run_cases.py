@@ -29,7 +29,18 @@ def git_merge(files, order, fn="a.mdtbl"):
     try:
         if sh("git", "init", "-q", d).returncode:
             raise RuntimeError("git init failed: merge cases cannot be run")
-        for k, v in [("user.email", "t@e"), ("user.name", "t")]:
+        for k, v in [
+            ("user.email", "t@e"),
+            ("user.name", "t"),
+            # Git's background auto-maintenance writes `maintenance.lock` into
+            # the repo and outlives the command that triggered it, so it races
+            # the `rmtree` below and the case dies with a FileNotFoundError
+            # naming a file no fixture contains. Observed on a CI runner, never
+            # reproduced locally in 5 consecutive runs. Nothing here needs
+            # maintenance: these repos exist for one merge and are deleted.
+            ("gc.auto", "0"),
+            ("maintenance.auto", "false"),
+        ]:
             sh("git", "config", k, v, cwd=d)
         p = os.path.join(d, fn)
         open(p, "w").write(files["base"])
@@ -49,7 +60,9 @@ def git_merge(files, order, fn="a.mdtbl"):
                 return "conflict", open(p).read()
         return "clean", open(p).read()
     finally:
-        shutil.rmtree(d)
+        # Failing to delete a temp directory must never fail a conformance
+        # case: the merge already happened and its outcome is already read.
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def ev_at(ref, text, base):
