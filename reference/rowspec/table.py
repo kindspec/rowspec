@@ -11,6 +11,7 @@ merge order.
     order := none         row-relative ops are a PARSE ERROR (default)
 """
 
+import math
 import operator
 import re
 import sys
@@ -365,6 +366,44 @@ def _predicate(text, cols, computed=frozenset()):
     return preds
 
 
+def _exact(nums, divisor):
+    """§7: the correctly-rounded binary64 value of the EXACT sum, over `divisor`.
+
+    Defined on the multiset, so it cannot depend on the order rows sit in --
+    §6 promises shuffling every line changes nothing, and a left-to-right
+    accumulation of the same four cells gives 0 in one order and an overflow in
+    another. `avg` divides the EXACT sum, not the rounded one, so a mean that is
+    finite stays finite even where the sum is not: four cells of 1e308 average
+    to 1e308.
+
+    `math.fsum` is exact and order-independent for a finite result, so it is the
+    fast path. It refuses when a PARTIAL sum leaves range even if later terms
+    bring it back, which is the one case it cannot answer -- and where the exact
+    sum is what the rule asks for anyway.
+    """
+    if divisor == 1:
+        try:
+            return math.fsum(nums)
+        except OverflowError:
+            pass
+    # Exact, and O(n). Every finite binary64 is an integer times a power of two,
+    # so putting them over a common power-of-two denominator makes the sum one
+    # big-integer addition per value, with no rounding anywhere. Summing
+    # `Fraction`s instead is O(n^2) -- it renormalises by gcd on every addition,
+    # and measured 45s on 100k rows against 0.5s on 10k.
+    parts = [float(x).as_integer_ratio() for x in nums]
+    den = max(d for _, d in parts)
+    num = sum(n * (den // d) for n, d in parts)
+    try:
+        # int/int true division is correctly rounded in CPython, so this is the
+        # single rounding the rule asks for: of the exact sum, or of the exact
+        # MEAN when a divisor is given -- which is why `avg` stays finite where
+        # `sum` overflows.
+        return num / (den * divisor)
+    except OverflowError:
+        return float("inf")  # the caller maps a non-finite result to #REF!(overflow)
+
+
 def _agg(fn, vals, what):
     bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]
     if bad:
@@ -385,11 +424,11 @@ def _agg(fn, vals, what):
     except (ValueError, TypeError):
         return f"#REF!({what})"
     if fn == "sum":
-        got = sum(nums)
+        got = _exact(nums, 1)
     elif fn == "avg":
         if not nums:
             return f"#REF!({what} empty)"
-        got = sum(nums) / len(nums)
+        got = _exact(nums, len(nums))
     elif not nums:
         return f"#REF!({what} empty)"
     else:

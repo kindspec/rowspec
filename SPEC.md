@@ -979,6 +979,49 @@ What the two share is the part that matters: **neither invents a number.** `+`
 refuses to add a value that is not there; `sum` declines to count a row that has
 none. `0` is not substituted in either.
 
+**An aggregate's value is defined on the multiset of its operands, never on an
+accumulation order.** `sum(c)` is the correctly-rounded binary64 value of the
+**exact mathematical sum** of the values it aggregates. `avg(c)` is the
+correctly-rounded binary64 value of the **exact mathematical mean**. Neither is
+defined as a sequence of binary64 additions, and `avg` is **not** `sum` divided
+by `count`.
+
+**[CHOICE]**, and §6 forces it rather than merely suggesting it. §6 promises
+that "a row's position in the file is never an input to any computation" and
+that "shuffling every line leaves all values unchanged". A left-to-right
+accumulation of binary64 additions breaks that promise outright — measured, the
+four rows `1e308`, `1e308`, `-1e308`, `-1e308`, each a finite binary64 whose
+exact sum is `0`, produce **two different totals depending only on the order the
+rows happen to sit in**: `0` when the signs interleave, and an overflow when the
+two positives come first. A merge reorders rows. So without this rule a total
+can change because of a merge that lost no data and conflicted on nothing,
+which is §1's failure with the arithmetic as its mechanism rather than the
+addressing.
+
+The rule is stated on the exact sum rather than on any particular algorithm
+because an algorithm is what §4.2 rule 9 leaves free. Two consequences worth
+naming, because an implementation that reaches for its host's obvious
+primitives gets both wrong:
+
+- **A sequence whose partial sums leave binary64 range but whose exact sum does
+  not is a number, not an overflow.** The four rows above total `0`. An
+  implementation that accumulates pairwise, or that uses an exact summation
+  routine which reports *intermediate* overflow, reports `#REF!(overflow)` for a
+  value that exists.
+- **`avg` can be finite where `sum` is not.** Four cells of `1e308` have a mean
+  of `1e308`, which is an ordinary binary64 value, and a sum that is not. An
+  implementation that computes `avg` as `sum / count` reports an error for a
+  number it could have produced.
+
+`min` and `max` need no such rule: comparison of binary64 values is exact, so
+they are order-independent already. **`cumulative` is deliberately different.**
+It is a running total, and each of its values is one binary64 addition of the
+next value to the previous running total, taken over the **declared order**
+(§6). Its dependence on order is a dependence on the order the file *declares*,
+not on the positions rows happen to occupy, so §6 is satisfied — that rule is
+about file position, and `order := by(c)` exists precisely so a sequence can be
+declared rather than inferred.
+
 The distinction is not arbitrary. `sum`, `min`, `max` and `avg` are
 **type-committed**: applying one *declares* numeric intent, so poisoning detects
 an intent the data violates. `count` is **type-agnostic** — poisoning it detects
