@@ -119,7 +119,7 @@ escaped     = "\" "|"                        ; the sole escape
 ;   A backslash not followed by "|" is a literal backslash.
 declaration = *WSP ident *WSP ":=" *WSP rhs [ 1*WSP "#" *char ] eol
 rhs         = ident "(" *WSP arg *WSP ")" / ident
-arg         = ident [ 1*WSP "where" 1*WSP predicate ]        ; predicate: §7
+arg         = ident [ 1*WSP "where" 1*WSP predicate ]      ; predicate: §4.2
 ident       = 1*( LETTER / MARK / NUM / "_" )
 align-cell  = [ ":" ] 1*"-" [ ":" ]
 number      = [ "-" ] 1*DIGIT [ "." 1*DIGIT ]
@@ -286,11 +286,358 @@ characters are seven `<`, seven `=`, seven `>`, or **seven `|`**. All four,
 including the diff3 base marker `|||||||`, are refused wherever they appear
 (§9.1) — before any other classification, per the ordering rule above.
 
+### 4.2 Expression grammar — normative
+
+The language every computed column (§5) and every table-level aggregate (§7) is
+written in. §4.1 fixed `ident` without fixing the language `ident` is used in,
+and an independent implementer working from this document reported that the
+architecture transmitted and the surface syntax did not: after §4.1 landed, the
+behaviours they had to guess dropped from seven to one, and every defect that
+survived was in this language. Same conventions as §4.1, including **[CHOICE]**
+for a decision rather than a description of settled behaviour.
+
+`number`, `ident`, `char`, `DIGIT` and `WSP` are §4.1's. `DQUOTE` is U+0022.
+
+```abnf
+formula     = call / expr          ; a header cell's right-hand side, entire
+call        = rowrel-call / group-call
+rowrel-call = rowrel-fn "(" *WSP ident *WSP ")"
+group-call  = agg-fn "(" *WSP ident 1*WSP "where" 1*WSP predicate *WSP ")"
+rowrel-fn   = "cumulative" / "prior" / "delta"
+agg-fn      = "sum" / "count" / "min" / "max" / "avg"
+
+expr        = term *( *WSP ( "+" / "-" ) *WSP term )
+term        = factor *( *WSP ( "*" / "/" ) *WSP factor )
+factor      = [ "-" *WSP ] primary
+primary     = literal / ident / "(" *WSP expr *WSP ")"
+literal     = 1*DIGIT [ "." 1*DIGIT ]        ; unsigned -- rule 7
+
+predicate   = equality *( 1*WSP "and" 1*WSP equality )
+equality    = ident *WSP "=" *WSP pred-rhs
+pred-rhs    = string / at-ref                ; at-ref: header cells only, rule 5
+at-ref      = "@" ident
+string      = DQUOTE *( char - DQUOTE ) DQUOTE
+```
+
+A declaration's right-hand side is §4.1's `rhs`, whose `arg` carries the same
+`predicate` — with `at-ref` removed (rule 5). A declaration is never an `expr`:
+`g := sum(qty) * 2` is a malformed declaration (§9.12), not an expression over
+an aggregate, because `rhs` has no arithmetic alternative and none is added
+here.
+
+**Recognition is whole-cell.** A header cell's right-hand side matches one
+alternative of `formula` in its entirety or the cell is refused (§9.20); a
+declaration's right-hand side matches `rhs` in its entirety or the line is
+refused (§9.12). There is no
+partial parse and no fallback to text: §4's rule that a reader which cannot
+recognise a construct MUST NOT degrade a failed recognition into a different
+successful one applies here with particular force, because the successful
+reading available to a lazy implementation is "treat the cell as a plain column
+name", which turns a broken formula into a stored column of blanks.
+
+**1. Operators.** Binary `+`, `-`, `*`, `/`, and unary `-`. That is the whole
+set. Precedence, tightest first: parentheses; unary `-`; `*` and `/`; `+` and
+`-`. Binary operators are **left-associative**, so `8 - 4 - 2` is `2` and
+`8 / 4 / 2` is `1`. Unary `-` binds tighter than any binary operator, so
+`-a + b` is `(-a) + b`.
+
+**[CHOICE]** `**`, `^`, `%`, `//`, `&`, `|`, `<<`, `>>`, `~`, the comparison
+operators (`<`, `>`, `<=`, `>=`, `==`, `!=`, `<>`), and the words `or` and `not`
+are **refused** rather than given a meaning. `^` is the case that decides the
+policy: it is exponentiation in Excel, Sheets, Lotus and every spreadsheet the
+users of this format have met, and bitwise XOR in C, Python, Java and Go. Both
+readings are total functions over numbers, neither raises, and `3 ^ 2` is `9`
+under one and `1` under the other — the same file, two totals, no diagnostic.
+There is no reading of `^` that two implementations arrive at by accident, so
+the format has none. `%` (modulo in C, percent-of in a spreadsheet) and `//`
+(floor division in Python, a line comment in C and SQL) fail the identical test.
+`**` fails a weaker one: it has a single agreed meaning, and it is a capability
+this format does not have. Adding it is a proposal, not a clarification.
+
+The list above is not the rule. **The rule is that `expr` is exactly what the
+ABNF generates**, and an operator character appearing anywhere else refuses the
+formula. Stating the list separately would invite an implementation to reject
+the named operators and accept the twentieth one nobody wrote down.
+
+**2. Arithmetic is IEEE 754 binary64.** **[CHOICE]** Every operand is converted
+to a binary64 double and every operator is the corresponding IEEE 754 operation
+under round-to-nearest-even. This was left open once and should not have been:
+measured against a corpus of cached spreadsheet results, 501 cells were ones a
+40-digit decimal implementation reproduced exactly and binary64 did not — so a
+decimal reader and a binary64 reader were both conformant and disagreed in the
+last digit, which is a silent cross-implementation divergence in a format whose
+entire claim is that two readers agree.
+
+Binary64 rather than decimal, on the format's own terms: it is what every host
+language's default arithmetic already is, so a conforming implementation is the
+path of least resistance rather than a library dependency; and decimal is not
+one choice but three — precision, rounding mode, and when to round — each of
+which would need pinning here and none of which has an answer that is obviously
+right. Matching any particular spreadsheet's last digit is explicitly **not** a
+goal (§1); agreement between conforming implementations is.
+
+**Overflow is `#REF!(overflow)`.** An operation whose IEEE result is an infinity
+does not store one. The reasoning is rule 2's below, unchanged: `inf` is not a
+`number` under §4.1.6, so a file that stored one could not be re-read by the
+implementation that wrote it, and `canon` would not round-trip its own output.
+`NaN` cannot arise — the only operations that produce it need an infinity or a
+zero-divided-by-zero, and both are already error values.
+
+**Division.** `/` is real division: `7 / 2` is `3.5`, never `3`.
+**[CHOICE]** — the alternative, integer division when both operands happen to be
+integral, makes `qty / 2` depend on whether a cell is spelled `7` or `7.0`, and
+§4.1.6 refused a second spelling of a number precisely so that no value in the
+format can depend on that.
+
+**Division by zero evaluates to `#REF!(/0)`** (§8). It is an error value and
+propagates like any other: the row's cell is `#REF!(/0)` and every aggregate
+over that column is `#REF!` too. **[CHOICE]**, against two alternatives, and
+each is wrong for its own reason. It is *not a refusal*, because the divisor is
+data: a file valid today would become refused when one cell is edited to `0`,
+and a validity that turns on a cell's value belongs to §8's error model rather
+than to §9's list of things about a file's shape. It is *not `inf` or `nan`*,
+because §4.1.6 refuses those spellings as cell values and §9.10 refuses them in
+an order column — producing one would manufacture a value the format cannot
+store, so `canon` could not round-trip its own output. `/0` is not an `ident`
+(§4.1.9 excludes `/`), so `#REF!(/0)` can never be read as a broken reference to
+a column.
+
+**3. A call is the whole formula or nothing.** `cumulative(a) * 2`,
+`sum(a where b = "x") + 1` and `prior(a) - a` are refused. A `call` never
+appears as a `primary`, and `expr` has no call alternative — the two
+alternatives of `formula` do not compose. **[CHOICE]** Arithmetic over a
+row-relative or grouped result is a capability the format does not have, and
+refusing it is the only safe way not to have it. The alternative is measured,
+not hypothetical: handed `| x = cumulative(a) * 2 |` under a declared order, the
+reference implementation matches neither the row-relative shape nor an
+arithmetic one, leaves every `x` cell blank, and reports `0` for `sum(x)`. A
+plausible zero is the failure §1 exists to prevent. A refusal is not.
+
+The composition is available by writing the intermediate column down:
+`| run = cumulative(a) | twice = run * 2 |` is two well-formed formulas, and by
+rule 9 their order in the header does not matter.
+
+**4. The function names are not reserved words.** The eight names of `rowrel-fn`
+and `agg-fn` are recognised **only** immediately before `(`, with no `WSP`
+between the two. So `| x = sum |` is a reference to a column named `sum`, `sum`
+is a legal column name, and `sum (a where b = "x")` — with a space — is refused.
+The no-space rule is §4.1's: `rhs` is written `ident "("` with no `*WSP` between
+them, and a header-cell call spells its calls the same way. **[CHOICE]** —
+reserving eight ordinary nouns would refuse a table with a column named `count`
+or `min`, which is an ordinary table, and the format gains nothing for it: a
+name before `(` that is in neither list is an unknown function (§9.11), and a
+name not before `(` is a column reference, and no third case exists. A name
+before `(` that is a `rowrel-fn` with no declared order is §9.9.
+
+**5. `@` is legal in exactly one place: the right-hand side of an equality
+inside a `where` predicate in a header cell.** Not in arithmetic, not on a
+declaration line, and not in the left-hand side of an equality.
+
+*Not in arithmetic*, because in a header-cell formula a bare `ident` already
+means this row's value of that column. `@c` there would be a second spelling of
+`c`, and §4.1.6's objection to a second spelling applies unchanged. `@` exists
+only because inside a `where` clause a bare `c` means the **candidate** row's
+value, so without `@` there would be no way to say *this* row's.
+
+*Not on a declaration line*, because a table-level aggregate has no current row
+for `@` to refer to. Any reading an implementation invents — and the reference
+implementation invents one, comparing each candidate row against itself — makes
+the predicate a filter the author did not write. `g := sum(amt where r = @s)` is
+a malformed declaration (§9.12).
+
+**The binding rule, which is the most dangerous thing in this section.** In
+`region_total = sum(amount where region = @region)`, the `@` references are
+bound **once, to the row whose cell is being computed**, and held fixed while
+the aggregated column is scanned over **every** row of the table. The wrong
+alternative binds `@region` to the candidate row, which makes every equality
+`region = region`, trivially true, and turns every group aggregate into a grand
+total. That is a plausible number in every cell and an error in none — a reader
+sees `1000` where the truth is `40` and has nothing to notice.
+
+**Both `ident`s of an equality — the left-hand one and the one after `@` — must
+name a stored column**, never a computed one. **[CHOICE]** Comparison is on the
+cell's text (rule 6) and a computed column has no cell text: §5 requires its
+data cells empty. The only available reading would compare against the
+*rendered* form of a computed number, and §2 deliberately leaves number
+formatting to the implementation — so one reader would write `20`, another
+`20.00`, and the two would match different rows with no diagnostic on either.
+The outcome is **refusal** (§9.22), not a value. A predicate naming a computed
+column matches nothing, and `sum` over an empty match set is `0` — a plausible
+number, produced by a predicate that could never fire. That is the same shape as
+the binding error above, and §8's "never evaluates to zero" does not catch it:
+the empty match set is the symptom, and an empty `sum` is legitimately `0`.
+
+The aggregated column itself carries no such restriction:
+`sum(total where region = @region)` over a computed `total` is well-formed and
+rule 9 gives it a value.
+
+**6. String literals.** `string` is a double-quoted run of characters that
+**may not contain `"`**, and there is no escape inside it. The consequence,
+stated rather than discovered: a value containing `"` cannot be matched by a
+predicate. **[CHOICE]** — inventing an escape here would be a second escape in
+a format that has exactly one (§4.1.3), and §4.1.3's reason carries over
+verbatim: an unrecognised escape makes a string whose extent differs between
+readers. `'single quotes'` are refused for the same reason `+1` is refused as a
+number: a second spelling of a value that already has one.
+
+**§4.1.3's `\|` does not reach inside a string literal, and cannot.** Unescaping
+happens when the *table line* is split into cells, before any formula is looked
+at, so a header cell's formula is already unescaped by the time this grammar
+applies. The consequence is that one logical string has two spellings decided by
+which line the formula sits on:
+
+    | t = sum(amt where region = "KS TV \| Action") |    header cell: escaped
+    g := sum(amt where region = "KS TV | Action")        declaration: raw
+
+Both appear in the fixture tree and both must match a data cell written
+`KS TV \| Action`. Getting it backwards is silent: the predicate matches zero
+rows and reports `0`.
+
+**Equality compares text, never numbers.** The comparison is between the
+candidate row's cell value — trimmed and unescaped per §4.1.3 and §4.1.4, NFC
+per §3 — and the literal's characters, or, for an `at-ref`, the current row's
+cell value under the same treatment. So `where qty = "3"` matches a cell holding
+`3` and not one holding `3.0`. **[CHOICE]** — numeric comparison would make
+those two cells match, and §4.1.6 already argued the general case: a second
+spelling that compares equal as a number and unequal as text splits `where`
+predicates from key identity. A predicate is grouping, and grouping is identity.
+
+**7. A bare numeric token: the position decides, and the position is fixed by
+the grammar.** `123` is a well-formed `ident` (§4.1.9 admits `Nd`), so a column
+may be named `123`, and `123` is also a well-formed `literal`. Two positions
+exist and each admits exactly one of them:
+
+- **Name positions** — the `ident` argument of `rowrel-call` and `group-call`,
+  §4.1's `arg`, either `ident` of an `equality`, and the argument of `key` and
+  `order` — admit `ident` and have **no literal alternative**. `sum(123)` is the
+  column named `123`. So is `sum(1)`.
+- **Operand position** — `primary` — tries `literal` first, so a token matching
+  `literal` is a number. `| c = 123 * 2 |` is `246`, and `| c = 123 |` is the
+  number `123`, not the column.
+
+**Tokenisation is maximal munch over `ident`, and it happens BEFORE anything is
+classified as a literal.** `ident` is a strict *superset* of `literal`, so the
+two are not alternatives a tokeniser may try in order: `1000_2999` is one
+`ident` token, never the literal `1000` followed by `_2999`. Only a token that
+is *entirely* `1*DIGIT [ "." 1*DIGIT ]` is ambiguous, and only that one is
+resolved by position above. This is not hypothetical — measured against 8,171
+real spreadsheet headers, 43 carry a name of this shape (`10_15` for a time of
+day, `1_0` for a version, `31_03_2021` for a date, `1000_2999` for an amount
+band), and a host language that reads `1000_2999` as a digit-separated number
+returned `10002999` from a formula and the column's real total from `sum` — one
+file, one name, two answers.
+
+**Identifiers are compared under NFC (§3), never NFKC.** A host language that
+normalises identifiers more aggressively than §3 does will fold two names §3
+keeps distinct, and the duplicate-name refusal (§9) correctly does not fire
+because under NFC they *are* distinct. `Nº` and `No` are the measured pair, and
+`Nº` is a real corpus header: the fold made the formula read one column and the
+aggregate over the same name read the other, with no diagnostic on either. An
+implementation MUST NOT delegate identifier equality to a host facility whose
+normalisation it has not checked against §3.
+
+The cost is stated rather than hidden: **a column whose name matches `literal`
+is unreachable from arithmetic.** It remains reachable from every name position,
+which is where a machine-generated numeric column name would be used.
+
+**[CHOICE]**, and the alternative is the one every implementer reaches for
+first: *resolve a bare numeric token to the column if such a column exists, and
+to a literal otherwise*. That is refused because it makes the grammar a function
+of the table it is parsing. Under it, adding a column named `2` to a header
+silently changes `qty * 2` from doubling to a reference, in a diff that touches
+only the header line and never the formula; and the same formula in two files
+means two different things. A grammar that cannot be read without the header is
+not a grammar.
+
+**`sum(1)` is `#REF!(1)`** — a broken reference to a column named `1`, under
+§8's ordinary rule for a name that does not exist. It is almost certainly a typo
+and the format still does not refuse it, for a reason that is worth stating
+because it looks like an oversight: `sum(nope)` is `#REF!(nope)` and `1` is a
+name like any other, so refusing this one would mean refusing an aggregate over
+any absent column — which contradicts the fixtures that pin `#REF!` as the
+answer, and would make a formula's *acceptance* depend on the header rather than
+on its own bytes. **[CHOICE]** The loudness that is available instead is in the
+error value: `#REF!(1)` names the thing that was not found, and a reader who
+meant the number sees the digit they typed inside a broken reference.
+
+**A `factor` carries at most one unary minus.** `factor = [ "-" *WSP ] primary`,
+the bracket is zero-or-one, and `-a` is not a `primary` — so `--a` and `- -a`
+are not generated by `formula` and are refused (§9.20). Double negation has an
+obvious arithmetic reading, which is exactly why it is worth refusing rather
+than accepting silently: it is far more often a typo, a stray character from a
+merge, or a `-` that lost its operand than it is an author asking for the
+identity function.
+
+**8. Whitespace.** `WSP` — ASCII space and horizontal tab, §4.1's definition —
+is permitted between any two tokens of an `expr` and is never required there;
+`qty*unit`, `qty * unit` and `qty  *  unit` are one formula. A formula cannot
+contain a line break, because it lives inside a cell or a declaration line and
+neither survives one (§4.1.1).
+
+Three places where whitespace is **not** optional, all for the same reason —
+the token beside it is `ident`-shaped, so without a separator it would lex into
+the neighbouring name:
+
+- `1*WSP` on both sides of `where`, or `sum(awhereb = "x")` names a column
+  `awhereb`;
+- `1*WSP` on both sides of `and`, so `b = "x"and c = "y"` is refused;
+- **no** `WSP` between a function name and its `(` (rule 4).
+
+`#` is not whitespace and is not a comment inside a formula. §4.1.10 is
+categorical that `#` inside a table line is data, so `| x = a * 2 #note |` has a
+formula of `a * 2 #note`, which `formula` does not generate, and the header cell
+is refused under §9.20. An implementation that borrows a host language's parser
+will silently read `#note` as a comment and accept the file; that is the
+mechanism, and it is why this sentence exists.
+
+**9. Evaluation order, forward references, and cycles.** A formula may name any
+column, stored or computed, wherever that column stands in the header. **The
+order of columns in the header is not an input to any value**, exactly as §6
+says a row's position in the file is not.
+
+The wrong alternative is left-to-right evaluation, and it is wrong in a way that
+is easy to miss because it produces answers. Under it,
+`| net = qty * unit | gross = net * 1.2 |` is a pair of numbers while the same
+two columns written in the other order gives `gross` as `#REF!(net)` — so the
+header's column order becomes a coordinate, and moving a column, which §10's
+canonical form otherwise treats as a pure rearrangement, changes a total.
+
+Evaluation is therefore by **dependency**: a formula's operands are the values
+those columns themselves evaluate to. Where the dependency graph is acyclic
+every column has exactly one value, and every reader that respects dependencies
+computes it, whatever order it visits the header in. This is what makes an
+implementation's evaluation strategy — a fixpoint, a topological sort, a lazy
+memo — a free choice rather than an interoperability hazard.
+
+**A cycle evaluates to `#REF!(cycle)`**, in every column on the cycle and in
+every column whose formula depends, directly or transitively, on one.
+`| x = y | y = x |` and `| b = b + a |` are **accepted files**, not refusals —
+the fixture tree requires it, and the reason it should is that a cycle is a
+property of the whole header rather than of any one cell, so refusing would mean
+one author's new column can invalidate another author's line, in a merge where
+both lines are individually fine. §8's evaluator stays total and terminating
+because the answer is a value.
+
+**[CHOICE]** `#REF!(cycle)` is spelled exactly as a broken reference to a column
+named `cycle` would be. The collision is accepted rather than dodged with a
+spelling outside `ident`, as `#REF!(/0)` uses: both readings are error values,
+both poison every aggregate over the column identically under §8, and no
+computed value anywhere branches on which of the two it is. The collision costs
+a diagnostic and never a number, and closing it would change the output of a
+conforming implementation for no gain.
+
 ## 5. Columns
 
 A header cell is a NAME, or a name and a formula separated by `=`:
 
     | id | item | qty | unit | total = qty * unit |
+
+**The split is at the cell's first `=`.** `=` is outside `ident` (§4.1.9), so
+the first `=` can only be the separator, and every later one belongs to a
+predicate: in `| t = sum(amt where region = "EU") |` the name is `t` and the
+formula is everything after the first `=`, trimmed. The formula's grammar is
+§4.2; a header cell containing `=` whose right-hand side that grammar does not
+generate is refused (§9.20).
 
 Column names are a namespace, and it is the only namespace in the format that
 is **co-located** — all of it on one line — so a collision between two authors
@@ -348,8 +695,12 @@ the derived order and never over file position:
     | region_total = sum(amount where region = @region) |
     | rep_share    = sum(amount where region = @region and rep = @rep) |
 
-The predicate is a conjunction of equalities against a literal or an `@`
-reference. This is the nominal form of `SUMIF`/`SUMIFS`.
+The predicate is a conjunction of equalities against a string literal or an
+`@` reference. This is the nominal form of `SUMIF`/`SUMIFS`. **§4.2 is the
+grammar of everything in this section** — the operator set, where `@` is legal,
+what the `@` references are bound to while the aggregated column is scanned,
+what a string literal may contain, and what a bare numeric token means in each
+position. Read it before implementing this one.
 
 **`lookup` is reserved and not defined in this edition.** A cross-artifact
 reference is a real requirement — roughly a fifth of real spreadsheet lookups
@@ -389,6 +740,13 @@ counting a blank was incoherent.
 A reference to a name that does not exist evaluates to `#REF!(name)`. An
 aggregate over any column containing a `#REF!` is itself `#REF!` — **it must not
 sum the values it can read**.
+
+**There are exactly three `#REF!` shapes**, and an implementation emits no
+fourth. `#REF!(name)` carries the *originating* name — the column that could not
+be resolved or whose value would not coerce, not the column the error surfaces
+in. `#REF!(/0)` is division by zero (§4.2 rule 2). `#REF!(cycle)` is a cycle
+among computed columns (§4.2 rule 9). All three are values, all three propagate
+identically, and none of them is ever a number.
 
 A broken reference never evaluates to zero, empty, or a stale value. A blank
 cell is not zero. A value that will not coerce to a number is `#REF!`, not a
@@ -444,10 +802,27 @@ An implementation MUST refuse:
 19. a line that is none of annotation, table line, declaration, or blank —
     including a table line after the table's contiguous run has ended (§4.1.2)
 20. a malformed **column formula** — a header cell containing `=` whose
-    right-hand side is not a well-formed expression. §9.12 does not reach it:
-    that entry is scoped to a line containing `:=`, and a header cell is not one
+    right-hand side is not generated by §4.2's `formula`. §9.12 does not reach
+    it: that entry is scoped to a line containing `:=`, and a header cell is not
+    one. This covers an unlisted operator, a call composed into arithmetic, an
+    `@` outside a predicate, a string literal outside a predicate, and a `#`
+    inside a formula (§4.2 rules 1, 3, 5, 6, 8)
 21. a table whose second line is not a valid alignment row, a table shorter than
     two lines included (§4, §4.1.5)
+22. an equality in a `where` predicate whose left-hand `ident`, or whose `ident`
+    after `@`, names a **computed** column (§4.2 rule 5). §9.20 cannot reach
+    this one: that entry is scoped to a right-hand side the grammar does not
+    generate, and this constraint is semantic — no grammar can tell a stored
+    column from a computed one
+23. an `expr` nesting parentheses more than **64** deep (§4.2 rule 1). The
+    number is here, rather than left to the implementation, because `primary`
+    is recursive with no bound: a reader whose limit is its host's call stack
+    accepts at 230 and crashes at 250, and two such readers refuse different
+    files for reasons neither documents. 64 is Excel's own nesting limit, so
+    the number is one the lineage already carries; no formula written by a
+    person approaches it, and a generator or a hostile commit that exceeds it
+    gets a refusal rather than a traceback — §8's totality is a security
+    property as well as a correctness one
 
 **The numbering is not a precedence order.** When one file violates several
 refusals, *which* is reported is deliberately unspecified, and the three

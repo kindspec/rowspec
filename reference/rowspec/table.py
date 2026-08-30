@@ -11,7 +11,6 @@ merge order.
     order := none         row-relative ops are a PARSE ERROR (default)
 """
 
-import ast
 import operator
 import re
 import sys
@@ -23,12 +22,6 @@ class Malformed(Exception):
 
 
 CONFLICT = ("<<<<<<<", "=======", ">>>>>>>", "|||||||")
-OPS = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.truediv,
-}
 ROWREL = {"cumulative", "prior", "delta"}
 
 
@@ -140,6 +133,11 @@ def parse(text):
         if mw and " where " in mw.group(3):
             nm_, fn_, inner = mw.groups()
             col_, ptext = inner.split(" where ", 1)
+            if "@" in ptext:
+                raise Malformed(
+                    f"line {n}: `@` names THIS ROW's value, and a declaration has no "
+                    f"current row (SPEC §4.2 rule 5); {ptext.strip()!r} is malformed"
+                )
             _check_ident(nm_, "aggregate name")
             if nm_ in decls:
                 raise Malformed(f"line {n}: duplicate aggregate name {nm_!r}")
@@ -244,6 +242,38 @@ def parse(text):
 _NUMBER = re.compile(r"-?[0-9]+(\.[0-9]+)?\Z")
 
 
+def _why_not_a_number(v):
+    """Say WHY a cell is not a number, not merely which column it is in.
+
+    A pasted "1,299.00" and a value holding U+00A0 both look like numbers on
+    screen; naming only the column leaves the reader staring at one.
+    """
+    t = str(v)
+    for ch, why in (
+        ("\u00a0", "non-breaking space"),
+        ("\u202f", "narrow no-break space"),
+        ("\u2007", "figure space"),
+        (",", "thousands separator"),
+        ("_", "underscore separator"),
+    ):
+        if ch in t:
+            return f"{t!r} contains a {why}"
+    if t[:1] == "(" and t[-1:] == ")":
+        return f"{t!r} is a parenthesised negative; write -{t[1:-1]}"
+    if any("0" <= c <= "9" for c in t) and not all(c.isascii() for c in t):
+        return f"{t!r} uses non-ASCII digits"
+    low = t.lower()
+    if low in ("inf", "-inf", "nan", "infinity"):
+        return f"{t!r} is not finite"
+    if "e" in low and any(c.isdigit() for c in t):
+        return f"{t!r} uses exponent notation, which this format does not accept"
+    if t.startswith("+"):
+        return f"{t!r} has a leading +"
+    if t.startswith(".") or t.endswith("."):
+        return f"{t!r} has a one-sided decimal point"
+    return f"{t!r} is not a number"
+
+
 def num(v):
     """SPEC §4.1: number = [-] 1*DIGIT [ "." 1*DIGIT ], DIGIT = U+0030..U+0039.
 
@@ -303,7 +333,7 @@ _GROUP = re.compile(r"(\w+)\(\s*(\w+)\s+where\s+(.+?)\s*\)\s*$")
 _PRED = re.compile(r'(\w+)\s*=\s*(?:@(\w+)|"([^"]*)")')
 
 
-def _predicate(text, cols):
+def _predicate(text, cols, computed=frozenset()):
     """A conjunction of equality predicates. `@c` is THIS ROW's value of c."""
     preds = []
     for part in [x.strip() for x in re.split(r"\s+and\s+", text)]:
@@ -314,6 +344,12 @@ def _predicate(text, cols):
         for c in (col, at):
             if c and c not in cols:
                 raise Malformed(f"predicate names unknown column {c!r}")
+            if c and c in computed:
+                raise Malformed(
+                    f"predicate names computed column {c!r} (§9.22): comparison is on "
+                    f"cell text and a computed column has none, so the predicate would "
+                    f"match nothing and `sum` would report a plausible 0"
+                )
         preds.append((col, at, lit))
     return preds
 
@@ -347,30 +383,237 @@ def _agg(fn, vals, what):
 
 
 def _ast(expr, where):
-    try:
-        return ast.parse(expr, mode="eval")
-    except SyntaxError as se:
-        raise Malformed(f"column {where!r}: cannot parse {expr!r}: {se.msg}") from None
+    if "#" in expr:
+        raise Malformed(
+            f"column {where!r}: '#' is not a comment inside a formula (§4.1.10); "
+            f"a whole-line annotation goes outside the table"
+        )
+    return _parse_expr(expr, where)
+
+
+_TOK = re.compile(
+    r"\s*(?:(?P<word>[0-9]+\.[0-9]+|[^\W]+)"
+    r"|(?P<op>[-+*/()])"
+    r"|(?P<bad>.))",
+    re.UNICODE,
+)
+_LITERAL = re.compile(r"[0-9]+(\.[0-9]+)?\Z")
+
+
+class Num:
+    __slots__ = ("v",)
+
+    def __init__(self, v):
+        self.v = v
+
+
+class Name:
+    __slots__ = ("id",)
+
+    def __init__(self, i):
+        self.id = i
+
+
+class Bin:
+    __slots__ = ("op", "l", "r")
+
+    def __init__(self, op, left, right):
+        self.op, self.l, self.r = op, left, right
+
+
+class Neg:
+    __slots__ = ("x",)
+
+    def __init__(self, x):
+        self.x = x
+
+
+def _lex(expr, where):
+    out, i = [], 0
+    while i < len(expr):
+        m = _TOK.match(expr, i)
+        if not m or m.end() == i:
+            break
+        i = m.end()
+        if m.group("bad") is not None:
+            ch = m.group("bad")
+            if ch in "^%&|":
+                raise Malformed(
+                    f"column {where!r}: {ch!r} is not an operator in this format; §4.2 "
+                    f"admits + - * / and unary minus. `^` alone means exponent in one "
+                    f"spreadsheet lineage and exclusive-or in another, so one file would "
+                    f"total two ways"
+                )
+            raise Malformed(
+                f"column {where!r}: {ch!r} is not part of an expression; §4.2 admits "
+                f"column names, unsigned decimal literals, + - * / and parentheses"
+            )
+        w = m.group("word")
+        if w is not None:
+            out.append(("num" if _LITERAL.match(w) else "name", w))
+        else:
+            out.append(("op", m.group("op")))
+    return out
+
+
+MAX_NESTING = 64
+
+
+def _parse_expr(expr, where):
+    toks = _lex(expr, where)
+    pos = 0
+    depth = 0
+
+    def peek():
+        return toks[pos] if pos < len(toks) else (None, None)
+
+    def eat(v):
+        nonlocal pos
+        pos += 1
+        return v
+
+    def primary():
+        nonlocal pos
+        k, v = peek()
+        if k == "op" and v == "(":
+            nonlocal depth
+            depth += 1
+            if depth > MAX_NESTING:
+                raise Malformed(
+                    f"column {where!r}: parentheses nested deeper than {MAX_NESTING} (§9.23)"
+                )
+            eat(v)
+            e = sum_()
+            depth -= 1
+            if peek() != ("op", ")"):
+                raise Malformed(f"column {where!r}: unclosed parenthesis")
+            eat(")")
+            return e
+        if k == "num":
+            eat(v)
+            return Num(float(v))
+        if k == "name":
+            eat(v)
+            return Name(unicodedata.normalize("NFC", v))
+        if k == "op" and v in "*/":
+            # `**` and `//` reach here as a doubled token. Same reasoning as `^`:
+            # both spellings mean different things in different lineages.
+            raise Malformed(
+                f"column {where!r}: {v * 2!r} is not an operator in this format; "
+                f"§4.2 admits + - * / and unary minus"
+            )
+        raise Malformed(f"column {where!r}: expected a value in {expr!r}")
+
+    def factor():
+        nonlocal pos
+        if peek() == ("op", "-"):
+            eat("-")
+            # `factor = [ "-" *WSP ] primary` -- the bracket is zero-or-ONE, and
+            # `-a` is not a `primary`, so `--a` is not generated by the grammar.
+            return Neg(primary())
+        if peek() == ("op", "+"):
+            raise Malformed(f"column {where!r}: unary + is not in §4.2; write the value without it")
+        return primary()
+
+    def term():
+        nonlocal pos
+        node = factor()
+        while peek()[0] == "op" and peek()[1] in "*/":
+            op = peek()[1]
+            eat(op)
+            node = Bin(op, node, factor())
+        return node
+
+    def sum_():
+        nonlocal pos
+        node = term()
+        while peek()[0] == "op" and peek()[1] in "+-":
+            op = peek()[1]
+            eat(op)
+            node = Bin(op, node, term())
+        return node
+
+    tree = sum_()
+    if pos != len(toks):
+        raise Malformed(f"column {where!r}: trailing input in {expr!r}")
+    return tree
 
 
 def ev(node, env):
-    if isinstance(node, ast.Expression):
-        return ev(node.body, env)
-    if isinstance(node, ast.BinOp):
-        return OPS[type(node.op)](ev(node.left, env), ev(node.right, env))
-    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-        return -ev(node.operand, env)
-    if isinstance(node, ast.Constant):
-        return node.value
-    if isinstance(node, ast.Name):
+    if isinstance(node, Num):
+        return node.v
+    if isinstance(node, Neg):
+        return -ev(node.x, env)
+    if isinstance(node, Name):
         v = env.get(node.id, "")
         if v == "" or v is None:
             raise KeyError(node.id)
+        if isinstance(v, str) and v.startswith("#REF!(") and v.endswith(")"):
+            # SPEC §8: the name is the ORIGINATING one, not the column the error
+            # surfaces in. Relabelling at each hop sends a reader to inspect a
+            # well-formed formula and they never reach the bad cell.
+            raise KeyError(v[6:-1])
         try:
             return num(v)
         except (ValueError, TypeError):
             raise KeyError(node.id) from None
-    raise Malformed(f"unsupported expression: {type(node).__name__}")
+    left, right = ev(node.l, env), ev(node.r, env)
+    if node.op == "/" and right == 0:
+        raise KeyError("/0")
+    got = OPS[node.op](left, right)
+    if got in (float("inf"), float("-inf")):
+        # §4.2 rule 2: `inf` is not a `number` under §4.1.6, so storing one
+        # would produce a file this implementation could not re-read.
+        raise KeyError("overflow")
+    return got
+
+
+OPS = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+}
+
+
+def _eval_plain(seq, plain, later=frozenset()):
+    """Evaluate ordinary column formulas to a fixpoint, per row.
+
+    Called twice -- before and after the row-relative and group passes -- so a
+    column may depend on `cumulative` or on a group aggregate, and those may
+    depend on ordinary computed columns. Header order is never an input.
+    """
+    for r in seq:
+        pending = dict(plain)
+        deferred = set()
+        for _ in range(len(plain) + 1):
+            if not pending:
+                break
+            progressed = False
+            for nm, expr in list(pending.items()):
+                try:
+                    r[nm] = ev(_ast(expr, nm), r)
+                    del pending[nm]
+                    progressed = True
+                except KeyError as e:
+                    if e.args[0] in pending:
+                        continue  # depends on a pending column
+                    if e.args[0] in later or e.args[0] in deferred:
+                        # A row-relative or group column computes in a later
+                        # pass. Writing #REF! now would poison it before that
+                        # pass runs, and a real cycle would then surface as a
+                        # broken reference instead of #REF!(cycle).
+                        deferred.add(nm)
+                        del pending[nm]
+                        progressed = True
+                        continue
+                    r[nm] = f"#REF!({e.args[0]})"
+                    del pending[nm]
+                    progressed = True
+            if not progressed:
+                break
+        for nm in pending:
+            r[nm] = "#REF!(cycle)"
 
 
 def evaluate(text):
@@ -406,55 +649,13 @@ def evaluate(text):
         seq = sorted(rows, key=lambda r: (typed(r), str(r.get(key, ""))))
     else:
         seq = rows
-    # per-row GROUP aggregates: sum(amount where region = @region)
-    for nm, expr in list(formulas.items()):
-        m = _GROUP.fullmatch(expr.strip())
-        if not m:
-            continue
-        fn, col, ptext = m.groups()
-        if fn not in ("sum", "count", "min", "max", "avg"):
-            raise Malformed(f"unknown aggregate {fn!r} in column {nm!r}")
-        if col not in cols:
-            raise Malformed(f"column {nm!r} aggregates unknown column {col!r}")
-        preds = _predicate(ptext, cols)
-        for r in seq:
-
-            def hit(o, r=r, preds=preds):
-                return all(
-                    str(o.get(pc, "")) == (str(r.get(at, "")) if at else lit)
-                    for pc, at, lit in preds
-                )
-
-            r[nm] = _agg(fn, [o.get(col) for o in seq if hit(o)], col)
-
-    # plain column formulas
     plain = {
         n: e
         for n, e in formulas.items()
-        if not any(re.search(rf"\b{f}\s*\(", e) for f in ROWREL) and not _GROUP.fullmatch(e.strip())
+        if not any(re.fullmatch(rf"\s*{f}\s*\(\s*\w+\s*\)\s*", e) for f in ROWREL)
+        and not _GROUP.fullmatch(e.strip())
     }
-    for r in seq:
-        pending = dict(plain)
-        for _ in range(len(plain) + 1):  # fixpoint: order must not matter
-            if not pending:
-                break
-            progressed = False
-            for nm, expr in list(pending.items()):
-                try:
-                    r[nm] = ev(_ast(expr, nm), r)
-                    del pending[nm]
-                    progressed = True
-                except KeyError as e:
-                    if e.args[0] in pending:
-                        continue  # depends on a pending column
-                    r[nm] = f"#REF!({e.args[0]})"
-                    del pending[nm]
-                    progressed = True
-            if not progressed:
-                break
-        for nm in pending:
-            r[nm] = "#REF!(cycle)"
-    # row-relative, computed over the DERIVED order
+    _eval_plain(seq, plain, later=frozenset(formulas) - frozenset(plain))
     for nm, expr in formulas.items():
         m = re.fullmatch(r"\s*(\w+)\s*\(\s*(\w+)\s*\)\s*", expr)
         if not (m and m.group(1) in ROWREL):
@@ -475,6 +676,43 @@ def evaluate(text):
             elif fn == "delta":
                 r[nm] = (v - prev) if prev is not None else ""
             prev = v
+
+    groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
+    # One fixpoint over BOTH kinds. A group aggregate over a computed column
+    # must see that column's VALUES, not its (always empty) stored cells.
+    for _round in range(len(formulas) + 2):
+        progressed = False
+        for nm, expr in list(groups.items()):
+            m = _GROUP.fullmatch(expr.strip())
+            fn, col, ptext = m.groups()
+            if fn not in ("sum", "count", "min", "max", "avg"):
+                raise Malformed(f"unknown aggregate {fn!r} in column {nm!r}")
+            if col not in cols:
+                raise Malformed(f"column {nm!r} aggregates unknown column {col!r}")
+            if col in formulas and any(r.get(col) in (None, "") for r in seq):
+                continue  # its source is not computed yet
+            preds = _predicate(ptext, cols, formulas)
+            for r in seq:
+
+                def hit(o, r=r, preds=preds):
+                    return all(
+                        str(o.get(pc, "")) == (str(r.get(at, "")) if at else lit)
+                        for pc, at, lit in preds
+                    )
+
+                r[nm] = _agg(fn, [o.get(col) for o in seq if hit(o)], col)
+            del groups[nm]
+            progressed = True
+        if groups and not progressed:
+            for nm in groups:
+                for r in seq:
+                    r[nm] = "#REF!(cycle)"
+            break
+        if not groups:
+            break
+
+    _eval_plain(seq, plain)
+    # row-relative, computed over the DERIVED order
     out = {}
     for nm, (fn, col, pred) in decls.items():
         if col not in cols:
@@ -482,7 +720,7 @@ def evaluate(text):
             continue
         rows_ = seq
         if pred:
-            preds_ = _predicate(pred, cols)
+            preds_ = _predicate(pred, cols, formulas)
             rows_ = [
                 o
                 for o in seq

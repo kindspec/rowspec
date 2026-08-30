@@ -190,6 +190,66 @@ about pipes: **an elegance that has never met real data is a hypothesis, and thi
 one was wrong.** Four other thresholds passed in the same run, three of them
 comfortably, which is why the failure is credible rather than an artifact.
 
+## The reference implementation borrowed the host language's grammar
+
+§4.2 was written as a normative ABNF and then implemented by calling
+`ast.parse`. The grammar in the document and the grammar that ran were two
+different grammars, and the difference was invisible until 55,681 real formula
+cells were compared against the values the original spreadsheets had cached.
+
+Three defects, one cause:
+
+- **`Nº` and `No` are one column to Python and two to §3.** `ast.parse`
+  normalises identifiers NFKC; §3 mandates NFC. In `| Nº | No | out = Nº |`, the
+  computed column read `No` and `sum(Nº)` read `Nº` — **one file, one name, two
+  answers from two subsystems of the same implementation**, and the
+  duplicate-name refusal correctly stayed silent because under NFC the names
+  really are distinct. `Nº` is a real header in the corpus.
+- **`1000_2999` is a column name that Python reads as the number 10002999**
+  (PEP 515 digit separators). §4.2's `literal` is `1*DIGIT [ "." 1*DIGIT ]`, so
+  the format had always called this an `ident`. 43 of 8,171 real sheets carry a
+  header of this shape.
+- **`1e3` and `0x10` are legal `ident`s that Python reads as numbers**, so
+  `a*1e3` silently meant `a*1000` while `1e3` in a *cell* was refused as not a
+  `number`.
+
+The fix was to write the tokeniser and recursive-descent parser by hand, and to
+delete the AST evaluator entirely. Two rules came out of it that the document
+had never stated because nothing had forced the question: tokenisation is
+**maximal munch over `ident` before anything is classified as a literal**
+(`ident` is a strict superset of `literal`, so they are not ordered
+alternatives), and identifier equality **must not be delegated to a host
+facility whose normalisation has not been checked against §3**.
+
+The independent implementation got all three right, having never had a host
+grammar to borrow. That is the whole argument for keeping it.
+
+## A check that cannot fail, reporting a pass — the eighth instance
+
+The conformance runner took its fixture root as the relative path `cases`. Run
+from the repository root instead of from `conformance/`, `os.walk` yielded
+nothing and the runner printed **`0 failure(s) across the fixture tree`** over
+226 cases it had never opened — four of which were failing at the time.
+
+This is the same shape as the seven before it: `#REF!` coerced to zero, the
+mutation gate going stale on a reformat, the gate counting kills against a red
+baseline, `canon = identity` scoring 129/131, git normalising a CRLF fixture
+before any implementation saw it, `check` reporting green on a broken total, and
+a group aggregate over a computed column returning 0. **An empty fixture tree is
+now a hard failure**, because a suite that has measured nothing must never be
+able to say so in the words it uses for success.
+
+## The arithmetic model was left open, and two conforming readers disagreed
+
+§2 filed "number formatting" under *deliberately left open*, which is right for
+display and was quietly wrong for the evaluator. Of the cells that agreed with
+the cached spreadsheet values only to 15 significant digits, **501 were cells a
+40-digit decimal implementation reproduced exactly and binary64 did not** — so a
+decimal reader and a binary64 reader were both conformant and disagreed in the
+last digit, in a format whose entire claim is that two readers agree. §4.2 now
+pins IEEE 754 binary64, and overflow is `#REF!(overflow)` rather than an `inf`
+that §4.1.6 would refuse to read back.
+
 ## What this format deliberately does not do
 
 Domain validation. Whether a country code is in ISO 3166, whether a URL
