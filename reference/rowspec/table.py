@@ -105,6 +105,14 @@ def parse(text):
         stripped = re.sub(r"\s+#.*$", "", line)
         if ":=" not in stripped:
             if stripped.strip() and line not in tbl:
+                if stripped.strip().startswith("|"):
+                    raise Malformed(
+                        f"line {n}: this is a valid table line, but the table already "
+                        f"ended above it. A table is a CONTIGUOUS run of lines beginning "
+                        f"with '|' (§4.1.2), and an annotation or blank line between two "
+                        f"rows ends it. Move the annotation above the table or below the "
+                        f"declarations."
+                    )
                 raise Malformed(
                     f"line {n}: not a table line, an annotation, or a declaration: "
                     f"{stripped.strip()!r}"

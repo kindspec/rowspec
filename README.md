@@ -59,11 +59,31 @@ just check      # fmt-check + lint
 just test       # conformance suite + mutation gate + corpus checks
 just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
-just run FILE   # validate an artifact
+just run FILE   # validate an artifact (rowspec check)
+just eval FILE  # print computed values and FAIL on any #REF!
 ```
 
 A real `git` binary is required. The suite's central claim is about what stock
 git does, so it uses stock git.
+
+## Two commands, and you need both
+
+`check` applies the refusals in §9 — the structural ones, the things that make a
+table survive version control. `eval` computes the table and fails on any
+`#REF!`.
+
+**They catch different things and neither subsumes the other.** A misspelled
+column name, a pasted `1,299.00`, or a non-breaking space in a number are all
+`#REF!` under §8 and are correctly *not* §9 refusals — the file is well-formed,
+its total is wrong. `check` alone reports `0 refused` on a table whose total is
+wrong, so a CI recipe built on `check` is green on a broken total.
+
+Run both:
+
+```sh
+rowspec check .    # will this table survive being edited by several people?
+rowspec eval  .    # does it currently say anything false?
+```
 
 ## Licensing
 

@@ -12,5 +12,14 @@ jobs:
         run: just conform
       - name: the suite must be able to fail
         run: just mutants
+      # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
+      # meant to be malformed. This is the recipe a USER should copy: `check`
+      # answers "will this survive being edited", `eval` answers "does it
+      # currently say anything false", and a pipeline with only the first is
+      # green on a broken total.
+      - name: example -- the recipe a user should copy
+        run: |
+          uv run python -m rowspec check docs/example || true
+          uv run python -m rowspec eval  docs/example || true
       - name: corpus-scoped checks
         run: uv run python conformance/corpus_check.py .

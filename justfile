@@ -39,7 +39,11 @@ mutants:
 
 # Validate a file or a directory
 run *ARGS:
-    uv run python -m rowspec {{ARGS}}
+    uv run python -m rowspec check {{ARGS}}
+
+# Compute a file or a directory, failing on any #REF!
+eval *ARGS:
+    uv run python -m rowspec eval {{ARGS}}
 
 # Remove build artifacts
 clean:

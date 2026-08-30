@@ -14,7 +14,7 @@ import os
 import sys
 
 from .csvmode import Finding, check_file
-from .table import Malformed, canon, evaluate
+from .table import Malformed, canon, evaluate, parse
 
 CSV_EXT = (".csv", ".tsv", ".tab")
 TABLE_EXT = (".mdtbl",)
@@ -76,6 +76,105 @@ def _print_github(path, findings, explained, out):
         print(f"::{kind} file={path},title=rowspec::{msg}", file=out)
 
 
+def _fmt_value(v):
+    if isinstance(v, float):
+        return f"{v:g}" if v == int(v) else f"{v}"
+    return "" if v is None else str(v)
+
+
+def cmd_eval(paths, out=sys.stdout) -> int:
+    """Print computed columns and aggregates, and FAIL on any #REF!.
+
+    Validation alone reports "0 refused" on a table whose total is wrong: a
+    misspelled column, a thousands separator and a non-ASCII space all become
+    #REF! under §8 and are correctly NOT §9 refusals. Without this command the
+    one thing the format does that a CSV cannot is invisible, and a CI recipe
+    built on `check` is green on a broken total.
+    """
+    bad = 0
+    for path in collect(paths):
+        try:
+            rows, aggs = evaluate(open(path, encoding="utf-8", newline="").read())
+            cols, formulas, _r, decls, _o, _k = parse(
+                open(path, encoding="utf-8", newline="").read()
+            )
+        except Malformed as e:
+            print(f"{path}: {e}", file=sys.stderr)
+            bad += 1
+            continue
+
+        refs = []
+        computed = [c for c in cols if c in formulas]
+        print(f"{path}", file=out)
+        if computed and rows:
+            kw = max(len(str(r.get(_k, ""))) for r in rows) if _k else 0
+            cw = max(len(c) for c in computed)
+            for r in rows:
+                cells = []
+                for c in computed:
+                    v = r.get(c)
+                    if isinstance(v, str) and v.startswith("#REF!"):
+                        refs.append((r.get(_k) if _k else "?", c, v))
+                    cells.append(f"{c}={_fmt_value(v):>{cw}}")
+                rk = f"{str(r.get(_k, '')):<{kw}}  " if _k else ""
+                print(f"    {rk}{'  '.join(cells)}", file=out)
+        for name, v in aggs.items():
+            marker = "  <-- ERROR" if isinstance(v, str) and v.startswith("#REF!") else ""
+            print(f"    {name} = {_fmt_value(v)}{marker}", file=out)
+            if marker:
+                refs.append((None, name, v))
+        if refs:
+            bad += 1
+            print(f"  {len(refs)} unresolved reference(s):", file=sys.stderr)
+            seen = set()
+            for rowkey, col, v in refs:
+                sig = (col, v)
+                if sig in seen:
+                    continue
+                seen.add(sig)
+                where = f"row {rowkey}, " if rowkey else ""
+                print(f"    {where}{col} = {v}", file=sys.stderr)
+    return 1 if bad else 0
+
+
+def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
+    """Append a row, minting the opaque id §6 requires and nothing produced.
+
+    The spec insists row ids are machine-generated; before this, they were hand
+    typed, which is how a cross-branch id collision got made by hand.
+    """
+    import secrets
+
+    text = open(path, encoding="utf-8", newline="").read()
+    cols, formulas, rows, _d, _o, key = parse(text)
+    if key is None:
+        print(f"{path}: no `key :=` declaration, so there is no id to mint", file=sys.stderr)
+        return 1
+    taken = {str(r.get(key)) for r in rows}
+    while True:
+        rid = "r_" + secrets.token_hex(3)
+        if rid not in taken:
+            break
+    fillable = [c for c in cols if c != key and c not in formulas]
+    if len(values) != len(fillable):
+        print(
+            f"{path}: expected {len(fillable)} value(s) for {', '.join(fillable)}; "
+            f"got {len(values)}",
+            file=sys.stderr,
+        )
+        return 1
+    supplied = dict(zip(fillable, values, strict=True))
+    cells = [rid if c == key else "" if c in formulas else supplied.get(c, "") for c in cols]
+    line = "| " + " | ".join(cells).replace("|  |", "|  |") + " |"
+    lines = text.splitlines(keepends=True)
+    last = max(i for i, ln in enumerate(lines) if ln.strip().startswith("|"))
+    eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
+    lines.insert(last + 1, line + eol)
+    open(path, "w", encoding="utf-8", newline="").write("".join(lines))
+    print(f"{path}: added {key}={rid}", file=out)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "check":
@@ -84,11 +183,27 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="rowspec check", description="Validate .csv, .tsv and .mdtbl tables."
     )
-    p.add_argument("paths", nargs="+", help="files or directories to check")
+    p.add_argument(
+        "command",
+        nargs="?",
+        choices=("check", "eval", "add-row"),
+        default="check",
+        help="check: apply the refusals. eval: print computed values and fail on #REF!",
+    )
+    p.add_argument("paths", nargs="+", help="files or directories")
     p.add_argument("--fmt", action="store_true", help="rewrite .mdtbl files into canonical form")
+    p.add_argument(
+        "--fmt-check",
+        action="store_true",
+        help="report files that are not in canonical form, without rewriting them",
+    )
     p.add_argument("--strict", action="store_true", help="treat warnings (CRLF, BOM) as refusals")
     p.add_argument("--format", choices=("plain", "github"), default="plain", help="output format")
     a = p.parse_args(argv)
+    if a.command == "eval":
+        return cmd_eval(a.paths)
+    if a.command == "add-row":
+        return cmd_add_row(a.paths[0], a.paths[1:])
 
     files = collect(a.paths)
     emit = _print_github if a.format == "github" else _print_plain
@@ -109,12 +224,16 @@ def main(argv: list[str] | None = None) -> int:
             refused += 1
         elif warns:
             warned += 1
-        elif a.fmt and f.lower().endswith(TABLE_EXT):
-            text = open(f, encoding="utf-8").read()
+        elif (a.fmt or a.fmt_check) and f.lower().endswith(TABLE_EXT):
+            text = open(f, encoding="utf-8", newline="").read()
             c = canon(text)
             if c != text:
-                open(f, "w", encoding="utf-8").write(c)
-                print(f"{f}: reformatted")
+                if a.fmt_check:
+                    print(f"{f}: not in canonical form (run --fmt)", file=sys.stderr)
+                    refused += 1
+                else:
+                    open(f, "w", encoding="utf-8", newline="").write(c)
+                    print(f"{f}: reformatted")
 
     summary = f"{len(files)} file(s) checked, {refused} refused"
     if warned:
