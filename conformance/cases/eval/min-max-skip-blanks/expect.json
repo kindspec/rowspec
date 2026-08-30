@@ -1,0 +1,9 @@
+{
+  "aggregates": {
+    "hi_down": -3.0,
+    "hi_up": 5.0,
+    "lo_down": -5.0,
+    "lo_up": 3.0
+  },
+  "kind": "eval"
+}

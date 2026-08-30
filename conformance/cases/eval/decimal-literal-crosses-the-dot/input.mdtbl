@@ -1,0 +1,7 @@
+| id | amt | scaled = amt * 1.5 |
+| --- | --: | --: |
+| r_01 | 4 |  |
+| r_02 | 2 |  |
+
+key := id
+s := sum(scaled)

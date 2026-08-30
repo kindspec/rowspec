@@ -1,0 +1,11 @@
+| id | up | down |
+| --- | --: | --: |
+| r_01 | 5 | -5 |
+| r_02 |  |  |
+| r_03 | 3 | -3 |
+
+key := id
+lo_up := min(up)
+hi_up := max(up)
+lo_down := min(down)
+hi_down := max(down)

@@ -1,0 +1,10 @@
+| id | amt |
+| --- | --: |
+| r_01 | 5 |
+| r_02 |  |
+| r_03 | 3 |
+
+key := id
+s := sum(amt)
+n := count(amt)
+av := avg(amt)
