@@ -34,7 +34,7 @@ def validate(path: str) -> list[Finding]:
     except UnicodeDecodeError as e:
         return [Finding("encoding", f"not valid UTF-8: {e}")]
     try:
-        evaluate(text, base=os.path.dirname(os.path.abspath(path)))
+        evaluate(text)
     except Malformed as e:
         return [Finding("refused", str(e))]
     return []

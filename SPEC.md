@@ -318,15 +318,14 @@ the derived order and never over file position:
 The predicate is a conjunction of equalities against a literal or an `@`
 reference. This is the nominal form of `SUMIF`/`SUMIFS`.
 
-**Cross-artifact lookup**, resolved by the target's own declared key:
-
-    | who = lookup(customers.mdtbl, customer, name) |
-
-The target is a **literal** path written in the formula, resolved relative to
-the referring artifact, and confined to the repository. It is never computed at
-evaluation time. This is the only form of path reference the format has, and it
-is what §8's prohibition on reading paths excludes: a reader can see every file
-an artifact depends on by reading the artifact.
+**`lookup` is reserved and not defined in this edition.** A cross-artifact
+reference is a real requirement — roughly a fifth of real spreadsheet lookups
+already target another file — but it was the sole source of input/output inside
+an otherwise pure evaluator, of path confinement against a repository root
+nothing defines, of cross-artifact cycles, and of the consequence that an
+artifact's validity depends on more than its own bytes. It is reserved so a
+later edition can define it without a migration. Cases for it are kept, unrun,
+in `conformance/reserved/`.
 
 **Table-level aggregates**, declared below the table, one per line:
 
@@ -339,28 +338,17 @@ Functions: `sum`, `count`, `min`, `max`, `avg`. An unknown function is refused.
 
 A reference to a name that does not exist evaluates to `#REF!(name)`. An
 aggregate over any column containing a `#REF!` is itself `#REF!` — **it must not
-sum the values it can read**. A lookup whose target row is absent is
-`#REF!(file[key])`.
+sum the values it can read**.
 
 A broken reference never evaluates to zero, empty, or a stale value. A blank
 cell is not zero. A value that will not coerce to a number is `#REF!`, not a
 guess: thousands separators, parenthesised negatives, and non-ASCII spaces are
 refused rather than interpreted.
 
-**The single exception, stated here because omitting it made two conforming
-implementations produce different values for the same table:** §7's `lookup` is
-the one permitted read. It resolves a *literal* path, written in the formula,
-relative to the referring artifact and confined to the repository. Everything
-below applies to every other construct.
-
-An implementation that reads §8 alone will conclude that a lookup can never
-resolve and that every one is `#REF!`. That is a consistent reading, it is
-wrong, and the fault was this section's for not carving the exception out.
-
-The evaluator is otherwise total, terminating, deterministic and free of
-input/output.
+The evaluator is total, terminating, deterministic and free of input/output.
+It reads nothing: not the clock, not the network, not a path.
 There is no flag that changes this. Constructs that would read the clock, the
-network, or a path **other than §7's literal lookup target** are not blocked —
+network, or a path are not blocked —
 they are unparseable. This is
 simultaneously a security property and a correctness one: a content-addressed
 cache is silently wrong if a formula can read the clock.
@@ -408,9 +396,7 @@ An implementation MUST refuse:
 20. a malformed **column formula** — a header cell containing `=` whose
     right-hand side is not a well-formed expression. §9.12 does not reach it:
     that entry is scoped to a line containing `:=`, and a header cell is not one
-21. a lookup whose target path is **computed** rather than a literal (§7)
-22. a lookup whose target lies outside the repository (§7)
-23. a table whose second line is not a valid alignment row, a table shorter than
+21. a table whose second line is not a valid alignment row, a table shorter than
     two lines included (§4, §4.1.5)
 
 **The numbering is not a precedence order.** When one file violates several
@@ -480,16 +466,46 @@ tool that only inspects conflicts will publish git's wrong answer.
 
 One repository-level file, `.rowspec`, containing `edition <year>`.
 
-A reader **never consults it** — interpretation is a function of the artifact's
-bytes alone, so there is no "unknown version" case to mishandle. A writer emits
-only what its edition permits. Artifacts of different editions coexist in one
-repository with no ceremony, and migration rewrites to the *intersection* —
-valid under both editions — so it is incremental rather than atomic.
+**With a single edition this has no observable behaviour, and that is correct.**
+A reader never consults it — interpretation is a function of the artifact's
+bytes alone, so there is no "unknown version" case to mishandle. The file exists
+now so that a *second* edition does not require retrofitting a mechanism, which
+is the failure that cost Python eleven years; it does not exist because
+something already needs versioning.
+
+When a second edition exists, these rules apply and none of them is
+retrofittable:
+
+- a writer emits only what its edition permits
+- artifacts of different editions coexist in one repository with no ceremony
+- migration rewrites to the **intersection** — valid under both editions — so
+  it is incremental rather than atomic
+- escape hatches carry a stated minimum lifetime
 
 A per-file version field is rejected: it would touch every file on a bump, and a
 version line at line 1 conflicts with any concurrent edit to the header row.
 
-## 13. Conformance
+## 13. Conformance profiles
+
+An implementation may check an ordinary `.csv` against the subset of §9 that a
+delimiter-separated file can violate. **That is a different profile, not a
+relaxation**, and the difference must be stated rather than discovered:
+
+- refusals 14 (BOM) and 15 (lone CR) are **warnings** in CSV mode. Enforcing
+  them would reject 70 of 72 files in one well-maintained public registry on
+  first run, and 8 of 20 in another — measured, not estimated.
+- refusals covering alignment rows, formulas and aggregates cannot apply,
+  because a CSV has none of those constructs.
+- **refusal 5 (duplicate row id) requires a sidecar** declaring which column is
+  the key. It is the refusal the identity argument exists for, and it is the one
+  that costs a file to obtain. Key inference was tried and rejected: a
+  legitimately non-unique first column produces confident wrong refusals on
+  valid data.
+
+An implementation claiming CSV-mode conformance states which profile it means.
+
+
+## 14. Conformance suite
 
 `conformance/cases/` holds the suite as directories of real files plus one
 `expect.json` each. A conforming implementation runs them against a **stock git

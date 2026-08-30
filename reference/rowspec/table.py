@@ -13,7 +13,6 @@ merge order.
 
 import ast
 import operator
-import os
 import re
 import sys
 import unicodedata
@@ -277,7 +276,6 @@ def column_type(col, rows):
 
 _GROUP = re.compile(r"(\w+)\(\s*(\w+)\s+where\s+(.+?)\s*\)\s*$")
 _PRED = re.compile(r'(\w+)\s*=\s*(?:@(\w+)|"([^"]*)")')
-_LOOKUP = re.compile(r"lookup\(\s*([\w./-]+)\s*,\s*(\w+)\s*,\s*(\w+)\s*\)\s*$")
 
 
 def _predicate(text, cols):
@@ -347,7 +345,7 @@ def ev(node, env):
     raise Malformed(f"unsupported expression: {type(node).__name__}")
 
 
-def evaluate(text, base=".", _stack=None):
+def evaluate(text):
     cols, formulas, rows, decls, order, key = parse(text)
     # THE ORDERING: derived from data, then row id as a stable tiebreak.
     if order:
@@ -380,53 +378,6 @@ def evaluate(text, base=".", _stack=None):
         seq = sorted(rows, key=lambda r: (typed(r), str(r.get(key, ""))))
     else:
         seq = rows
-    # cross-artifact lookups, resolved by the TARGET's declared key (nominal)
-    for nm, expr in list(formulas.items()):
-        m = _LOOKUP.fullmatch(expr.strip())
-        if not m:
-            continue
-        path, keycol, valcol = m.groups()
-        if keycol not in cols:
-            raise Malformed(f"lookup in {nm!r} names unknown column {keycol!r}")
-        root = os.path.realpath(base)
-        full = os.path.realpath(os.path.join(base, path))
-        if os.path.isabs(path) or not (full == root or full.startswith(root + os.sep)):
-            raise Malformed(
-                f"lookup in {nm!r} targets {path!r}, which escapes the repository; "
-                f"§7 confines a lookup target to the repository"
-            )
-        if not os.path.exists(full):
-            for r in seq:
-                r[nm] = f"#REF!({path}[{r.get(keycol)}])"
-            continue
-        stack = list(_stack or [])
-        real = os.path.realpath(full)
-        otext = open(full, encoding="utf-8").read()
-        ocols, oformulas, orows, _od, _oo, okey = parse(otext)
-        # A STORED column is always available, so a self-join is not a cycle.
-        # Only a lookup onto a COMPUTED column needs the target evaluated, and
-        # only that can be circular.
-        if valcol in oformulas:
-            if real in stack:
-                for r in seq:
-                    r[nm] = "#REF!(cycle)"
-                continue
-            orows, _oaggs = evaluate(
-                otext, base=os.path.dirname(full) or ".", _stack=stack + [real]
-            )
-        if valcol not in ocols:
-            for r in seq:
-                r[nm] = f"#REF!({valcol})"
-            continue
-        if okey is None:
-            for r in seq:
-                r[nm] = f"#REF!({path}[{r.get(keycol)}])"
-            continue
-        idx = {str(o.get(okey)): o for o in orows}
-        for r in seq:
-            tgt = idx.get(str(r.get(keycol)))
-            r[nm] = tgt.get(valcol) if tgt else f"#REF!({path}[{r.get(keycol)}])"
-
     # per-row GROUP aggregates: sum(amount where region = @region)
     for nm, expr in list(formulas.items()):
         m = _GROUP.fullmatch(expr.strip())
@@ -452,9 +403,7 @@ def evaluate(text, base=".", _stack=None):
     plain = {
         n: e
         for n, e in formulas.items()
-        if not any(re.search(rf"\b{f}\s*\(", e) for f in ROWREL)
-        and not _GROUP.fullmatch(e.strip())
-        and not _LOOKUP.fullmatch(e.strip())
+        if not any(re.search(rf"\b{f}\s*\(", e) for f in ROWREL) and not _GROUP.fullmatch(e.strip())
     }
     for r in seq:
         pending = dict(plain)
