@@ -842,7 +842,15 @@ tolerance down:
 **[CHOICE]**, and it is I3 (loud failure) applied rather than bypassed. A
 row-wise `sum` would make blank-skipping the *default* and invisible in the
 formula, so a column silently under-totals the day someone leaves a cell empty
-and nothing in the file says that was intended. The `if` spelling is longer and
+and nothing in the file says that was intended.
+
+The column-wise `sum` of §7 **does** skip blanks, and that is not a
+contradiction: it is the same line drawn in §7. `sum(a)` ranges over the rows
+that exist and a blank row contributes nothing; `a + b` names two cells and
+asserts both are there. A row-wise `sum(a, b)` would be spelled like the second
+and behave like the first, which is exactly why it is not in the grammar — the
+author would be naming cells while getting aggregate semantics, and nothing in
+the formula would say which they had. The `if` spelling is longer and
 says which cells are allowed to be missing, in the formula, where a reviewer
 reads it. `+` stays loud, and nothing that was an error becomes a number
 without an author saying so.
@@ -945,8 +953,31 @@ merely fails to parse as a number, because `count` never uses it as an operand.
 Without this, `count` can never count a text column, which is surprising for a
 counting function and follows from nothing anyone intended.
 
-The other four coerce, so for them a value that is not a number is `#REF!` under
-§8, and one bad cell poisons the aggregate rather than being skipped.
+The other four coerce, so for them a **non-blank** value that will not parse as
+a number is `#REF!` under §8, and one such cell poisons the aggregate rather
+than being skipped.
+
+**A blank cell is skipped by `sum`, `min`, `max` and `avg`**, and contributes
+nothing rather than poisoning. `sum(a)` over `5`, blank, `3` is `8`; `avg` of
+the same column is `4`, over the two values present and not the three rows.
+`count` still counts the row, because it counts rows.
+
+**[CHOICE]**, and it is an asymmetry with `+` that is deliberate rather than an
+oversight. The line is between *naming a cell* and *ranging over a column*:
+
+- **An expression that names a cell asserts the cell is there.** `a + b`,
+  `a * 2` and `if(a > 0, …)` each name a specific operand, and a blank one is a
+  missing operand in a formula the author wrote naming it. That is `#REF!`, and
+  §4.2 rule 11 depends on it staying so.
+- **An aggregate ranges over whatever rows exist.** The set of rows is data. A
+  row whose cell is blank is a row that does not contribute, and adding one
+  should not change a total any more than adding no row at all — otherwise a
+  single optional field anywhere in a table makes every total over that column
+  `#REF!` forever, which is most real tables.
+
+What the two share is the part that matters: **neither invents a number.** `+`
+refuses to add a value that is not there; `sum` declines to count a row that has
+none. `0` is not substituted in either.
 
 The distinction is not arbitrary. `sum`, `min`, `max` and `avg` are
 **type-committed**: applying one *declares* numeric intent, so poisoning detects
