@@ -37,6 +37,9 @@ jobs:
       - name: the suite must be able to fail
         if: always()
         run: just mutants
+      - name: a second implementation, from the spec alone
+        if: always()
+        run: just conform-alt
 
       # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
       # meant to be malformed. This is the recipe a USER should copy: `check`

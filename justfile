@@ -33,6 +33,14 @@ test:
 conform:
     cd conformance && uv run python run_cases.py
 
+# The SECOND implementation against the SAME tree. This is a hard gate, not a
+# report: it is the only test of whether SPEC.md defines the format or merely
+# describes reference/rowspec/. It was met once and then rotted 117 cases
+# because nothing ran it while the spec grew -- a check nobody runs is a check
+# that cannot fail. If a spec change breaks this, that IS the finding.
+conform-alt:
+    cd conformance && uv run python run_cases.py rowspec_alt.table
+
 # The mutation gate: the suite must be able to FAIL a broken implementation
 mutants:
     cd conformance && uv run python mutants.py

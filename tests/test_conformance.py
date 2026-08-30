@@ -21,6 +21,18 @@ def test_conformance_suite_passes():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def test_second_implementation_passes():
+    """SPEC.md must define the format, not describe one implementation of it.
+
+    `reference/rowspec_alt/` was written from the prose by an author forbidden
+    to read `reference/rowspec/`. It is the only evidence the document is
+    sufficient -- and it silently drifted 117 cases behind because no test and
+    no CI job ran it while §4.1, §4.2 and §9 were being written.
+    """
+    r = _run("run_cases.py", "rowspec_alt.table")
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
 def test_mutation_gate_has_no_survivors():
     r = _run("mutants.py")
     assert "0 survived" in r.stdout, r.stdout + r.stderr
