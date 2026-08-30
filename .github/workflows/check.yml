@@ -5,8 +5,13 @@ jobs:
   conformance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # Pinned to commits, not tags. `astral-sh/setup-uv@v10` was a real
+      # RELEASE (v10.0.1) with no moving `v10` tag behind it, and the job
+      # died at `Unable to resolve action` before running anything -- the
+      # same failure mode this commit exists to fix, one layer up. A SHA
+      # cannot drift and cannot be re-pointed under us.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       # `just` is not on the runner image. Without this the job died at its
       # first command with exit code 127, and the red masked the fact that the
       # conformance suite and the mutation gate had never run at all -- a job
