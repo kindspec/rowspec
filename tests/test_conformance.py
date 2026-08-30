@@ -33,9 +33,21 @@ def test_second_implementation_passes():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-def test_mutation_gate_has_no_survivors():
+def test_mutation_gate_is_sound():
+    """Assert the gate's own VERDICT, not a substring of its report.
+
+    This asserted `"0 survived" in stdout`, which is true when mutants have
+    gone STALE -- their patterns no longer match the source, so they are never
+    applied, never survive, and never appear in the survivor count. Six went
+    stale and this test stayed green while `just mutants` exited 1 and CI went
+    red, which is the precise failure the mutation gate exists to detect,
+    occurring in the test that runs it.
+
+    `mutants.py` already decides this correctly and reports it in its exit
+    code. Defer to it.
+    """
     r = _run("mutants.py")
-    assert "0 survived" in r.stdout, r.stdout + r.stderr
+    assert r.returncode == 0, r.stdout + r.stderr
 
 
 def test_suite_rejects_a_vacuous_implementation():

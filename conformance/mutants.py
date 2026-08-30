@@ -108,6 +108,44 @@ MUTANTS = {
     # while evaluating one row to the whole column, which is right for a name
     # that does not resolve and wrong for a division by zero. Commissioned by
     # the suite author, who noted nothing measured the DATA side of that line.
+    # --- §7: an aggregate is defined on the MULTISET ------------------------
+    # Each is a reading §7 decided against, and each should die to the case
+    # written for it. A rule with a passing suite and no mutant is a rule
+    # nothing has tried to break.
+    "sum-accumulates-left-to-right": (
+        "    if divisor == 1:\n        try:\n            return math.fsum(nums)",
+        "    if divisor == 1:\n        try:\n            return sum(nums)",
+    ),
+    "avg-is-the-rounded-sum-over-count": (
+        "        got = _exact(nums, len(nums))",
+        "        got = _exact(nums, 1) / len(nums)",
+    ),
+    "cumulative-uses-the-exact-sum-instead-of-stepping": (
+        # Spans the initialiser so the mutant can carry the prefix. Rounding
+        # `acc + v` once is NOT the alternative reading -- that is precisely
+        # what a binary64 addition already does, which made the first attempt
+        # at this mutant equivalent. The reading §7 rejects is an exact sum
+        # over the whole prefix, rounded once at the end.
+        "acc, prev = 0.0, None\n"
+        "for r in seq:\n"
+        "    try:\n"
+        "        v = num(r[src])\n"
+        "    except (ValueError, TypeError, KeyError):\n"
+        '        r[nm] = f"#REF!({src})"\n'
+        "        continue\n"
+        '    if fn == "cumulative":\n'
+        "        acc += v",
+        "acc, prev, _seen = 0.0, None, []\n"
+        "for r in seq:\n"
+        "    try:\n"
+        "        v = num(r[src])\n"
+        "    except (ValueError, TypeError, KeyError):\n"
+        '        r[nm] = f"#REF!({src})"\n'
+        "        continue\n"
+        '    if fn == "cumulative":\n'
+        "        _seen.append(v)\n"
+        "        acc = _exact(_seen, 1)",
+    ),
     "a-data-fault-is-hoisted-to-the-whole-column-like-a-name-fault": (
         '                except KeyError as e:\n                    r[nm] = f"#REF!({e.args[0]})"',
         "                except KeyError as e:\n"
@@ -116,7 +154,7 @@ MUTANTS = {
         "                        _o[nm] = r[nm]",
     ),
     "a-missing-name-is-an-error-only-where-its-branch-is-taken": (
-        "            miss = sorted(d - set(cols))",
+        "            miss = [n for n in names if n not in known]",
         "            miss = []",
     ),
     "a-missing-column-is-blank-under-a-text-comparison": (
@@ -137,9 +175,7 @@ MUTANTS = {
         "        names_of(node.a, out)",
     ),
     "if-comparison-names-are-not-dependencies": (
-        "        out.add(node.c.lhs)\n"
-        '        if node.c.kind == "name":\n'
-        "            out.add(node.c.rhs)",
+        '        add(node.c.lhs)\n        if node.c.kind == "name":\n            add(node.c.rhs)',
         "        pass",
     ),
     "if-equality-is-always-numeric": (
@@ -188,7 +224,8 @@ MUTANTS = {
         "if bad:\n    return 0.0",
     ),
     "off-by-one-cumulative": (
-        'if fn == "cumulative":\n    acc += v\n    r[nm] = acc',
+        'if fn == "cumulative":\n    acc += v\n'
+        '    r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc',
         'if fn == "cumulative":\n    r[nm] = acc\n    acc += v',
     ),
     "render-drops-tail": (
@@ -233,11 +270,11 @@ MUTANTS = {
         'elif fn == "prior":\n    r[nm] = ""',
     ),
     "delta-first-row-is-the-value": (
-        'elif fn == "delta":\n    r[nm] = (v - prev) if prev is not None else ""',
+        'elif fn == "delta":\n    d = (v - prev) if prev is not None else ""',
         'elif fn == "delta":\n    r[nm] = v',
     ),
     "delta-is-negated": (
-        'elif fn == "delta":\n    r[nm] = (v - prev) if prev is not None else ""',
+        'elif fn == "delta":\n    d = (v - prev) if prev is not None else ""',
         'elif fn == "delta":\n    r[nm] = (prev - v) if prev is not None else ""',
     ),
     # --- aggregate functions -----------------------------------------------------
@@ -255,7 +292,7 @@ MUTANTS = {
         'if fn not in ("sum", "count", "min", "max", "avg"):\n    fn = "sum"',
     ),
     "sum-crashes-on-a-blank-cell": (
-        'if fn == "sum":\n    return sum(nums)',
+        'if fn == "sum":\n    got = _exact(nums, 1)',
         'if fn == "sum":\n    return sum(float(v) for v in vals)',
     ),
     # --- I3's headline promise: a blank cell is NEVER zero ----------------------
