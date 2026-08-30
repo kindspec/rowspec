@@ -112,6 +112,19 @@ def fin(x):
     return x
 
 
+def accumulate(nums):
+    """§8: an aggregate whose result is not finite is `#REF!(overflow)` --
+    stated separately from §4.2 rule 2 because a `sum` of large but finite
+    cells overflows without any single operation doing so.  The host
+    accumulator (`math.fsum`) refuses to *produce* the infinity and raises
+    instead, and §8's evaluator is total: the escape must become the value
+    `#REF!(overflow)`, not a traceback."""
+    try:
+        return fin(math.fsum(nums))
+    except OverflowError:
+        return REF_OVERFLOW
+
+
 # --------------------------------------------------------------------------
 # §4.1 lexical layer
 # --------------------------------------------------------------------------
@@ -1464,14 +1477,17 @@ class Evaluator:
                 return Ref(name)
             nums.append(v)
         if fn == "sum":
-            return fin(math.fsum(nums)) if nums else 0.0
+            return accumulate(nums) if nums else 0.0
         if not nums:
             return BLANK
         if fn == "min":
             return min(nums)
         if fn == "max":
             return max(nums)
-        return fin(math.fsum(nums) / len(nums))
+        total = accumulate(nums)
+        if isinstance(total, Ref):
+            return total
+        return fin(total / len(nums))
 
 
 def evaluate(text):
