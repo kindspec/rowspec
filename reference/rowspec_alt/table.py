@@ -112,15 +112,30 @@ def fin(x):
     return x
 
 
-def accumulate(nums):
-    """§8: an aggregate whose result is not finite is `#REF!(overflow)` --
-    stated separately from §4.2 rule 2 because a `sum` of large but finite
-    cells overflows without any single operation doing so.  The host
-    accumulator (`math.fsum`) refuses to *produce* the infinity and raises
-    instead, and §8's evaluator is total: the escape must become the value
-    `#REF!(overflow)`, not a traceback."""
+def exact_scaled_sum(nums):
+    """§7: an aggregate's value is defined on the multiset of its operands,
+    never on an accumulation order.  Every finite binary64 is an integer
+    multiple of 2**-1074, so the exact mathematical sum of a column is an
+    integer sum after scaling by 2**1074 -- computed in arbitrary precision,
+    one bounded-size big-int addition per value, O(n) overall.  No
+    intermediate can overflow, so a sequence whose partial sums leave binary64
+    range but whose exact sum does not is a number, as §7 requires.  Returns
+    the exact sum scaled by 2**1074; `rounded_quotient` turns it back into a
+    value."""
+    total = 0
+    for x in nums:
+        n, d = x.as_integer_ratio()
+        total += n << (1074 - (d.bit_length() - 1))
+    return total
+
+
+def rounded_quotient(num, den):
+    """The correctly-rounded binary64 of the exact rational num/den (§7).
+    CPython's int/int true division rounds correctly and raises when the
+    rounded result leaves binary64 range, and §8's evaluator is total: the
+    escape must become the value `#REF!(overflow)`, not a traceback."""
     try:
-        return fin(math.fsum(nums))
+        return fin(num / den)
     except OverflowError:
         return REF_OVERFLOW
 
@@ -1477,17 +1492,19 @@ class Evaluator:
                 return Ref(name)
             nums.append(v)
         if fn == "sum":
-            return accumulate(nums) if nums else 0.0
+            # §7: the correctly-rounded binary64 of the EXACT mathematical
+            # sum -- order-independent, and finite whenever the exact sum is.
+            return rounded_quotient(exact_scaled_sum(nums), 1 << 1074) if nums else 0.0
         if not nums:
             return BLANK
         if fn == "min":
             return min(nums)
         if fn == "max":
             return max(nums)
-        total = accumulate(nums)
-        if isinstance(total, Ref):
-            return total
-        return fin(total / len(nums))
+        # §7: `avg` is the correctly-rounded binary64 of the EXACT
+        # mathematical mean, and is NOT `sum` divided by `count` -- four cells
+        # of 1e308 have a finite mean and an overflowing sum.
+        return rounded_quotient(exact_scaled_sum(nums), len(nums) << 1074)
 
 
 def evaluate(text):
