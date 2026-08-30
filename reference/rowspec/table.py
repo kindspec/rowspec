@@ -343,7 +343,12 @@ def _predicate(text, cols, computed=frozenset()):
         col, at, lit = m.groups()
         for c in (col, at):
             if c and c not in cols:
-                raise Malformed(f"predicate names unknown column {c!r}")
+                # §8: a name that does not resolve is #REF!(name), here as
+                # anywhere. Refusing would make the file's ACCEPTANCE depend on
+                # the header rather than on its own bytes -- §4.2 rule 7's
+                # argument, which it made for the aggregated column and which
+                # applies unchanged to the predicate's.
+                raise KeyError(c)
             if c and c in computed:
                 raise Malformed(
                     f"predicate names computed column {c!r} (§9.22): comparison is on "
@@ -374,12 +379,23 @@ def _agg(fn, vals, what):
     except (ValueError, TypeError):
         return f"#REF!({what})"
     if fn == "sum":
-        return sum(nums)
-    if fn == "avg":
-        return (sum(nums) / len(nums)) if nums else f"#REF!({what} empty)"
-    if not nums:
+        got = sum(nums)
+    elif fn == "avg":
+        if not nums:
+            return f"#REF!({what} empty)"
+        got = sum(nums) / len(nums)
+    elif not nums:
         return f"#REF!({what} empty)"
-    return min(nums) if fn == "min" else max(nums)
+    else:
+        got = min(nums) if fn == "min" else max(nums)
+    if got in (float("inf"), float("-inf")):
+        # §8. Stated separately from §4.2 rule 2 because an aggregate is not an
+        # `expr` operation: a sum of a million large-but-finite cells overflows
+        # without any single operation doing so. Returning `inf` would write a
+        # value §4.1.6 cannot spell, so `canon` could not round-trip its own
+        # output.
+        return "#REF!(overflow)"
+    return got
 
 
 def _ast(expr, where):
@@ -784,7 +800,13 @@ def str_cmp_lhs(node, out=None):
 
 
 def names_of(node, out=None):
-    """Every column this formula MENTIONS, both branches of every `if`.
+    """Every column this formula MENTIONS, in TEXTUAL order, both branches of
+    every `if`.
+
+    Order is load-bearing: §8 decides which `#REF!` a formula carries by
+    position in the formula text, precisely so that the answer cannot depend on
+    an evaluation strategy that §4.2 rule 9 makes a free choice. Callers that
+    want a set build one from this list; there is deliberately no second walker.
 
     §4.2 rule 10: evaluation is lazy but dependency and cycle analysis is
     static. If the untaken branch were excluded, whether a table has a cycle
@@ -793,18 +815,23 @@ def names_of(node, out=None):
     it, which is the silent-wrong merge the format exists to remove.
     """
     if out is None:
-        out = set()
+        out = []
+
+    def add(n):
+        if n not in out:
+            out.append(n)
+
     if isinstance(node, Name):
-        out.add(node.id)
+        add(node.id)
     elif isinstance(node, Neg):
         names_of(node.x, out)
     elif isinstance(node, Bin):
         names_of(node.l, out)
         names_of(node.r, out)
     elif isinstance(node, If):
-        out.add(node.c.lhs)
+        add(node.c.lhs)
         if node.c.kind == "name":
-            out.add(node.c.rhs)
+            add(node.c.rhs)
         names_of(node.a, out)
         names_of(node.b, out)
     return out
@@ -847,7 +874,8 @@ def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozen
                 f"another does not, and both report a number. Compare it against a "
                 f"numeric literal instead"
             )
-    deps = {nm: names_of(t) for nm, t in trees.items()}
+    ordered = {nm: names_of(t) for nm, t in trees.items()}
+    deps = {nm: set(v) for nm, v in ordered.items()}
     # §4.2 rule 10: whether a name RESOLVES is a property of the header, so it
     # is the same answer in every row -- including a row whose `if` selects the
     # other branch. Otherwise a merge that adds the first row taking that branch
@@ -855,8 +883,13 @@ def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozen
     # formula or a header.
     unresolved = {}
     if cols:
-        for nm, d in deps.items():
-            miss = sorted(d - set(cols))
+        known = set(cols)
+        for nm, names in ordered.items():
+            # §8: the LEFTMOST unresolved name in the formula text, not the
+            # alphabetically first and not whichever one evaluation reached
+            # first -- rule 9 makes evaluation strategy a free choice, so the
+            # error must not be a function of it.
+            miss = [n for n in names if n not in known]
             if miss:
                 unresolved[nm] = f"#REF!({miss[0]})"
     for r in seq:
@@ -975,7 +1008,14 @@ def evaluate(text):
                 raise Malformed(f"column {nm!r} aggregates unknown column {col!r}")
             if col in formulas and any(r.get(col) in (None, "") for r in seq):
                 continue  # its source is not computed yet
-            preds = _predicate(ptext, cols, formulas)
+            try:
+                preds = _predicate(ptext, cols, formulas)
+            except KeyError as e:
+                for r in seq:
+                    r[nm] = f"#REF!({e.args[0]})"
+                del groups[nm]
+                progressed = True
+                continue
             for r in seq:
 
                 def hit(o, r=r, preds=preds):
@@ -1004,7 +1044,11 @@ def evaluate(text):
             continue
         rows_ = seq
         if pred:
-            preds_ = _predicate(pred, cols, formulas)
+            try:
+                preds_ = _predicate(pred, cols, formulas)
+            except KeyError as e:
+                out[nm] = f"#REF!({e.args[0]})"
+                continue
             rows_ = [
                 o
                 for o in seq

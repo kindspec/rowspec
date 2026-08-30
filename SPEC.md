@@ -993,6 +993,59 @@ A reference to a name that does not exist evaluates to `#REF!(name)`. An
 aggregate over any column containing a `#REF!` is itself `#REF!` — **it must not
 sum the values it can read**.
 
+**Under a `where`, "any column" means the rows the predicate MATCHED.** A
+`#REF!` sitting in a row the predicate excludes does not poison the aggregate:
+`sum(v where grp = "A")` is a number even when some row of `grp` `"B"` holds
+`#REF!(/0)`. **[CHOICE]** An aggregate's operands are its matched rows, and a
+row that was never an operand cannot make one bad. The alternative reads the
+sentence above literally over the whole column, and its cost is not subtle —
+one unrelated division by zero anywhere in a table poisons *every* group total
+in it, including groups whose every row is fine.
+
+**A name in the predicate that does not resolve is `#REF!(name)`, not a
+refusal.** `sum(a where nope = "x")` over a table with no column `nope` is
+`#REF!(nope)`, exactly as `sum(nope)` is. **[CHOICE]** §4.2 rule 7 already
+settled the identical question for the *aggregated* column and its argument
+carries over unchanged: refusing "would make a formula's *acceptance* depend on
+the header rather than on its own bytes", so a merge that drops a column would
+turn a valid file invalid rather than turning a number into a visible error.
+§9.22 is not a counter-example — it refuses a *computed* column in a predicate
+because comparison there is on cell text and a computed column has none, which
+is a semantic impossibility rather than a broken reference.
+
+This also closes the plausible zero. A predicate naming a column that does not
+exist matches no rows, and `sum` over an empty match set is `0` — a number
+produced by a predicate that could never fire, which is the failure §4.2 rule 5
+spends a paragraph on. `#REF!(nope)` is reachable and `0` is not.
+
+**Which `#REF!` a formula carries, when more than one applies, is decided by
+POSITION IN THE FORMULA TEXT: the leftmost.** `| x = a + nope2 + nope1 |` is
+`#REF!(nope2)`. **[CHOICE]**, and the reason is §4.2 rule 9. That rule makes an
+implementation's evaluation strategy — "a fixpoint, a topological sort, a lazy
+memo" — an explicitly free choice. If the name inside a `#REF!` came from
+evaluation order, that freedom would leak straight into a value that
+`expect.json` asserts on, and two conforming readers would print different
+errors for the same bytes. Textual order is the one ordering every reader
+already agrees on, because it is in the file. It is also the one a person
+reading the formula would name first.
+
+`#REF!(cycle)` takes precedence over `#REF!(name)` when a column is both on a
+cycle and names something absent: a cycle is a property of the whole header,
+and reporting a missing name would send a reader to add a column that would not
+help.
+
+**An aggregate whose result is not finite is `#REF!(overflow)`**, on the same
+ground as §4.2 rule 2: `inf` is not a `number` under §4.1.6, so an
+implementation that returned one would write a file it could not read back and
+`canon` would not round-trip its own output. This is stated separately because
+rule 2 scopes overflow to "an **operation** whose IEEE result is an infinity",
+and an aggregate is not an operation of `expr` — a `sum` of a million large but
+finite cells overflows without any single operation doing so. A **stored** cell
+whose decimal spelling is finite but whose binary64 value is already infinite is
+`#REF!(overflow)` wherever it is used as an operand, for the same reason: §9.10
+refuses the *spellings* `inf` and `nan`, and a four-hundred-digit cell is
+neither.
+
 **There are exactly four `#REF!` shapes**, and an implementation emits no
 fifth. `#REF!(name)` carries the *originating* name — the column that could not
 be resolved or whose value would not coerce, not the column the error surfaces
