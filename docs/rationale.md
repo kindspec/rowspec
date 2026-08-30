@@ -1,0 +1,192 @@
+<!-- SPDX-License-Identifier: CC-BY-4.0 -->
+# Why rowspec is shaped this way
+
+The specification says what to do. This says why, so that a future maintainer
+who finds a rule inconvenient can see what it cost to learn, and undo it
+deliberately rather than by accident.
+
+Every measurement below was run. None is an estimate.
+
+---
+
+## The defect the whole format is organised against
+
+Four failures that looked unrelated turned out to be one:
+
+    an A1 cell reference        insert a row -> a total of 480 where the truth is 660
+    a column-alignment row      a renderer silently dropped it
+    a block's trailing newline  moving a block defeated its own identity
+    a derived coordinate        adding one node moved 4 of 4 others
+
+**Coupled representation: state whose bytes must change when unrelated content
+changes.** Coupled state destroys diffs, and a destroyed diff is what makes a
+version-controlled artifact pointless.
+
+The rule that follows, and the one every other rule serves:
+
+> **Serialize so that the unit of merge is the unit of meaning.**
+
+Git merges by line. So one line is one row.
+
+## Why names, never positions
+
+Two branches insert a row into a CSV whose formulas use `A1` ranges. Git merges
+with **zero conflicts** and the sheet totals **480** where the truth is **660** —
+a 27% error with no marker anywhere, confirmed in LibreOffice.
+
+The formal statement is Abiteboul, Hull & Vianu: named and unnamed perspectives
+have equal expressive power but different primitive operators. Positional
+addressing costs no expressiveness — it costs *cheap correspondence*, which is
+exactly what merging is.
+
+And no algorithm rescues it. `daff`, a proper cell-level table merger, merged
+the same file's rows *perfectly* and produced the identical wrong answer. **A
+structural merger cannot see that a string inside a cell encodes a position.**
+
+## Why correctness cannot depend on a merge driver
+
+`.gitattributes` is tracked and travels. `merge.<name>.driver` lives in
+`.git/config` and never does. A fresh clone silently falls back to line merge,
+with no warning that a driver was requested and skipped.
+
+Worse, verified directly: **a bare repository does not consult `.gitattributes`
+at all** — and a bare repository is what every forge merges in. GitLab
+documents that custom merge drivers are unsupported on GitLab.com; GitHub
+Support states that GitHub "doesn't consider user-defined .gitattributes
+files."
+
+So the expensive, NP-hard, heuristic component turns out to be the one the
+design must *not* depend on. That is why correctness lives in the
+representation, and why §11 forbids requiring a driver, a filter or a hook.
+
+## Why row order is declared, not implied
+
+A `prev.` operator meaning "the row above" was designed, implemented, and
+deleted. "The row above" is a *place*: two branches inserting rows produced a
+clean merge in which a row **neither author touched** changed from −273.80 to
+218.68.
+
+Declaring the order fixes it, because "the previous row" becomes "the row with
+the next-lower key" — a nominal relationship. Physically shuffling every line
+then leaves every computed value unchanged, and a backdated row appended last
+correctly leads a running total.
+
+The first implementation of that got it wrong in an instructive way: the sort
+key was a **string concatenation** rather than a tuple, so a hand-typed
+`2026-2-1` sorted after March and an overdraft check read **55.0 where the truth
+was 5.0**. Hence §6's insistence on a typed tuple, a mandatory key, and a single
+type per ordering column.
+
+## Why the canonical form has no alignment padding
+
+Aligned columns are nicer to read and were the original design. Measured on
+2,000 rows, changing one cell from `9` to `1000`:
+
+    padded      2002 added / 2002 removed lines, 238,370 bytes of diff
+    canonical      1 added /    1 removed line,      413 bytes
+
+And decisively: two **genuinely disjoint** edits *conflict* when padded and
+merge cleanly when canonical. A widening cell reflows every row, so alignment
+manufactures conflicts between edits that never touched each other.
+
+The size cost is irrelevant — under gzip padding is +15% — so the diffs were
+always the problem, not the bytes.
+
+## Why identifiers reject whitespace and `Cf`
+
+Because two identifiers that render identically must not be able to coexist, or
+the duplicate-key refusal never fires. A row keyed ` r_01` and one keyed
+`r_01` look the same on every screen and in every diff.
+
+The same reasoning sets §5's trimming rule. Trimming only ASCII space and tab
+looks arbitrary until you ask where a non-ASCII space in padding position comes
+from: a conforming writer never emits one, so it arrives by paste from a
+locale-aware spreadsheet — where it is a **thousands separator**. Trimming it
+would silently turn `1 500` into `1500`. The suite refused `1 500` and silently
+accepted ` 500`; they come from the same paste.
+
+## Why the conformance suite is the deliverable
+
+There is nearly a controlled experiment for this. CommonMark and djot share an
+author; djot is the better language design, written because *"there are 17
+principles governing emphasis… and these rules still leave cases undecided."*
+
+    CommonMark   655 executable examples   ~45 implementations, 25+ languages
+    djot         no conformance suite      6 implementations, four years in
+
+Same designer, better design, no suite, an order of magnitude fewer
+implementations.
+
+But copy the mechanism and fix its defect: CommonMark's own spec concedes that
+"not every feature of the HTML samples is mandated", so two implementations at
+100% conformance can build different trees. **Testing input→output constrains
+one projection of the model, not the model.** rowspec's merge cases therefore
+assert on the *evaluated value* of the merged artifact, not on git's exit code.
+
+## Why the suite is not written by the implementer
+
+Three times during design, the same person wrote both a verification artifact
+and the thing it verified. Twice the result was a confident claim — "11
+namespaces, 0 unprotected" and "15 mutants, 15 killed" — that an independent
+adversary then demolished, finding 7 silent-wrong cases and 14 surviving
+mutants.
+
+> A verification artifact authored by the implementer measures the
+> implementer's imagination.
+
+That is why CONTRIBUTING.md carries it as a hard process rule rather than a
+suggestion.
+
+## Why the mutation gate exists, and why staleness is a failure
+
+A suite that cannot fail a deliberately broken implementation is measuring
+nothing. The gate proves the suite can fail.
+
+It has twice failed to do that itself, and both failures are the project's own
+subject matter:
+
+- **It went stale on a reformat.** Mutants were exact source-text patches;
+  `ruff format` invalidated 23 of them, and the gate reported this as a
+  harmless note while exiting 0.
+- **It counted a kill against a red baseline.** The fixture tree deliberately
+  runs ahead of the implementation, so while the reference was failing 15 cases,
+  *every* mutant looked killed — including no-ops.
+
+Hence: patterns match a normalised token stream, an ambiguous pattern raises
+rather than patching the first hit, a kill is a set difference against an
+unmutated baseline, and **a stale mutant exits non-zero**.
+
+    Any tool whose job is to detect a failure must itself fail loudly when it
+    cannot run. "Skipped" and "passed" must never share an exit code.
+
+## The pattern this project kept reproducing
+
+Five instances, in five different subsystems:
+
+    1. `#REF!` rendering as zero                          the format
+    2. the mutation gate going stale on a reformat        the gate
+    3. the gate counting kills against a red baseline     the gate again
+    4. `canon = identity` passing a fixture with no runner branch   the runner
+    5. git normalising the exact bytes a fixture asserts on         the VCS
+
+Every one is the same shape: **a check that cannot fail, reporting a pass.** In
+four of the five, the person who wrote the check was not the person who found it
+could not fail.
+
+## What this format deliberately does not do
+
+Domain validation. Whether a country code is in ISO 3166, whether a URL
+resolves, whether a date is plausible — none of that is here, and Frictionless
+Table Schema does it well. rowspec checks whether a table **survives version
+control**, which is a different and much smaller question.
+
+It also does not promise to merge everything correctly. Semantic conflicts —
+two authors editing different sentences that must agree — are unfixable by any
+representation, and every honest system says so.
+
+## Credit
+
+Coopy/daff has shipped row-ID-aware, git-integrated CSV three-way merging since
+2013. rowspec's mandatory opaque row id is a **deliberate divergence** from its
+author's stated reasoning — Coopy chose content-based matching and treated IDs
+as an optional optimisation — not an unawareness of it. See NOTICE.
