@@ -1,0 +1,8 @@
+| id | a | c | x = a + zz_gone + aa_gone | y = if(c > 0, zz_gone, aa_gone) |
+| --- | --: | --: | --: | --: |
+| r_01 | 1 | 1 |  |  |
+| r_02 | 2 | 0 |  |  |
+
+key := id
+sx := sum(x)
+sy := sum(y)

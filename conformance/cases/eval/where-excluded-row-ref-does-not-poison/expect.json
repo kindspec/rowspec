@@ -1,0 +1,8 @@
+{
+  "aggregates": {
+    "a_total": 8.0,
+    "b_total": "#REF!(/0)",
+    "grand": "#REF!(/0)"
+  },
+  "kind": "eval"
+}

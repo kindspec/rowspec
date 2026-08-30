@@ -1,0 +1,7 @@
+| id | x = nope + y | y = x |
+| --- | --: | --: |
+| r_01 |  |  |
+
+key := id
+sx := sum(x)
+sy := sum(y)

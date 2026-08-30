@@ -1,0 +1,10 @@
+| id | grp | n | d | v = n / d |
+| --- | --- | --: | --: | --: |
+| r_01 | A | 10 | 2 |  |
+| r_02 | A | 6 | 2 |  |
+| r_03 | B | 1 | 0 |  |
+
+key := id
+a_total := sum(v where grp = "A")
+b_total := sum(v where grp = "B")
+grand := sum(v)

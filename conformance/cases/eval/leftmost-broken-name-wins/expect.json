@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "sx": "#REF!(zz_gone)",
+    "sy": "#REF!(zz_gone)"
+  },
+  "kind": "eval"
+}
