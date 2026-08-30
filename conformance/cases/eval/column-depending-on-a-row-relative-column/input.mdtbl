@@ -1,0 +1,9 @@
+| id | d | a | run = cumulative(a) | twice = run * 2 |
+| --- | --: | --: | --: | --: |
+| r_01 | 1 | 10 |  |  |
+| r_02 | 2 | 5 |  |  |
+
+key := id
+order := by(d)
+hi := max(twice)
+lo := min(twice)

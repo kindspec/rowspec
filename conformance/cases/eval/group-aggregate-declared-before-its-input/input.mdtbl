@@ -1,0 +1,9 @@
+| id | v | vt = sum(ext where v = @v) | qty | unit | ext = qty * unit |
+| --- | --- | --: | --: | --: | --: |
+| r_01 | acme |  | 2 | 3.50 |  |
+| r_02 | acme |  | 5 | 2.15 |  |
+| r_03 | bolt |  | 1 | 4.87 |  |
+
+key := id
+hi := max(vt)
+lo := min(vt)

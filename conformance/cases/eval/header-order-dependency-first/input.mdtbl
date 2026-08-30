@@ -1,0 +1,7 @@
+| id | qty | unit | net = qty * unit | gross = net * 1.2 |
+| --- | --: | --: | --: | --: |
+| r_01 | 2 | 10 |  |  |
+
+key := id
+g := sum(gross)
+n := sum(net)

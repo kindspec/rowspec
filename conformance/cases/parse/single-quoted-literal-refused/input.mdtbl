@@ -1,0 +1,6 @@
+| id | g | a | t = sum(a where g = 'p') |
+| --- | --- | --: | --: |
+| r_01 | p | 5 |  |
+
+key := id
+s := max(t)

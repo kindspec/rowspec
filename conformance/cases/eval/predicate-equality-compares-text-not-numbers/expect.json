@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "hi": 10.0
+  },
+  "kind": "eval"
+}

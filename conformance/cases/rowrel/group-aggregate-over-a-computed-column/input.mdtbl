@@ -1,0 +1,12 @@
+| id | vendor | qty | unit_cost | ext_cost = qty * unit_cost | vendor_total = sum(ext_cost where vendor = @vendor) |
+| --- | --- | --: | --: | --: | --: |
+| r_01 | acme | 2 | 3.50 |  |  |
+| r_02 | acme | 5 | 2.15 |  |  |
+| r_03 | bolt | 1 | 4.87 |  |  |
+| r_04 | cog | 7 | 1.00 |  |  |
+
+key := id
+lo := min(vendor_total)
+hi := max(vendor_total)
+n := count(vendor_total)
+s := sum(vendor_total)

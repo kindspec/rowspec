@@ -1,0 +1,7 @@
+| id | qty | amt | m = sum(amt where qty = "3") |
+| --- | --- | --: | --: |
+| r_01 | 3 | 10 |  |
+| r_02 | 3.0 | 100 |  |
+
+key := id
+hi := max(m)

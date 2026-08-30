@@ -1,0 +1,9 @@
+| id | g | a | vt = sum(a where g = @g) | dbl = vt * 2 |
+| --- | --- | --: | --: | --: |
+| r_01 | p | 10 |  |  |
+| r_02 | p | 5 |  |  |
+| r_03 | q | 2 |  |  |
+
+key := id
+hi := max(dbl)
+lo := min(dbl)

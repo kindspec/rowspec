@@ -1,0 +1,8 @@
+| id | d | a | x = cumulative(a) * 2 |
+| --- | --: | --: | --: |
+| r_01 | 1 | 10 |  |
+| r_02 | 2 | 5 |  |
+
+key := id
+order := by(d)
+s := sum(x)

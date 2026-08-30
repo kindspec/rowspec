@@ -1,0 +1,8 @@
+| id | g | t = sum(u where g = @g) | u = t * 2 |
+| --- | --- | --: | --: |
+| r_01 | p |  |  |
+| r_02 | p |  |  |
+
+key := id
+n := count(t)
+s := sum(u)

@@ -178,6 +178,22 @@ MUTANTS = {
         "for nm, expr in list(pending.items()):",
         "for nm, expr in reversed(list(pending.items())):",
     ),
+    # the two ordering defects that each produced a silent wrong number:
+    # a group aggregate over a computed column summed empty cells to 0, and a
+    # column depending on cumulative() was #REF!. Both were pass-ordering.
+    # The SECOND plain pass. Removing it is what made a per-vendor subtotal over
+    # a computed column evaluate to 0 with `check` reporting 0 refused.
+    "plain-pass-runs-only-once": (
+        "    _eval_plain(seq, plain)\n    # row-relative, computed over the DERIVED order",
+        "    # row-relative, computed over the DERIVED order",
+    ),
+    # Writes the right value to the WRONG row. Under the old `str(value) in out`
+    # check this survived whenever the value already appeared anywhere in the
+    # file, which for a small fixture is most of the time.
+    "set-cell-writes-to-the-first-matching-row": (
+        "if str(r.get(key)) == str(row_key):",
+        "if True:",
+    ),
     # --- namespaces the suite tests for `key` but not for `order` ---------------
     "allow-duplicate-order-declaration": ("if order_seen:", "if False:"),
     "order-accepts-any-function": (
