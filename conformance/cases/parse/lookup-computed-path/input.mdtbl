@@ -1,0 +1,5 @@
+| id | customer | stem | who = lookup(stem + ".mdtbl", customer, name) |
+| --- | --- | --- | --- |
+| r_01 | c001 | customers |  |
+
+key := id

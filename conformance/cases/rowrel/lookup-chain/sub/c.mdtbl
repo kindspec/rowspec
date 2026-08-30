@@ -1,0 +1,5 @@
+| cid | label |
+| --- | --- |
+| c1 | Ada |
+
+key := cid

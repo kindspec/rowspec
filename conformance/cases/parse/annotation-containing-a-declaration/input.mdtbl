@@ -1,0 +1,9 @@
+| id | item | qty |
+| --- | --- | --: |
+| r_01 | widget | 10 |
+| r_02 | gadget | 5 |
+
+key := id
+# grand := sum(qty) times two
+# order := by(qty)
+grand := sum(qty)

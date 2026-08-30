@@ -1,0 +1,5 @@
+| id | bkey | v = lookup(sub/b.mdtbl, bkey, cval) |
+| --- | --- | --- |
+| r_01 | b1 |  |
+
+key := id

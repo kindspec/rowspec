@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "g": "#REF!(qty)"
+  },
+  "kind": "eval"
+}

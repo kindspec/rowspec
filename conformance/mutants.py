@@ -157,9 +157,14 @@ MUTANTS = {
         'v = env.get(node.id, "")\nif node.id in env and v == "":\n    return 0.0',
     ),
     # --- numeric coercion, entirely unspecified and entirely untested -----------
-    "float-accepts-thousands-separators": (
-        "return float(v)",
-        'return float(str(v).replace(",", ""))',
+    # was `float-accepts-thousands-separators`; the permissive float() it
+    # targeted is gone, replaced by the §4.1 number grammar. The defect worth
+    # guarding is now the grammar itself being loosened back to Python's
+    # float(), which accepts Arabic-Indic digits, PEP 515 separators and
+    # exponents -- all of which §8 requires to be refused.
+    "number-grammar-accepts-anything-python-does": (
+        "if not isinstance(v, str) or not _NUMBER.match(v):",
+        "if not isinstance(v, str):",
     ),
     # The implementation now strips ASCII whitespace only, deliberately, so the
     # defect to guard against inverted: silently eating a non-ASCII space that
@@ -181,8 +186,8 @@ MUTANTS = {
     ),
     # --- a data row that looks like an alignment row is silently dropped --------
     "is-align-matches-any-dashed-cell": (
-        'return bool(cells) and all(_ANY.fullmatch(c) for c in cells if c != "")',
-        'return bool(cells) and any(_ANY.fullmatch(c) for c in cells if c != "")',
+        "return bool(cells) and all(_ANY.fullmatch(c) for c in cells)",
+        "return bool(cells) and any(_ANY.fullmatch(c) for c in cells)",
     ),
     # --- CONTROLS: these MUST be killed, or the harness is broken ---------------
     "CONTROL-drop-every-third-row": (

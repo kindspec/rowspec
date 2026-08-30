@@ -1,0 +1,5 @@
+| bid | ckey | cval = lookup(c.mdtbl, ckey, label) |
+| --- | --- | --- |
+| b1 | c1 |  |
+
+key := bid

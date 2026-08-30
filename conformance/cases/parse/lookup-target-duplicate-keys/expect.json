@@ -1,0 +1,5 @@
+{
+  "accept": false,
+  "kind": "parse",
+  "refusal_contains": "duplicate key"
+}

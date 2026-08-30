@@ -1,9 +1,11 @@
 """rowspec — a second, independent implementation, written from SPEC.md.
 
 Entry points: parse, structure, evaluate, render, canon, set_cell, Malformed.
-Standard library only.
+Standard library only.  Every non-obvious decision cites the clause it came
+from; where the prose did not determine the answer the comment says so.
 """
 
+import os
 import re
 import unicodedata
 
@@ -19,7 +21,7 @@ __all__ = [
 
 
 class Malformed(Exception):
-    """Every refusal in SPEC.md §9 (plus §3's identifier rules) raises this."""
+    """Every refusal in SPEC.md §9."""
 
 
 # --------------------------------------------------------------------------
@@ -59,7 +61,7 @@ class TextVal:
 
 
 class Ref:
-    """A propagating #REF! error carrying the name that broke."""
+    """A propagating #REF! error carrying the name that broke (§8)."""
 
     __slots__ = ("name",)
 
@@ -77,7 +79,6 @@ class Ref:
 
 
 def display(v):
-    """External representation used in the rows / aggregates the API returns."""
     if isinstance(v, Ref):
         return f"#REF!({v.name})"
     if v is BLANK:
@@ -87,20 +88,48 @@ def display(v):
     return v
 
 
+def as_text(v):
+    """Text form of a value, for key comparison across a lookup."""
+    if v is BLANK:
+        return ""
+    if isinstance(v, TextVal):
+        return v.s
+    if isinstance(v, Ref):
+        return f"#REF!({v.name})"
+    if float(v).is_integer():
+        return str(int(v))
+    return repr(float(v))
+
+
 # --------------------------------------------------------------------------
-# lexical helpers
+# §4.1 lexical layer
 # --------------------------------------------------------------------------
 
-# SPEC.md §8: "thousands separators, parenthesised negatives, and non-ASCII
-# spaces are refused rather than interpreted".  ASCII digits only -- \d in
-# Python matches Unicode decimal digits, which would silently accept e.g.
-# Arabic-Indic numerals.
-NUMBER_RE = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$")
-# §6: date is "Y-M-D or Y/M/D".
-DATE_RE = re.compile(r"^[0-9]{4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
+WSP = " \t"
+
+# §4.1.6: number = [ "-" ] 1*DIGIT [ "." 1*DIGIT ]; DIGIT is U+0030-U+0039 and
+# nothing else.  A leading "+", an exponent, ".5", "5." and any digit grouping
+# are refused and are therefore text.
+NUMBER_RE = re.compile(r"^-?[0-9]+(?:\.[0-9]+)?$")
+
+# §4.1.7: 1*4DIGIT sep 1*2DIGIT sep 1*2DIGIT, both separators the same.
+DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
+
+# §4.1.5: align-cell = [ ":" ] 1*"-" [ ":" ]
 ALIGN_CELL_RE = re.compile(r"^:?-+:?$")
 
-CONFLICT_RE = re.compile(r"^(<{7}|={7}|>{7}|\|{7})(\s|$)")
+# §4.1.9: ident = 1*( LETTER / MARK / NUM / "_" / "-" / "." )
+IDENT_EXTRA = "_-."
+
+# §4.1.7 / §9.10: non-finite spellings are never numbers and are refused in an
+# order column in any case.
+NONFINITE = {"inf", "+inf", "-inf", "infinity", "+infinity", "-infinity", "nan", "+nan", "-nan"}
+
+CONFLICT_PREFIXES = ("<" * 7, "=" * 7, ">" * 7, "|" * 7)
+
+# §4.1: table-line = *WSP "|" 1*( cell "|" ) *WSP.  Both pipes required; a cell
+# can never contain "|" because no escape exists (§4.1.3).
+TABLE_LINE_RE = re.compile(r"^[ \t]*\|(?:[^|]*\|)+[ \t]*$")
 
 AGG_FUNCS = ("sum", "count", "min", "max", "avg")
 ROWREL_FUNCS = ("cumulative", "prior", "delta")
@@ -110,39 +139,59 @@ def nfc(s):
     return unicodedata.normalize("NFC", s)
 
 
-def check_identifier(name, what):
-    if name == "":
-        raise Malformed(f"malformed declaration: empty {what} name")
+def is_ident(name):
+    """§4.1.9 -- an allowlist, so an unforeseen character is refused."""
+    if not name:
+        return False
     for ch in name:
-        if unicodedata.category(ch) == "Cf":
-            raise Malformed(f"format character U+{ord(ch):04X} in {what} identifier {name!r}")
+        if ch in IDENT_EXTRA:
+            continue
+        if unicodedata.category(ch)[0] not in ("L", "M", "N"):
+            return False
+    return True
+
+
+def check_identifier(name, what):
+    """§9.16.  Whitespace and Cf are excluded by `ident` by construction."""
+    if not is_ident(name):
+        raise Malformed(
+            f"{what} identifier {name!r} is not an ident (§4.1.9): whitespace, a Cf "
+            "format character, or a character outside the allowlist"
+        )
     return nfc(name)
 
 
+def trim(s):
+    """§4/§4.1.4: leading and trailing ASCII space and horizontal tab, and
+    nothing else.  U+00A0 and friends in padding position are thousands
+    separators, not padding."""
+    return s.strip(WSP)
+
+
 def coerce_cell(raw):
-    """Turn a raw cell's text into a value.  Padding is ASCII-space only."""
-    s = raw.strip(" \t\r")
+    s = trim(raw)
     if s == "":
         return BLANK
     if NUMBER_RE.match(s):
-        f = float(s)
-        if f != f or f in (float("inf"), float("-inf")):
-            return TextVal(s)
-        return f
+        return float(s)
     return TextVal(s)
 
 
 # --------------------------------------------------------------------------
-# expression AST + parser
+# formula expressions
+#
+# §4.1 gives a grammar for declarations but NOT for the expression language in
+# a header cell -- no operators, no precedence, no literals, no `@`, no path.
+# What follows is this implementation's reading, flagged in the findings.
 # --------------------------------------------------------------------------
 
 TOKEN_RE = re.compile(
     r"""
     (?P<ws>[ \t]+)
-  | (?P<num>[0-9]+(?:\.[0-9]*)?|\.[0-9]+)
+  | (?P<path>[0-9A-Za-z_./-]*\.mdtbl)
+  | (?P<num>[0-9]+(?:\.[0-9]+)?)
   | (?P<str>"[^"]*")
-  | (?P<path>[\w./-]*\.mdtbl)
-  | (?P<id>[^\W\d]\w*)
+  | (?P<id>[^\W\d][\w.]*)
   | (?P<op>[-+*/(),=@])
 """,
     re.VERBOSE | re.UNICODE,
@@ -215,7 +264,8 @@ def parse_unary(p):
     k, v = p.peek()
     if k == "op" and v in "+-":
         p.next()
-        return ("neg", parse_unary(p)) if v == "-" else parse_unary(p)
+        inner = parse_unary(p)
+        return ("neg", inner) if v == "-" else inner
     return parse_primary(p)
 
 
@@ -230,69 +280,74 @@ def parse_primary(p):
         p.expect_op(")")
         return node
     if k == "op" and v == "@":
-        k2, v2 = p.next()
-        if k2 != "id":
-            p.fail("@ must be followed by a column name")
-        return ("at", nfc(v2))
-    if k == "path":
-        return ("path", v)
+        return ("at", want_colname(p, "@ must be followed by a column name"))
     if k == "id":
         k2, v2 = p.peek()
         if k2 == "op" and v2 == "(":
             return parse_call(p, v)
         if v in ("where", "and"):
             p.fail(f"unexpected keyword {v!r}")
-        return ("col", nfc(v))
+        return ("col", check_identifier(v, "column"))
     p.fail()
+
+
+def want_colname(p, what):
+    """A column-name position.  §4.1.9 makes `123` a well-formed ident, and the
+    declaration grammar has no numeric-literal alternative, so a bare number
+    here is a column name -- while in an arithmetic operand position §4.1.6
+    makes it a literal.  §4.1 does not resolve that; see the findings."""
+    k, v = p.next()
+    if k in ("id", "num") and v not in ("where", "and"):
+        return check_identifier(v, "column")
+    p.fail(what)
 
 
 def parse_call(p, fname):
     p.expect_op("(")
     low = fname.lower()
     if low in ROWREL_FUNCS:
-        k, v = p.next()
-        if k != "id":
-            p.fail(f"{low}() takes a column name")
+        name = want_colname(p, f"{low}() takes a column name")
         p.expect_op(")")
-        return ("rowrel", low, nfc(v))
+        return ("rowrel", low, name)
     if low in AGG_FUNCS:
-        k, v = p.next()
-        if k != "id" or v in ("where", "and"):
-            p.fail(f"{low}() takes a column name")
-        col = nfc(v)
-        preds = []
-        k2, v2 = p.peek()
-        if k2 == "id" and v2 == "where":
-            p.next()
-            while True:
-                k3, v3 = p.next()
-                if k3 != "id" or v3 in ("where", "and"):
-                    p.fail("predicate needs a column name")
-                p.expect_op("=")
-                preds.append((nfc(v3), parse_primary(p)))
-                k4, v4 = p.peek()
-                if k4 == "id" and v4 == "and":
-                    p.next()
-                    continue
-                break
-        p.expect_op(")")
-        return ("agg", low, col, tuple(preds))
+        return parse_agg_tail(p, low)
     if low == "lookup":
-        args = []
-        while True:
-            k, v = p.next()
-            if k is None:
-                p.fail("unterminated lookup()")
-            if k == "op" and v == ")":
-                break
-            if k in ("id", "path"):
-                args.append(v)
-        if len(args) != 3:
-            p.fail("lookup() takes (file, key column, wanted column)")
-        return ("lookup", args[0], nfc(args[1]), nfc(args[2]))
-    # §7 "An unknown function is refused."  §9.11 calls it an unknown
-    # aggregate function; one message satisfies both.
+        # §7: "The target is a **literal** path written in the formula ... It
+        # is never computed at evaluation time."  So argument 1 must be a
+        # single path token; `stem + ".mdtbl"` is refused here.
+        k, v = p.next()
+        if k not in ("path", "str"):
+            p.fail(
+                "lookup() target must be a literal path written in the formula, never computed (§7)"
+            )
+        path = v[1:-1] if k == "str" else v
+        p.expect_op(",")
+        kc = want_colname(p, "lookup() takes (path, key column, wanted column)")
+        p.expect_op(",")
+        wc = want_colname(p, "lookup() takes (path, key column, wanted column)")
+        p.expect_op(")")
+        return ("lookup", path, kc, wc)
+    # §7 "An unknown function is refused."  §9.11 names it.
     raise Malformed(f"unknown aggregate function {fname!r}")
+
+
+def parse_agg_tail(p, low):
+    col = want_colname(p, f"{low}() takes a column name")
+    preds = []
+    k2, v2 = p.peek()
+    if k2 == "id" and v2 == "where":
+        p.next()
+        while True:
+            lhs = want_colname(p, "predicate needs a column name")
+            p.expect_op("=")
+            preds.append((lhs, parse_primary(p)))
+            k4, v4 = p.peek()
+            if k4 == "id" and v4 == "and":
+                p.next()
+                continue
+            break
+    p.expect_op(")")
+    return ("agg", low, col, tuple(preds))
 
 
 def parse_formula(src, ctx):
@@ -319,66 +374,79 @@ def walk(node):
 
 
 # --------------------------------------------------------------------------
-# line model
+# lines and classification (§4.1)
 # --------------------------------------------------------------------------
 
 
 class Line:
-    __slots__ = ("body", "term", "cells", "trailing_pipe", "tail", "kind")
+    __slots__ = ("body", "term", "kind", "cells", "head", "tail")
 
     def __init__(self, body, term):
         self.body = body
         self.term = term
+        self.kind = None
         self.cells = None
-        self.trailing_pipe = False
+        self.head = ""
         self.tail = ""
-        self.kind = "other"
 
     def text(self):
         if self.cells is None:
             return self.body + self.term
-        inner = "|".join(self.cells)
-        return "|" + inner + ("|" if self.trailing_pipe else "") + self.tail + self.term
+        return self.head + "|" + "|".join(self.cells) + "|" + self.tail + self.term
 
 
 def split_lines(text):
+    """LF and CRLF are both `eol` (§4.1).  A lone CR is refused (§9.15)."""
     out = []
     i = 0
     n = len(text)
     while i < n:
         j = text.find("\n", i)
         if j < 0:
-            out.append(Line(text[i:], ""))
-            break
-        body = text[i:j]
-        term = "\n"
-        if body.endswith("\r"):
-            body = body[:-1]
-            term = "\r\n"
+            body, term = text[i:], ""
+            i = n
+        else:
+            body, term = text[i:j], "\n"
+            if body.endswith("\r"):
+                body, term = body[:-1], "\r\n"
+            i = j + 1
+        if "\r" in body:
+            raise Malformed("lone CR in a line (§9.15): it makes two rows share one git line")
         out.append(Line(body, term))
-        i = j + 1
     return out
 
 
+def classify(line):
+    """§4.1: the alternatives of `line` are tried in the order written and the
+    first that matches decides.  `conflict` precedes `table-line` because
+    `|||||||` is itself a well-formed seven-cell table line."""
+    b = line.body
+    if b[:7] in CONFLICT_PREFIXES:
+        return "conflict"
+    stripped = b.lstrip(WSP)
+    if stripped.startswith("#"):
+        return "annotation"
+    if TABLE_LINE_RE.match(b):
+        return "table"
+    if stripped == "":
+        return "blank"
+    return "declaration"  # provisional; validated in parse_declaration
+
+
 def split_cells(line):
-    body = line.body
-    # Trailing whitespace after the closing pipe is decoration, not a field:
-    # canon/idempotent-trailing-spaces requires canon() to drop it while
-    # roundtrip requires render() to give it back.  SPEC.md never says so.
-    stripped = body.rstrip(" \t")
-    if stripped.endswith("|") and len(stripped) > 1:
-        line.trailing_pipe = True
-        line.tail = body[len(stripped) :]
-        inner = stripped[1:-1]
-    else:
-        line.trailing_pipe = False
-        line.tail = ""
-        inner = body[1:]
-    line.cells = inner.split("|")
+    b = line.body
+    lead = len(b) - len(b.lstrip(WSP))
+    line.head = b[:lead]
+    rest = b[lead:]
+    trail = len(rest) - len(rest.rstrip(WSP))
+    line.tail = rest[len(rest) - trail :] if trail else ""
+    core = rest[: len(rest) - trail] if trail else rest
+    # core is "|" + (cell "|")+
+    line.cells = core[1:-1].split("|")
 
 
 def is_align_row(cells):
-    return all(ALIGN_CELL_RE.match(c.strip(" \t\r")) for c in cells)
+    return bool(cells) and all(ALIGN_CELL_RE.match(trim(c)) for c in cells)
 
 
 # --------------------------------------------------------------------------
@@ -387,13 +455,11 @@ def is_align_row(cells):
 
 
 class Column:
-    __slots__ = ("name", "raw_name", "formula", "src")
+    __slots__ = ("name", "formula")
 
-    def __init__(self, name, raw_name, formula, src):
+    def __init__(self, name, formula):
         self.name = name
-        self.raw_name = raw_name
         self.formula = formula
-        self.src = src
 
     @property
     def computed(self):
@@ -402,238 +468,244 @@ class Column:
 
 class Structure:
     def __init__(self):
-        self.deferred = None
         self.lines = []
         self.columns = []
         self.col_index = {}
-        self.row_lines = []  # Line objects, file order
-        self.key = None  # column name or None
-        self.order = None  # column name or None
-        self.aggregates = []  # (name, node)
-        self.header_line = None
-        self.align_line = None
-
-    def cell(self, row_i, col_name):
-        return self.row_lines[row_i].cells[self.col_index[col_name]]
+        self.row_lines = []
+        self.key = None
+        self.order = None
+        self.aggregates = []
 
 
 def structure(text):
     st = Structure()
-    st.deferred = None
-    # §3: UTF-8, LF line endings, no BOM.  A BOM stops the file being a table
-    # at all, so it is refused eagerly.
-    if text.startswith("\ufeff"):
-        raise Malformed("byte order mark at the start of the file")
+
+    # §9.14 -- a leading BOM, or bytes that are not well-formed UTF-8.  The
+    # caller decodes, so a BOM survives as U+FEFF.
+    if text.startswith("﻿"):
+        raise Malformed("leading BOM (§9.14)")
+
     st.lines = split_lines(text)
-    # CR is refused too -- but roundtrip/crlf requires structure() to hand
-    # back a byte-exact document, so the diagnostic is *reported* here and
-    # *raised* by evaluate() (§9's "reported separately from being handled").
-    for ln in st.lines:
-        if "\r" in ln.body:
-            st.deferred = Malformed("lone carriage return in a line")
-            break
-        if ln.term == "\r\n":
-            st.deferred = Malformed("CRLF line endings; §3 requires LF")
-            break
 
-    # §9.1 -- conflict markers anywhere in the file, checked before anything
-    # else because `|||||||` would otherwise read as a table row.
     for ln in st.lines:
-        if CONFLICT_RE.match(ln.body):
-            raise Malformed(f"conflict marker in file: {ln.body[:20]!r}")
+        ln.kind = classify(ln)
 
-    # §4 -- the table is a contiguous run of lines beginning with '|'.
-    start = None
-    for i, ln in enumerate(st.lines):
-        if ln.body.startswith("|"):
-            start = i
-            break
-    if start is None:
-        raise Malformed("file contains no table")
+    # §9.1 -- conflict markers anywhere, before any other classification.
+    for ln in st.lines:
+        if ln.kind == "conflict":
+            raise Malformed(f"conflict marker (§9.1): {ln.body[:16]!r}")
+
+    # §4.1.2 -- the table is the MAXIMAL CONTIGUOUS RUN of table-lines, and a
+    # file has exactly one table.  A table line outside that run is refused
+    # (§9.19).
+    idx = [i for i, ln in enumerate(st.lines) if ln.kind == "table"]
+    if not idx:
+        raise Malformed("file contains no table (§9.13)")
+    start = idx[0]
     end = start
-    while end < len(st.lines) and st.lines[end].body.startswith("|"):
+    while end < len(st.lines) and st.lines[end].kind == "table":
         end += 1
-
-    for ln in st.lines[:start]:
-        s = ln.body.strip()
-        if s and not s.startswith("#"):
-            raise Malformed(f"malformed declaration before the table: {ln.body!r}")
-
-    if end - start < 2:
-        raise Malformed("file contains no table: header and alignment row required")
+    for i in idx:
+        if not (start <= i < end):
+            raise Malformed(
+                "table line after the table's contiguous run has ended "
+                f"(§9.19): {st.lines[i].body[:40]!r}"
+            )
 
     for ln in st.lines[start:end]:
         split_cells(ln)
 
+    # §9.20 -- a table shorter than two lines, or a second line that is not a
+    # valid alignment row.  Never reinterpreted as a data row (§4).
+    if end - start < 2:
+        raise Malformed("table is shorter than two lines: no alignment row (§9.20)")
     header, align = st.lines[start], st.lines[start + 1]
     header.kind, align.kind = "header", "align"
     ncol = len(header.cells)
-
-    # §9.7 -- alignment row field count
     if len(align.cells) != ncol:
-        raise Malformed(f"alignment row has {len(align.cells)} fields, header has {ncol}")
+        raise Malformed(f"alignment row has {len(align.cells)} fields, header has {ncol} (§9.7)")
     if not is_align_row(align.cells):
-        raise Malformed(f"alignment row is not an alignment row: {align.body!r}")
+        raise Malformed(
+            f"second table line is not a valid alignment row (§9.20): {align.body[:60]!r}"
+        )
 
     # §5 -- header cells
-    seen = {}
+    seen = set()
     for c in header.cells:
-        raw = c.strip(" \t\r")
+        raw = trim(c)
         if "=" in raw:
             nm, fm = raw.split("=", 1)
-            nm, fm = nm.strip(), fm.strip()
+            nm, fm = trim(nm), trim(fm)
         else:
             nm, fm = raw, None
         name = check_identifier(nm, "column")
         if name in seen:
-            raise Malformed(f"duplicate column name {name!r}")
-        seen[name] = True
-        node = parse_formula(fm, f"column {name}") if fm is not None else None
-        if fm is not None and fm == "":
-            raise Malformed(f"column {name}: empty formula")
-        st.columns.append(Column(name, nm, node, fm))
+            raise Malformed(f"duplicate column name {name!r} (§9.2)")
+        seen.add(name)
+        node = None
+        if fm is not None:
+            if fm == "":
+                raise Malformed(f"column {name}: empty formula")
+            node = parse_formula(fm, f"column {name}")
+        st.columns.append(Column(name, node))
     st.col_index = {c.name: i for i, c in enumerate(st.columns)}
 
     # data rows
     for ln in st.lines[start + 2 : end]:
         ln.kind = "data"
         if is_align_row(ln.cells):
-            # §9.8
-            raise Malformed(f"alignment-style row among the data rows: {ln.body!r}")
+            raise Malformed(f"alignment-style row among the data rows (§9.8): {ln.body[:60]!r}")
         if len(ln.cells) != ncol:
-            raise Malformed(f"data row has {len(ln.cells)} fields, header has {ncol}")
+            raise Malformed(f"data row has {len(ln.cells)} fields, header has {ncol} (§9.6)")
         st.row_lines.append(ln)
 
-    # §5: "A column with a formula is COMPUTED and its data cells are empty."
+    # §9.17 -- a value in a computed cell
     for c in st.columns:
         if not c.computed:
             continue
         j = st.col_index[c.name]
         for ln in st.row_lines:
-            if ln.cells[j].strip(" \t\r") != "":
+            if trim(ln.cells[j]) != "":
                 raise Malformed(
-                    f"computed column {c.name!r} holds a stored value {ln.cells[j].strip()!r}"
+                    f"value {trim(ln.cells[j])!r} in the computed column {c.name!r} (§9.17)"
                 )
 
-    # declarations
-    for ln in st.lines[end:]:
-        parse_declaration(st, ln)
+    for ln in st.lines:
+        if ln.kind == "declaration":
+            parse_declaration(st, ln)
 
     validate(st)
     return st
 
 
+def strip_inline_annotation(body):
+    """§4.1.10 -- an inline annotation is WSP followed by `#` to end of line,
+    on a declaration line only.  `g := sum(v)# note` has no WSP before the `#`
+    and is a malformed declaration."""
+    in_str = False
+    for i, ch in enumerate(body):
+        if ch == '"':
+            in_str = not in_str
+        elif ch == "#" and not in_str and i > 0 and body[i - 1] in WSP:
+            return body[:i]
+    return body
+
+
 def parse_declaration(st, ln):
-    s = ln.body
-    # The one ignorable channel (§9): '#' comments.  The spec never gives its
-    # syntax; '#' is taken from the example in §6.
-    hash_i = s.find("#")
-    if hash_i >= 0:
-        s = s[:hash_i]
-    s = s.strip()
-    if s == "":
-        return
+    s = strip_inline_annotation(ln.body)
+    s = trim(s)
     if ":=" not in s:
-        raise Malformed(f"malformed declaration: {ln.body!r}")
+        # §9.19 -- none of annotation, table line, declaration, or blank.
+        raise Malformed(
+            f"line is not an annotation, table line, declaration or blank (§9.19): {ln.body[:60]!r}"
+        )
     lhs, rhs = s.split(":=", 1)
-    lhs, rhs = lhs.strip(), rhs.strip()
+    lhs, rhs = trim(lhs), trim(rhs)
     if lhs == "" or rhs == "":
-        raise Malformed(f"malformed declaration: {ln.body!r}")
-    ln.kind = "decl"
+        raise Malformed(f"malformed declaration (§9.12): {ln.body[:60]!r}")
+    if not is_ident(lhs):
+        raise Malformed(f"malformed declaration (§9.12): {lhs!r} is not an ident (§4.1.9)")
 
     if lhs == "key":
         if st.key is not None:
-            raise Malformed("duplicate key declaration")
-        toks = tokenize(rhs, "key declaration")
-        if len(toks) != 1 or toks[0][0] != "id":
-            raise Malformed(f"malformed declaration: key := {rhs!r}")
-        st.key = check_identifier(toks[0][1], "column")
+            raise Malformed("duplicate key declaration (§9.4)")
+        # §4.1.11 -- `key := col` is the sole bare form.
+        if not is_ident(rhs):
+            raise Malformed("malformed declaration (§9.12): key takes a bare column name")
+        st.key = nfc(rhs)
         return
 
     if lhs == "order":
         if st.order is not None:
-            raise Malformed("duplicate order declaration")
-        m = re.match(r"^by\(\s*([^\W\d]\w*)\s*\)$", rhs, re.UNICODE)
-        if not m:
-            raise Malformed(f"malformed declaration: order := {rhs!r}")
-        st.order = check_identifier(m.group(1), "column")
+            raise Malformed("duplicate order declaration (§9.4)")
+        # §4.1.11 -- §6 defines exactly two order states; a third spelling is
+        # refused rather than degraded into the second.
+        m = re.match(r"^by\(([ \t]*)([^()]*?)([ \t]*)\)$", rhs)
+        if not m or not is_ident(m.group(2)):
+            raise Malformed(
+                "malformed declaration (§9.12): unrecognised order construct "
+                f"{rhs!r}; §6 defines only `order := by(c)` or the line omitted"
+            )
+        st.order = nfc(m.group(2))
         return
 
     name = check_identifier(lhs, "aggregate")
     if any(name == n for n, _ in st.aggregates):
-        raise Malformed(f"duplicate aggregate name {name!r}")
+        raise Malformed(f"duplicate aggregate name {name!r} (§9.3)")
+    # §4.1.11 -- a non-`key` name with no function is malformed.
+    if "(" not in rhs:
+        raise Malformed(f"malformed declaration (§9.12): {ln.body[:60]!r} has no function")
     node = parse_formula(rhs, f"aggregate {name}")
     if node[0] != "agg":
-        raise Malformed(f"malformed declaration: {ln.body!r} is not an aggregate over a column")
+        raise Malformed(
+            f"malformed declaration (§9.12): {ln.body[:60]!r} is not an aggregate over a column"
+        )
     for sub in walk(node):
         if sub[0] == "at":
             raise Malformed(
-                f"malformed declaration: @{sub[1]} has no current row in a table-level aggregate"
+                f"malformed declaration (§9.12): @{sub[1]} has no current row in a "
+                "table-level aggregate"
             )
-        if sub[0] == "rowrel":
-            raise Malformed(f"malformed declaration: {sub[1]}() is a row-relative operator")
     st.aggregates.append((name, node))
 
 
 def validate(st):
     names = set(st.col_index)
 
-    if st.key is not None and st.key not in names:
-        raise Malformed(f"key := {st.key} names no column")
-    if st.key is not None and st.columns[st.col_index[st.key]].computed:
-        raise Malformed(f"key := {st.key} is a computed column")
-
-    # §9.5 -- duplicate row id, where a key is declared
     if st.key is not None:
+        if st.key not in names:
+            raise Malformed(f"key := {st.key} names no column")
+        if st.columns[st.col_index[st.key]].computed:
+            raise Malformed(f"key := {st.key} is a computed column")
+        # §9.16 -- a value of the key column is an identifier.
         ki = st.col_index[st.key]
         seen = {}
         for ln in st.row_lines:
-            v = nfc(ln.cells[ki].strip(" \t\r"))
+            v = check_identifier(trim(ln.cells[ki]), "row key")
             if v in seen:
-                raise Malformed(f"duplicate key {v!r}")
+                raise Malformed(f"duplicate key {v!r} (§9.5)")
             seen[v] = True
 
-    # §9.9 -- row-relative operator with no declared order
-    uses_rowrel = any(
-        sub[0] == "rowrel" for c in st.columns if c.computed for sub in walk(c.formula)
-    )
-    if uses_rowrel and st.order is None:
-        raise Malformed("row-relative operator requires a declared row order")
+    # §9.9 -- a row-relative operator with no declared order
+    if st.order is None:
+        for c in st.columns:
+            if c.computed and any(s[0] == "rowrel" for s in walk(c.formula)):
+                raise Malformed("row-relative operator requires a declared row order (§9.9)")
 
-    # §9.10 -- order column must be stored, single-typed, finite
+    # §9.10 -- the order column
     if st.order is not None:
         if st.order not in names:
-            raise Malformed(f"order := by({st.order}) names no column")
-        col = st.columns[st.col_index[st.order]]
-        if col.computed:
-            raise Malformed(f"order := by({st.order}) is a computed column")
+            raise Malformed(f"order := by({st.order}) names no column (§9.10)")
+        if st.columns[st.col_index[st.order]].computed:
+            raise Malformed(f"order := by({st.order}) is a computed column (§9.10)")
         if st.key is None:
-            raise Malformed("order requires a declared key")
-        kinds = set()
+            raise Malformed("order requires a declared key (§6, §9.10)")
         oi = st.col_index[st.order]
-        for ln in st.row_lines:
-            kinds.add(order_kind(ln.cells[oi].strip(" \t\r")))
+        kinds = {order_kind(trim(ln.cells[oi]), st.order) for ln in st.row_lines}
         if len(kinds) > 1:
             raise Malformed(
-                "order := by({}) mixes types: {}".format(st.order, ", ".join(sorted(kinds)))
+                "order := by({}) mixes types: {} (§9.10)".format(st.order, ", ".join(sorted(kinds)))
             )
 
-    # referenced-but-unknown column names are NOT a refusal: §8 makes them
-    # #REF! at evaluation time.
+    # §7/§8 -- a lookup path is literal, and confined to the repository.  The
+    # lexical half of that is static; the containment half needs the base and
+    # happens in Evaluator.
+    for c in st.columns:
+        if not c.computed:
+            continue
+        for sub in walk(c.formula):
+            if sub[0] == "lookup" and os.path.isabs(sub[1]):
+                raise Malformed(
+                    f"lookup() target {sub[1]!r} is absolute; §7 confines it to the repository"
+                )
 
 
-NONFINITE = {"inf", "+inf", "-inf", "infinity", "+infinity", "-infinity", "nan", "+nan", "-nan"}
-
-
-def order_kind(s):
+def order_kind(s, col):
     if s == "":
         return "blank"
     if s.lower() in NONFINITE:
-        raise Malformed(f"order column holds a non-finite number {s!r}")
+        raise Malformed(f"order := by({col}) holds the non-finite spelling {s!r} (§9.10)")
     if NUMBER_RE.match(s):
-        f = float(s)
-        if f != f or f in (float("inf"), float("-inf")):
-            raise Malformed(f"order column holds a non-finite number {s!r}")
         return "number"
     if DATE_RE.match(s):
         return "date"
@@ -641,7 +713,7 @@ def order_kind(s):
 
 
 def parse(text):
-    """Recognition only; identical algorithm to structure() (§9)."""
+    """Recognition; the same algorithm evaluate() runs (§9)."""
     return structure(text)
 
 
@@ -655,39 +727,49 @@ def render(st):
 
 
 def canon_align(cell):
-    s = cell.strip(" \t\r")
+    s = trim(cell)
     left = s.startswith(":")
-    right = s.endswith(":") and len(s) > 1
+    right = s.endswith(":") and s != ":"
     return (":" if left else "-") + "-" + (":" if right else "-")
 
 
 def canon(text):
+    """§10.  Single-space delimiters, no alignment padding.
+
+    §4.1.1: canon terminates every table line it emits and leaves annotations
+    and declarations byte-verbatim.  §3/§10: the canonical form is LF -- read
+    here as normalising every terminator, since a "canonical form" with two
+    line endings in it is not canonical.  See the findings: the two sentences
+    do not agree and no fixture separates them.
+    """
     st = structure(text)
     for ln in st.lines:
         if ln.cells is None:
+            ln.term = "\n" if ln.term else ln.term
             continue
         if ln.kind == "align":
             cells = [canon_align(c) for c in ln.cells]
         else:
-            cells = [c.strip(" \t\r") for c in ln.cells]
+            cells = [trim(c) for c in ln.cells]
         ln.cells = [" " + c + " " for c in cells]
-        ln.trailing_pipe = True
+        ln.head = ""
         ln.tail = ""
+        ln.term = "\n"
     return render(st)
 
 
 def set_cell(st, row_key, column, value):
-    col = nfc(column)
+    col = nfc(str(column))
     if col not in st.col_index:
         raise Malformed(f"no column named {column!r}")
     if st.columns[st.col_index[col]].computed:
-        raise Malformed(f"cannot write a value into the computed column {column!r}")
+        raise Malformed(f"cannot write a value into the computed column {column!r} (§5)")
     if st.key is None:
         raise Malformed("cannot address a row: no key is declared")
     ki = st.col_index[st.key]
     want = nfc(str(row_key))
     for ln in st.row_lines:
-        if nfc(ln.cells[ki].strip(" \t\r")) == want:
+        if nfc(trim(ln.cells[ki])) == want:
             ln.cells[st.col_index[col]] = f" {value} "
             return st
     raise Malformed(f"no row with key {row_key!r}")
@@ -699,6 +781,10 @@ def set_cell(st, row_key, column, value):
 
 
 def sort_key_for(kind, s, key):
+    """§6: the tuple (typed value of c, key), never a string concatenation.
+    §4.1.7: dates compare as the integer tuple (y, m, d), never as strings.
+    §4.1.8: text compares by Unicode code point over the NFC-normalised,
+    trimmed value; locale collation is refused."""
     if kind == "number":
         return (float(s), key)
     if kind == "date":
@@ -707,30 +793,43 @@ def sort_key_for(kind, s, key):
         return ((int(y), int(m), int(d)), key)
     if kind == "blank":
         return ("", key)
-    return (s, key)
+    return (nfc(s), key)
+
+
+class Ctx:
+    """Shared across one evaluation, including artifacts reached by lookup."""
+
+    def __init__(self, root):
+        self.root = root
+        self.arts = {}  # abspath -> Evaluator
+        self.stack = set()  # (abspath, column) currently being computed
 
 
 class Evaluator:
-    def __init__(self, st):
+    def __init__(self, st, base, ctx, path=None):
         self.st = st
+        self.base = base
+        self.ctx = ctx
+        self.path = path or "<input>"
         self.n = len(st.row_lines)
         self.cache = {}
         self.stack = []
 
-        # derived order (§6): the tuple (typed value of c, key), never a
-        # string concatenation.
         if st.order is not None and self.n:
             oi = st.col_index[st.order]
             ki = st.col_index[st.key]
-            kinds = {order_kind(ln.cells[oi].strip(" \t\r")) for ln in st.row_lines}
+            kinds = {order_kind(trim(ln.cells[oi]), st.order) for ln in st.row_lines}
             kind = kinds.pop()
-            decorated = []
+            dec = []
             for i, ln in enumerate(st.row_lines):
-                ov = ln.cells[oi].strip(" \t\r")
-                kv = nfc(ln.cells[ki].strip(" \t\r"))
-                decorated.append((sort_key_for(kind, ov, kv), i))
-            decorated.sort(key=lambda t: t[0])
-            self.perm = [i for _, i in decorated]
+                dec.append(
+                    (
+                        sort_key_for(kind, trim(ln.cells[oi]), nfc(trim(ln.cells[ki]))),
+                        i,
+                    )
+                )
+            dec.sort(key=lambda t: t[0])
+            self.perm = [i for _, i in dec]
         else:
             self.perm = list(range(self.n))
         self.pos = [0] * self.n
@@ -762,8 +861,18 @@ class Evaluator:
         self.cache[name] = vals
         return vals
 
+    def raw_text(self, name, p):
+        """Trimmed source text of a cell, for key comparison across a lookup."""
+        if name not in self.st.col_index:
+            return None
+        col = self.st.columns[self.st.col_index[name]]
+        if not col.computed:
+            i = self.perm[p]
+            return trim(self.st.row_lines[i].cells[self.st.col_index[name]])
+        return as_text(self.column(name)[p])
+
     def ref_value(self, name, p):
-        """A bare column reference inside arithmetic (§8)."""
+        """A bare column reference used as an arithmetic operand (§8)."""
         vals = self.column(name)
         if vals is None:
             return Ref(name)
@@ -771,7 +880,6 @@ class Evaluator:
         if isinstance(v, Ref):
             return v
         if v is BLANK or isinstance(v, TextVal):
-            # a blank cell is not zero; a value that will not coerce is #REF!
             return Ref(name)
         return v
 
@@ -786,13 +894,10 @@ class Evaluator:
         if t == "col":
             return self.ref_value(node[1], p)
         if t == "at":
-            # SPEC.md 7: "@c means *this row's* value of c".  It is compared
-            # for equality, not arithmetic, so it is NOT coerced to a number
-            # -- otherwise no text column could ever be grouped on.
+            # §7: "@c means *this row's* value of c" -- compared for equality,
+            # never coerced, or no text column could be grouped on.
             vals = self.column(node[1])
             return Ref(node[1]) if vals is None else vals[p]
-        if t == "path":
-            return TextVal(node[1])
         if t == "neg":
             v = self.eval(node[1], p)
             return v if isinstance(v, Ref) else -v
@@ -813,18 +918,79 @@ class Evaluator:
             if b == 0:
                 return Ref("division by zero")
             return a / b
-        if t == "lookup":
-            # §7 defines lookup(); §8 forbids I/O and evaluate() is handed
-            # only this artifact's bytes, so the target row is always absent
-            # and the defined result is #REF!(file[key]).
-            kv = self.column(node[2])
-            k = "" if kv is None else display(kv[p])
-            return Ref(f"{node[1]}[{k}]")
         if t == "rowrel":
             return self.rowrel(node[1], node[2], p)
         if t == "agg":
             return self.aggregate(node[1], node[2], node[3], p)
+        if t == "lookup":
+            return self.lookup(node[1], node[2], node[3], p)
         raise Malformed(f"unevaluable expression node {node!r}")
+
+    # -- lookup (§7, and §8's single permitted read) ----------------------
+
+    def resolve(self, path):
+        """Absolute path of a lookup target, refusing an escape from the
+        repository root (§7: "confined to the repository")."""
+        if self.base is None:
+            return None
+        target = os.path.normpath(os.path.join(self.base, path))
+        rel = os.path.relpath(target, self.ctx.root)
+        if rel == ".." or rel.startswith(".." + os.sep) or os.path.isabs(path):
+            raise Malformed(f"lookup() target {path!r} escapes the repository root (§7)")
+        return target
+
+    def artifact(self, target):
+        ev = self.ctx.arts.get(target)
+        if ev is not None:
+            return ev
+        try:
+            with open(target, encoding="utf-8", newline="") as fh:
+                text = fh.read()
+        except UnicodeDecodeError as ex:
+            raise Malformed(
+                f"lookup target {target} is not well-formed UTF-8 (§9.14): {ex}"
+            ) from None
+        # A refusal in the target is a refusal of the referring artifact:
+        # parse/lookup-target-duplicate-keys.  Not stated in the spec.
+        tst = structure(text)
+        ev = Evaluator(tst, os.path.dirname(target), self.ctx, target)
+        self.ctx.arts[target] = ev
+        return ev
+
+    def lookup(self, path, keycol, wantcol, p):
+        kt = self.raw_text(keycol, p)
+        if kt is None:
+            return Ref(keycol)
+        absent = Ref(f"{path}[{kt}]")
+        target = self.resolve(path)
+        if target is None or not os.path.isfile(target):
+            return absent
+        tev = self.artifact(target)
+        tst = tev.st
+        if tst.key is None:
+            return absent
+        ki = tst.col_index[tst.key]
+        hit = None
+        for q, i in enumerate(tev.perm):
+            if nfc(trim(tst.row_lines[i].cells[ki])) == nfc(kt):
+                hit = q
+                break
+        if hit is None:
+            return absent
+        if wantcol not in tst.col_index:
+            return Ref(wantcol)
+        guard = (target, wantcol)
+        if guard in self.ctx.stack:
+            # §8 requires the evaluator to terminate; a lookup cycle is not a
+            # refusal (parse/lookup-cycle accepts one).
+            return Ref(wantcol)
+        self.ctx.stack.add(guard)
+        try:
+            return tev.column(wantcol)[hit]
+        finally:
+            self.ctx.stack.discard(guard)
+
+    # -- aggregates ------------------------------------------------------
 
     def numeric_column(self, name):
         vals = self.column(name)
@@ -832,10 +998,8 @@ class Evaluator:
             return None
         out = []
         for v in vals:
-            if isinstance(v, Ref):
+            if isinstance(v, Ref) or v is BLANK:
                 out.append(v)
-            elif v is BLANK:
-                out.append(BLANK)
             elif isinstance(v, TextVal):
                 out.append(Ref(name))
             else:
@@ -856,12 +1020,9 @@ class Evaluator:
                 return a
             if isinstance(b, Ref):
                 return b
-            if a is BLANK:
-                return Ref(name)
-            if b is BLANK:
+            if a is BLANK or b is BLANK:
                 return Ref(name)
             return a - b
-        # cumulative
         total = 0.0
         for i in range(p + 1):
             v = vals[i]
@@ -873,7 +1034,6 @@ class Evaluator:
         return total
 
     def matches(self, preds, cand, cur):
-        """cand: the row being tested.  cur: the row whose @refs we resolve."""
         for cname, litnode in preds:
             vals = self.column(cname)
             if vals is None:
@@ -889,9 +1049,6 @@ class Evaluator:
         return True
 
     def aggregate(self, fn, name, preds, p):
-        # Every aggregate reads its column numerically -- eval/ref-poisons-
-        # every-aggregate makes even count() inherit a #REF! from an
-        # uncoercible cell.
         vals = self.numeric_column(name)
         if vals is None:
             return Ref(name)
@@ -932,21 +1089,25 @@ def equal(a, b):
     return a == b
 
 
-def evaluate(text):
+def evaluate(text, base=None):
+    """`base` is the directory the artifact lives in, needed only to resolve
+    §7's lookup paths.  Without it every lookup is unresolved."""
     st = structure(text)
-    if st.deferred is not None:
-        raise st.deferred
-    ev = Evaluator(st)
+    root = os.path.abspath(base) if base is not None else None
+    ctx = Ctx(root)
+    ev = Evaluator(st, root, ctx)
 
+    # cases/README.md: a `rowrel` case asserts one cell "in the *derived*
+    # order", so the sequence is the derived order, not file order.
     rows = []
-    for i, ln in enumerate(st.row_lines):
-        p = ev.pos[i]
+    for p, i in enumerate(ev.perm):
+        ln = st.row_lines[i]
         row = {}
         for c in st.columns:
             if c.computed:
                 row[c.name] = display(ev.column(c.name)[p])
             else:
-                row[c.name] = ln.cells[st.col_index[c.name]].strip(" \t\r")
+                row[c.name] = trim(ln.cells[st.col_index[c.name]])
         rows.append(row)
 
     aggs = {}

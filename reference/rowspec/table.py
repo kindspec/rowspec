@@ -45,10 +45,27 @@ _ALIGN_CELL = re.compile(r":?-+:?")
 
 def is_align(line):
     cells = split_row(line)
-    return bool(cells) and all(_ALIGN_CELL.fullmatch(c) for c in cells if c != "")
+    return bool(cells) and all(_ALIGN_CELL.fullmatch(c) for c in cells)
+
+
+_STRUCTURAL = set('|=:#(),"@')
+# `-` and `.` are excluded: `-` is subtraction in a formula, so `a-b` would be a
+# column name that can never be referenced, and two readers would silently total
+# different columns. The cost is the ability to name a column `a-b`.
+_IDENT_EXTRA = set("_")
 
 
 def _check_ident(name, what):
+    for ch in name:
+        if ch in _STRUCTURAL or (
+            not (ch.isalnum() or unicodedata.category(ch).startswith("M"))
+            and ch not in _IDENT_EXTRA
+            and not ch.isspace()
+        ):
+            raise Malformed(
+                f"{what} {name!r} contains {ch!r}, which is not permitted in an "
+                f"identifier; §4.1.9 admits letters, marks, digits and underscore"
+            )
     for ch in name:
         if unicodedata.category(ch) == "Cf":
             raise Malformed(f"{what} {name!r} contains a Cf format character U+{ord(ch):04X}")
@@ -67,15 +84,34 @@ def parse(text):
     for n, line in enumerate(lines, 1):
         if line.startswith(CONFLICT):
             raise Malformed(f"line {n}: unresolved conflict marker")
-    tbl = [line for line in lines if line.strip().startswith("|")]
+    tbl = []
+    for line in lines:
+        if line.strip().startswith("|"):
+            if not line.strip().endswith("|"):
+                raise Malformed(
+                    f"table line lacks its closing pipe: {line.strip()!r}. §4.1.3 "
+                    f"requires both, because only the closing pipe reveals a row "
+                    f"truncated inside its final cell"
+                )
+            tbl.append(line)
+        elif tbl:
+            break  # the run ended; §4 makes the table contiguous
     if not tbl:
         raise Malformed("no table found")
     decls, order, key = {}, None, None
     order_seen = False
     for n, line in enumerate(lines, 1):
-        line = re.sub(r"\s+#.*$", "", line)
-        if ":=" not in line:
+        if line.lstrip().startswith("#"):
+            continue  # SPEC §9: the ignorable channel, inert whatever it contains
+        stripped = re.sub(r"\s+#.*$", "", line)
+        if ":=" not in stripped:
+            if stripped.strip() and line not in tbl:
+                raise Malformed(
+                    f"line {n}: not a table line, an annotation, or a declaration: "
+                    f"{stripped.strip()!r}"
+                )
             continue
+        line = stripped
         mw = re.match(r"\s*([^\s:=]+)\s*:=\s*(\w+)\((.+)\)\s*$", line)
         if mw and " where " in mw.group(3):
             nm_, fn_, inner = mw.groups()
@@ -127,9 +163,7 @@ def parse(text):
         else:
             cols.append(h)
     for c in cols:
-        for ch in c:
-            if unicodedata.category(ch) == "Cf":
-                raise Malformed(f"column name {c!r} contains a Cf format character U+{ord(ch):04X}")
+        _check_ident(c, "column name")
         if c in seen:
             raise Malformed(f"duplicate column name {c!r}")
         seen.add(c)
@@ -183,15 +217,37 @@ def parse(text):
     return cols, formulas, rows, decls, order, key
 
 
+_NUMBER = re.compile(r"-?[0-9]+(\.[0-9]+)?\Z")
+
+
+def num(v):
+    """SPEC §4.1: number = [-] 1*DIGIT [ "." 1*DIGIT ], DIGIT = U+0030..U+0039.
+
+    Python's num() is far more permissive than the grammar and silently
+    accepts things §8 requires to be refused: num("\u0665") is 5.0
+    (Arabic-Indic digits), num("1_000") is 1000.0 (PEP 515 separators),
+    num("1e3") is 1000.0, and num(" 5 ") strips whitespace. Each is a
+    second spelling of a value that would compare equal as a number and
+    unequal as text, splitting predicates and key identity from arithmetic.
+    """
+    if isinstance(v, bool):
+        raise ValueError(v)
+    if isinstance(v, (int, float)):
+        return float(v)
+    if not isinstance(v, str) or not _NUMBER.match(v):
+        raise ValueError(v)
+    return float(v)
+
+
 def _isnum(v):
     try:
-        float(v)
+        num(v)
         return True
     except (ValueError, TypeError):
         return False
 
 
-DATE_RE = re.compile(r"^\d{1,4}[-/]\d{1,2}[-/]\d{1,2}$")
+DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 
 
 def column_type(col, rows):
@@ -207,7 +263,7 @@ def column_type(col, rows):
             kinds.add("date")
         else:
             try:
-                float(v)
+                num(v)
                 kinds.add("number")
             except ValueError:
                 kinds.add("text")
@@ -246,13 +302,13 @@ def _agg(fn, vals, what):
     try:
         for v in vals:
             if v not in ("", None):
-                float(v)
+                num(v)
     except (ValueError, TypeError):
         return f"#REF!({what})"
     if fn == "count":
         return len(vals)
     try:
-        nums = [float(v) for v in vals if v not in ("", None)]
+        nums = [num(v) for v in vals if v not in ("", None)]
     except (ValueError, TypeError):
         return f"#REF!({what})"
     if fn == "sum":
@@ -284,14 +340,14 @@ def ev(node, env):
         v = env.get(node.id, "")
         if v == "" or v is None:
             raise KeyError(node.id)
-        if isinstance(v, str):
-            if v.strip() != v or re.search(r"[,\u00a0\u202f]|^\(|\)$", v):
-                raise KeyError(node.id)
-        return float(v)
+        try:
+            return num(v)
+        except (ValueError, TypeError):
+            raise KeyError(node.id) from None
     raise Malformed(f"unsupported expression: {type(node).__name__}")
 
 
-def evaluate(text, base="."):
+def evaluate(text, base=".", _stack=None):
     cols, formulas, rows, decls, order, key = parse(text)
     # THE ORDERING: derived from data, then row id as a stable tiebreak.
     if order:
@@ -311,7 +367,7 @@ def evaluate(text, base="."):
         def typed(r):
             v = str(r[order]).strip()
             if kind == "number":
-                f = float(v)
+                f = num(v)
                 if f != f or f in (float("inf"), float("-inf")):
                     raise Malformed(f"order column {order!r} contains {v!r}")
                 return f
@@ -332,15 +388,39 @@ def evaluate(text, base="."):
         path, keycol, valcol = m.groups()
         if keycol not in cols:
             raise Malformed(f"lookup in {nm!r} names unknown column {keycol!r}")
-        full = os.path.join(base, path)
+        root = os.path.realpath(base)
+        full = os.path.realpath(os.path.join(base, path))
+        if os.path.isabs(path) or not (full == root or full.startswith(root + os.sep)):
+            raise Malformed(
+                f"lookup in {nm!r} targets {path!r}, which escapes the repository; "
+                f"§7 confines a lookup target to the repository"
+            )
         if not os.path.exists(full):
             for r in seq:
-                r[nm] = f"#REF!({path})"
+                r[nm] = f"#REF!({path}[{r.get(keycol)}])"
             continue
-        ocols, _of, orows, _od, _oo, okey = parse(open(full, encoding="utf-8").read())
-        if okey is None or valcol not in ocols:
+        stack = list(_stack or [])
+        real = os.path.realpath(full)
+        otext = open(full, encoding="utf-8").read()
+        ocols, oformulas, orows, _od, _oo, okey = parse(otext)
+        # A STORED column is always available, so a self-join is not a cycle.
+        # Only a lookup onto a COMPUTED column needs the target evaluated, and
+        # only that can be circular.
+        if valcol in oformulas:
+            if real in stack:
+                for r in seq:
+                    r[nm] = "#REF!(cycle)"
+                continue
+            orows, _oaggs = evaluate(
+                otext, base=os.path.dirname(full) or ".", _stack=stack + [real]
+            )
+        if valcol not in ocols:
             for r in seq:
-                r[nm] = f"#REF!({path}#{valcol})"
+                r[nm] = f"#REF!({valcol})"
+            continue
+        if okey is None:
+            for r in seq:
+                r[nm] = f"#REF!({path}[{r.get(keycol)}])"
             continue
         idx = {str(o.get(okey)): o for o in orows}
         for r in seq:
@@ -406,7 +486,7 @@ def evaluate(text, base="."):
         acc, prev = 0.0, None
         for r in seq:
             try:
-                v = float(r[src])
+                v = num(r[src])
             except (ValueError, TypeError, KeyError):
                 r[nm] = f"#REF!({src})"
                 continue

@@ -1,0 +1,6 @@
+| id | label | mate | mate_label = lookup(input.mdtbl, mate, label) |
+| --- | --- | --- | --- |
+| r_01 | alpha | r_02 |  |
+| r_02 | beta | r_01 |  |
+
+key := id

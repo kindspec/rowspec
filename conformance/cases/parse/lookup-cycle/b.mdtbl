@@ -1,0 +1,5 @@
+| bid | akey | w = lookup(input.mdtbl, akey, v) |
+| --- | --- | --- |
+| b1 | r_01 |  |
+
+key := bid

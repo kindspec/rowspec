@@ -1,0 +1,10 @@
+| id | item | qty |
+| --- | --- | --: |
+| r_01 | widget | 10 |
+| r_02 | gadget | 5 |
+
+key := id
+# | r_9999 | ghost | 100 |
+# sum(qty) + 100
+#key
+grand := sum(qty)

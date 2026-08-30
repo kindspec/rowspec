@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "total": "#REF!(prices.mdtbl[p999])"
+  },
+  "kind": "eval"
+}

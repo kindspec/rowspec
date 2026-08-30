@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "hi": 55.0,
+    "lo": 5.0
+  },
+  "kind": "eval"
+}

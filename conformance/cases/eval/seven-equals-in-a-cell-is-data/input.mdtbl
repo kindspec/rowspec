@@ -1,0 +1,8 @@
+| id | note | qty |
+| --- | --- | --: |
+| r_01 | ======= | 10 |
+| r_02 | ok | 5 |
+
+key := id
+g := sum(qty)
+n := count(qty)

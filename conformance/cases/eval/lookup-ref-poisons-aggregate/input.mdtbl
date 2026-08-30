@@ -1,0 +1,7 @@
+| id | part | cost = lookup(prices.mdtbl, part, amount) |
+| --- | --- | --- |
+| r_01 | p001 |  |
+| r_02 | p999 |  |
+
+key   := id
+total := sum(cost)

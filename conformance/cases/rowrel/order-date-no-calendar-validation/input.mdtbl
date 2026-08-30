@@ -1,0 +1,9 @@
+| id | day | amt | run = cumulative(amt) |
+| --- | --- | --: | --: |
+| r_01 | 2024-13-45 | 100 |  |
+| r_02 | 2024-01-05 | 5 |  |
+
+key := id
+order := by(day)
+lo := min(run)
+hi := max(run)

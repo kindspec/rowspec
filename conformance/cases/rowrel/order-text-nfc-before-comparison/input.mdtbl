@@ -1,0 +1,11 @@
+| id | name | amt | run = cumulative(amt) |
+| --- | --- | --: | --: |
+| r_01 | Zebra | -20 |  |
+| r_02 | apple | 5 |  |
+| r_03 | Ápple | 100 |  |
+| r_04 | Apple | 10 |  |
+
+key := id
+order := by(name)
+lo := min(run)
+hi := max(run)

@@ -1,0 +1,6 @@
+| id | qty |
+| --- | --: |
+| r_01 | 10 |
+
+key := id
+g := sum(qty)# note

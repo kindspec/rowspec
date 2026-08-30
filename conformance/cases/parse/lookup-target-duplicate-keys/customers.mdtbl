@@ -1,0 +1,6 @@
+| cid | name |
+| --- | --- |
+| c001 | Ada |
+| c001 | Grace |
+
+key := cid

@@ -1,0 +1,10 @@
+| id | qty |
+| --- | --- |
+| r_01 | 10 |
+| r_02 | inf |
+| r_03 | nan |
+| r_04 | Infinity |
+| r_05 | NaN |
+
+key := id
+g := sum(qty)

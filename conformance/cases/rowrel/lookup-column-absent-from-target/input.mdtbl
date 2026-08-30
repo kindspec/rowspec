@@ -1,0 +1,5 @@
+| id | customer | who = lookup(customers.mdtbl, customer, nickname) |
+| --- | --- | --- |
+| r_01 | c001 |  |
+
+key := id

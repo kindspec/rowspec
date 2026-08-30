@@ -7,6 +7,7 @@ by a runner written in that language.
 """
 
 import importlib
+import inspect
 import itertools
 import json
 import os
@@ -48,6 +49,25 @@ def git_merge(files, order, fn="a.mdtbl"):
         shutil.rmtree(d)
 
 
+def ev_at(ref, text, base):
+    """Evaluate `text` as if it were the artifact sitting in `base`.
+
+    SPEC §7's `lookup(other.mdtbl, ...)` is a path resolved relative to the
+    REFERRING artifact, so an evaluator that is handed only bytes cannot
+    resolve one. The case directory is that artifact's directory -- and, by
+    the convention in cases/README.md, its repository root -- so companion
+    artifacts are ordinary files sitting beside `input.mdtbl`. No new
+    `expect.json` field is needed: the tree itself carries the second table.
+
+    An implementation whose `evaluate` takes no base is called without one.
+    That is a real answer, not an excuse: it will report every lookup as
+    unresolved and FAIL the cases that resolve, which is the signal wanted.
+    """
+    if len(inspect.signature(ref.evaluate).parameters) > 1:
+        return ref.evaluate(text, base)
+    return ref.evaluate(text)
+
+
 def run(impl, root="cases"):
     ref = importlib.import_module(impl)
     importlib.reload(ref)
@@ -71,7 +91,7 @@ def run(impl, root="cases"):
         try:
             if k == "parse":
                 try:
-                    ref.evaluate(f["input"])
+                    ev_at(ref, f["input"], dirpath)
                     got = None
                 except ref.Malformed as ex:
                     got = str(ex)
@@ -84,12 +104,12 @@ def run(impl, root="cases"):
                 if out != f["input"]:
                     bad(f"{len(f['input'])}B in, {len(out)}B out")
             elif k == "eval":
-                _, a = ref.evaluate(f["input"])
+                _, a = ev_at(ref, f["input"], dirpath)
                 for kk, vv in e["aggregates"].items():
                     if a.get(kk) != vv:
                         bad(f"{kk}: wanted {vv!r}, got {a.get(kk)!r}")
             elif k == "rowrel":
-                rows, _ = ref.evaluate(f["input"])
+                rows, _ = ev_at(ref, f["input"], dirpath)
                 got = rows[e["row_index"]].get(e["column"])
                 if got != e["value"]:
                     bad(f"{e['column']}: wanted {e['value']!r}, got {got!r}")
@@ -105,7 +125,7 @@ def run(impl, root="cases"):
                 else:
                     out = ref.render(ref.set_cell(st, rk, e["column"], e["value"]))
                     if "aggregate" in e:
-                        _, a = ref.evaluate(out)
+                        _, a = ev_at(ref, out, dirpath)
                         if a.get(e["aggregate"]) != e["result"]:
                             bad(
                                 f"wanted {e['aggregate']}={e['result']}, "
@@ -120,7 +140,7 @@ def run(impl, root="cases"):
                     bad("canon not idempotent")
                 elif (
                     e["check"] == "preserves-values"
-                    and ref.evaluate(f["input"])[1] != ref.evaluate(c1)[1]
+                    and ev_at(ref, f["input"], dirpath)[1] != ev_at(ref, c1, dirpath)[1]
                 ):
                     bad("canon changed the values")
                 elif e["check"] == "removes-padding":
@@ -142,12 +162,12 @@ def run(impl, root="cases"):
                     bad(f"git said {st}, expected {e['git_outcome']}")
                 elif e.get("then") == "refuse":
                     try:
-                        ref.evaluate(merged)
+                        ev_at(ref, merged, dirpath)
                         bad("parser ACCEPTED a corrupt merge")
                     except ref.Malformed:
                         pass
                 elif e.get("then") == "evaluate":
-                    _, a = ref.evaluate(merged)
+                    _, a = ev_at(ref, merged, dirpath)
                     for kk, vv in e["aggregates"].items():
                         if a.get(kk) != vv:
                             bad(f"SILENTLY WRONG: {kk} wanted {vv}, got {a.get(kk)}")
@@ -159,7 +179,7 @@ def run(impl, root="cases"):
                     res.add(
                         "conflict"
                         if s2 == "conflict"
-                        else tuple(sorted(ref.evaluate(m2)[1].items()))
+                        else tuple(sorted(ev_at(ref, m2, dirpath)[1].items()))
                     )
                 if len(res) != 1:
                     bad(f"{len(res)} distinct outcomes across merge orders")
