@@ -20,8 +20,30 @@ grand := sum(total)
 Two branches insert a row far apart. Stock `git merge` — no driver, no
 `.gitattributes`, nothing installed — merges cleanly, and `grand` is correct.
 The same table with `A1`-style references merges just as cleanly and reports a
-number that is 27% wrong, with no marker anywhere. That difference is the
-entire project.
+number that is 27% wrong, with no marker anywhere. That difference is the entire
+project.
+
+## What it does not do, measured
+
+**If your table is a list of facts, you probably do not need this.** We replayed
+7,446 real commits from four public CSV-in-git registries, including 528 real
+three-way merges. Neither `.mdtbl` nor plain CSV ever merged silently wrong.
+For an ordinary sorted registry CSV, **stock git already does what this format
+promises**, and none of those maintainers has wanted a computed column in four
+years.
+
+The format earns its keep when a table **computes** — when a merge can leave a
+total that is quietly wrong, which is the failure a CSV cannot even represent.
+
+**Two branches each adding a column conflict badly**, across most of the file.
+That is inherent to one-row-per-line and it is exactly what happens to a CSV.
+Nothing here fixes it; a column addition rewrites every row either way.
+
+**It is not a data-quality tool.** Whether a country code is in ISO 3166,
+whether a URL resolves, whether a date is plausible — none of that is here, and
+[Frictionless](https://frictionlessdata.io/) does it well. rowspec asks a
+smaller question: will this table survive being edited by several people over
+years?
 
 ## It runs on the CSV you already have
 

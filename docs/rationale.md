@@ -173,6 +173,23 @@ Every one is the same shape: **a check that cannot fail, reporting a pass.** In
 four of the five, the person who wrote the check was not the person who found it
 could not fail.
 
+## The rule that a dogfood run refuted, and why it is worth recording
+
+§4.1.3 once said a cell can never contain `|` "because no escape exists and none
+may be invented." It was written as a virtue — an escape is parser complexity
+nobody needs — and it was never paid for by evidence.
+
+Replaying 7,446 real commits refuted it in a single number: **26.95% of real
+commits were unrepresentable, against a threshold of 2% fixed before any data was
+collected, and 95% of those refusals were a pipe inside a value.** The data is
+`KS TV | Action`. Ninety-three Ukrainian television channels have a pipe in their
+own name, and from 2023-10-16 onward every commit to that file was unwritable.
+
+`\|` is now the sole escape, as it has been in GFM for years. The lesson is not
+about pipes: **an elegance that has never met real data is a hypothesis, and this
+one was wrong.** Four other thresholds passed in the same run, three of them
+comfortably, which is why the failure is credible rather than an artifact.
+
 ## What this format deliberately does not do
 
 Domain validation. Whether a country code is in ISO 3166, whether a URL
@@ -183,6 +200,16 @@ control**, which is a different and much smaller question.
 It also does not promise to merge everything correctly. Semantic conflicts —
 two authors editing different sentences that must agree — are unfixable by any
 representation, and every honest system says so.
+
+And it does not beat plain CSV on a table of facts. In 528 real three-way merges
+replayed from public registries, **neither `.mdtbl` nor CSV ever merged silently
+wrong.** For a sorted registry with no computed columns, stock git already does
+what this format promises. The format earns its keep only where a merge can
+leave a *total* quietly wrong — which is a failure a CSV cannot even express,
+and which none of those maintainers has had reason to care about in four years.
+
+That is the honest shape of the value: narrow, real, and not yet wanted by
+anyone we have measured.
 
 ## Credit
 
