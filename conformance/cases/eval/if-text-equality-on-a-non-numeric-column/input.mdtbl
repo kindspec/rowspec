@@ -1,0 +1,7 @@
+| id | region | amt | flag = if(region = "EU", amt, 0) |
+| --- | --- | --: | --: |
+| r_01 | EU | 10 |  |
+| r_02 | US | 90 |  |
+
+key := id
+s := sum(flag)

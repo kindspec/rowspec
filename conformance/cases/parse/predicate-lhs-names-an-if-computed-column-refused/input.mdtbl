@@ -1,0 +1,6 @@
+| id | c | amt | flag = if(c > 0, 1, 0) | t = sum(amt where flag = "1") |
+| --- | --: | --: | --: | --: |
+| r_01 | 5 | 10 |  |  |
+
+key := id
+s := sum(t)

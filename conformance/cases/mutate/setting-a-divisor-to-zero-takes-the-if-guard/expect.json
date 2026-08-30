@@ -1,0 +1,8 @@
+{
+  "aggregate": "s",
+  "column": "qty",
+  "kind": "mutate",
+  "result": 5.0,
+  "row_key": "r_01",
+  "value": 0
+}

@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "sx": "#REF!(cycle)",
+    "sy": "#REF!(cycle)"
+  },
+  "kind": "eval"
+}

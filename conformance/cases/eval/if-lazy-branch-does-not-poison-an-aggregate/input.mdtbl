@@ -1,0 +1,8 @@
+| id | qty | total | avg = if(qty > 0, total / qty, 0) |
+| --- | --: | --: | --: |
+| r_01 | 4 | 20 |  |
+| r_02 | 0 | 20 |  |
+
+key := id
+s := sum(avg)
+n := count(avg)

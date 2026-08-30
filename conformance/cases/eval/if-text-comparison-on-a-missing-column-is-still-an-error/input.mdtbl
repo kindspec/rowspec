@@ -1,0 +1,8 @@
+| id | a | m = if(nope = "", 1, 0) | n = if(nope <> "", 1, 0) | t = if(nope = "x", 1, 0) |
+| --- | --: | --: | --: | --: |
+| r_01 | 5 |  |  |  |
+
+key := id
+sm := sum(m)
+sn := sum(n)
+st := sum(t)

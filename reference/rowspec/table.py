@@ -392,12 +392,15 @@ def _ast(expr, where):
 
 
 _TOK = re.compile(
-    r"\s*(?:(?P<word>[0-9]+\.[0-9]+|[^\W]+)"
-    r"|(?P<op>[-+*/()])"
+    r"\s*(?:(?P<str>\"[^\"]*\")"
+    r"|(?P<word>[0-9]+\.[0-9]+|[^\W]+)"
+    r"|(?P<op><=|>=|<>|==|!=|[-+*/(),<>=])"
     r"|(?P<bad>.))",
     re.UNICODE,
 )
 _LITERAL = re.compile(r"[0-9]+(\.[0-9]+)?\Z")
+_ORDER_OP = ("<", "<=", ">", ">=")
+_EQ_OP = ("=", "<>")
 
 
 class Num:
@@ -428,6 +431,24 @@ class Neg:
         self.x = x
 
 
+class Cmp:
+    """§4.2 rule 10. NOT an expression: a comparison has no value, only a
+    truth, and it exists nowhere but as `if`'s first argument. That is what
+    keeps the format's values at `number | error` with no boolean."""
+
+    __slots__ = ("op", "lhs", "kind", "rhs")
+
+    def __init__(self, op, lhs, kind, rhs):
+        self.op, self.lhs, self.kind, self.rhs = op, lhs, kind, rhs
+
+
+class If:
+    __slots__ = ("c", "a", "b")
+
+    def __init__(self, c, a, b):
+        self.c, self.a, self.b = c, a, b
+
+
 def _lex(expr, where):
     out, i = [], 0
     while i < len(expr):
@@ -448,9 +469,18 @@ def _lex(expr, where):
                 f"column {where!r}: {ch!r} is not part of an expression; §4.2 admits "
                 f"column names, unsigned decimal literals, + - * / and parentheses"
             )
+        if m.group("str") is not None:
+            out.append(("str", m.group("str")[1:-1]))
+            continue
         w = m.group("word")
         if w is not None:
-            out.append(("num" if _LITERAL.match(w) else "name", w))
+            # §4.2 rule 4: a name is a function name ONLY when `(` touches it,
+            # with no WSP. The lexer is the only place that can still see the
+            # gap, so the distinction is drawn here rather than in the parser.
+            if i < len(expr) and expr[i] == "(":
+                out.append(("call", w))
+            else:
+                out.append(("num" if _LITERAL.match(w) else "name", w))
         else:
             out.append(("op", m.group("op")))
     return out
@@ -489,6 +519,8 @@ def _parse_expr(expr, where):
                 raise Malformed(f"column {where!r}: unclosed parenthesis")
             eat(")")
             return e
+        if k == "call":
+            return cond()
         if k == "num":
             eat(v)
             return Num(float(v))
@@ -503,6 +535,105 @@ def _parse_expr(expr, where):
                 f"§4.2 admits + - * / and unary minus"
             )
         raise Malformed(f"column {where!r}: expected a value in {expr!r}")
+
+    def want(tok, what):
+        if peek() != tok:
+            raise Malformed(f"column {where!r}: expected {what} in {expr!r}")
+        eat(tok[1])
+
+    def comparison():
+        nonlocal pos
+        k, v = peek()
+        # `comparison = ident ...`. The left side is a NAME position (§4.2
+        # rule 7), like the left side of a `where` equality, so a bare `3`
+        # there is the column named 3 and never the number.
+        if k not in ("name", "num"):
+            raise Malformed(
+                f"column {where!r}: the left of a comparison in if() must be a "
+                f"column name (§4.2 rule 10)"
+            )
+        eat(v)
+        lhs = unicodedata.normalize("NFC", v)
+        k2, op = peek()
+        if k2 != "op" or op not in _ORDER_OP + _EQ_OP:
+            if op in ("==", "!="):
+                raise Malformed(
+                    f"column {where!r}: {op!r} is not in §4.2; equality is `=` and "
+                    f"inequality is `<>`, matching the `where` predicate and every "
+                    f"spreadsheet lineage. A second spelling of one comparison is "
+                    f"refused for §4.1.6's reason"
+                )
+            raise Malformed(
+                f"column {where!r}: if() takes a comparison first (§4.2 rule 10); "
+                f"admitted operators are < <= > >= = <>"
+            )
+        eat(op)
+        # `signed = [ "-" *WSP ] literal`. Without it `if(a > -1, 1, 0)` -- an
+        # ordinary guard, and `-1` an ordinary cell value -- is unwritable, and
+        # the only workaround is a stored column holding -1.
+        sign = 1.0
+        if peek() == ("op", "-"):
+            eat("-")
+            sign = -1.0
+        k3, v3 = peek()
+        if sign < 0 and k3 != "num":
+            raise Malformed(
+                f"column {where!r}: only a numeric literal may be negated on the "
+                f"right of {op!r} (§4.2 rule 10)"
+            )
+        if op in _ORDER_OP:
+            if k3 == "num":
+                kind, rhs = "num", sign * float(v3)
+            elif k3 == "name":
+                kind, rhs = "name", unicodedata.normalize("NFC", v3)
+            elif k3 == "str":
+                raise Malformed(
+                    f"column {where!r}: {op!r} compares numbers, never text (§4.2 "
+                    f"rule 10). Ordering text means collation, and collation is "
+                    f"locale-dependent, so two conforming readers would disagree"
+                )
+            else:
+                raise Malformed(f"column {where!r}: expected a value after {op!r}")
+        else:
+            if k3 == "num":
+                kind, rhs = "num", sign * float(v3)
+            elif k3 == "str":
+                kind, rhs = "str", v3
+            elif k3 == "name":
+                raise Malformed(
+                    f"column {where!r}: a column name on the right of {op!r} is "
+                    f"refused (§9.24). The spelling of the right-hand side is what "
+                    f"chooses text or numeric comparison, and a column has no "
+                    f"spelling to read: `1` and `1.0` compare equal as numbers and "
+                    f"unequal as text"
+                )
+            else:
+                raise Malformed(f"column {where!r}: expected a value after {op!r}")
+        eat(v3)
+        return Cmp(op, lhs, kind, rhs)
+
+    def cond():
+        nonlocal pos, depth
+        k, name = peek()
+        if name != "if":
+            raise Malformed(
+                f"column {where!r}: unknown function {name!r}; §4.2 admits if() in an "
+                f"expression, and cumulative/prior/delta/sum/count/min/max/avg as the "
+                f"whole formula"
+            )
+        eat(name)
+        depth += 1
+        if depth > MAX_NESTING:
+            raise Malformed(f"column {where!r}: nested deeper than {MAX_NESTING} (§9.23)")
+        want(("op", "("), "'(' after if")
+        c = comparison()
+        want(("op", ","), "',' after if's comparison")
+        a = sum_()
+        want(("op", ","), "',' after if's second argument")
+        b = sum_()
+        want(("op", ")"), "')' closing if")
+        depth -= 1
+        return If(c, a, b)
 
     def factor():
         nonlocal pos
@@ -535,28 +666,87 @@ def _parse_expr(expr, where):
 
     tree = sum_()
     if pos != len(toks):
+        k, v = peek()
+        if k == "op" and v in _ORDER_OP + _EQ_OP + ("==", "!="):
+            raise Malformed(
+                f"column {where!r}: {v!r} is not an operator of an expression "
+                f"(§4.2 rule 1). A comparison exists only inside if(), because the "
+                f"format has numbers and errors and no boolean for {expr!r} to have"
+            )
         raise Malformed(f"column {where!r}: trailing input in {expr!r}")
     return tree
+
+
+def _cell(name, env):
+    """The raw cell text of `name`, with an error value re-raised at its origin.
+
+    Blank is returned as `""` rather than raised, because §4.2 rule 10's
+    `if(x = "", ...)` is the one place a blank is data. Every caller that needs
+    a NUMBER goes through `_number` instead, which is loud.
+    """
+    # `env[name]`, never `env.get(name, "")`. The default returns the same
+    # sentinel for "this cell is empty" and "there is no such column", in every
+    # host language, and that accident made `if(nope = "", a, b)` fire the
+    # missing-data fallback in EVERY row -- a mistyped column name turning
+    # "use this when that is missing" into "always", with no diagnostic. §8: a
+    # reference to a name that does not exist is #REF!(name), under every
+    # operator. The KeyError this raises is that #REF!.
+    v = env[name]
+    if v is None:
+        v = ""
+    if isinstance(v, str) and v.startswith("#REF!(") and v.endswith(")"):
+        raise KeyError(v[6:-1])
+    return v
+
+
+def _number(name, env):
+    v = _cell(name, env)
+    if v == "":
+        raise KeyError(name)
+    try:
+        return num(v)
+    except (ValueError, TypeError):
+        raise KeyError(name) from None
+
+
+def truth(c, env):
+    """§4.2 rule 10. Ordering is numeric always; `=`/`<>` take their kind from
+    the RIGHT-HAND SIDE'S SPELLING, never from the data -- a grammar that
+    cannot be read without the table is not a grammar (rule 7)."""
+    if c.op in _EQ_OP:
+        if c.kind == "str":
+            lv = _cell(c.lhs, env)
+            eq = unicodedata.normalize("NFC", str(lv)) == unicodedata.normalize("NFC", c.rhs)
+            return eq if c.op == "=" else not eq
+        eq = _number(c.lhs, env) == c.rhs
+        return eq if c.op == "=" else not eq
+    a = _number(c.lhs, env)
+    b = c.rhs if c.kind == "num" else _number(c.rhs, env)
+    if c.op == "<":
+        return a < b
+    if c.op == "<=":
+        return a <= b
+    if c.op == ">":
+        return a > b
+    return a >= b
 
 
 def ev(node, env):
     if isinstance(node, Num):
         return node.v
+    if isinstance(node, If):
+        # ONLY the selected branch. Eager evaluation of both makes
+        # `if(qty > 0, total / qty, 0)` -- the guard every spreadsheet lineage
+        # writes -- report #REF!(/0) on exactly the rows it was written for.
+        return ev(node.a, env) if truth(node.c, env) else ev(node.b, env)
     if isinstance(node, Neg):
         return -ev(node.x, env)
     if isinstance(node, Name):
-        v = env.get(node.id, "")
-        if v == "" or v is None:
-            raise KeyError(node.id)
-        if isinstance(v, str) and v.startswith("#REF!(") and v.endswith(")"):
-            # SPEC §8: the name is the ORIGINATING one, not the column the error
-            # surfaces in. Relabelling at each hop sends a reader to inspect a
-            # well-formed formula and they never reach the bad cell.
-            raise KeyError(v[6:-1])
-        try:
-            return num(v)
-        except (ValueError, TypeError):
-            raise KeyError(node.id) from None
+        # SPEC §8: an error names the ORIGINATING column, not the one it
+        # surfaces in -- `_cell` re-raises it that way. Relabelling at each hop
+        # sends a reader to inspect a well-formed formula and they never reach
+        # the bad cell.
+        return _number(node.id, env)
     left, right = ev(node.l, env), ev(node.r, env)
     if node.op == "/" and right == 0:
         raise KeyError("/0")
@@ -568,6 +758,58 @@ def ev(node, env):
     return got
 
 
+def str_cmp_lhs(node, out=None):
+    """Columns compared against a STRING literal inside an `if` (§9.22).
+
+    A numeric comparison against a computed column is fine -- it has a number.
+    A TEXT one is not: §5 requires a computed column's cells empty, so the only
+    available reading compares against the rendered form of a number, and §2
+    leaves rendering to the implementation. Measured, this implementation says
+    `20.0` and refuses to match `"20"`, while one that renders `20` matches --
+    a plausible number in every cell and a diagnostic in none.
+    """
+    if out is None:
+        out = set()
+    if isinstance(node, Neg):
+        str_cmp_lhs(node.x, out)
+    elif isinstance(node, Bin):
+        str_cmp_lhs(node.l, out)
+        str_cmp_lhs(node.r, out)
+    elif isinstance(node, If):
+        if node.c.kind == "str":
+            out.add(node.c.lhs)
+        str_cmp_lhs(node.a, out)
+        str_cmp_lhs(node.b, out)
+    return out
+
+
+def names_of(node, out=None):
+    """Every column this formula MENTIONS, both branches of every `if`.
+
+    §4.2 rule 10: evaluation is lazy but dependency and cycle analysis is
+    static. If the untaken branch were excluded, whether a table has a cycle
+    would depend on its data, so one inserted row could turn a working table
+    cyclic -- and two branches inserting different rows could disagree about
+    it, which is the silent-wrong merge the format exists to remove.
+    """
+    if out is None:
+        out = set()
+    if isinstance(node, Name):
+        out.add(node.id)
+    elif isinstance(node, Neg):
+        names_of(node.x, out)
+    elif isinstance(node, Bin):
+        names_of(node.l, out)
+        names_of(node.r, out)
+    elif isinstance(node, If):
+        out.add(node.c.lhs)
+        if node.c.kind == "name":
+            out.add(node.c.rhs)
+        names_of(node.a, out)
+        names_of(node.b, out)
+    return out
+
+
 OPS = {
     "+": operator.add,
     "-": operator.sub,
@@ -576,40 +818,76 @@ OPS = {
 }
 
 
-def _eval_plain(seq, plain, later=frozenset()):
-    """Evaluate ordinary column formulas to a fixpoint, per row.
+def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozenset()):
+    """Evaluate ordinary column formulas by DEPENDENCY, per row.
 
     Called twice -- before and after the row-relative and group passes -- so a
     column may depend on `cumulative` or on a group aggregate, and those may
-    depend on ordinary computed columns. Header order is never an input.
+    depend on ordinary computed columns. Header order is never an input (§4.2
+    rule 9).
+
+    Readiness is decided from the STATIC name set, not from whether an
+    evaluation happens to raise. With `if` that distinction is load-bearing:
+    a lazy branch can compute a value without ever touching a column the
+    formula still depends on, and a trial-and-error fixpoint would then commit
+    that value before finding out the column was on a cycle.
     """
+    # Parsed once per table rather than once per cell per row: the trees are
+    # pure, and re-parsing was the evaluator's dominant cost. It also means a
+    # malformed formula is refused on a table with no rows, which it must be --
+    # §9.20 is about the bytes, and acceptance may not depend on the data.
+    trees = {nm: _ast(expr, nm) for nm, expr in plain.items()}
+    for nm, t in trees.items():
+        for c in sorted(str_cmp_lhs(t) & computed):
+            raise Malformed(
+                f"column {nm!r}: if() compares computed column {c!r} against a "
+                f"string (§9.22). A computed column has no cell text, so the only "
+                f"reading left compares against a rendered number and §2 leaves "
+                f"rendering to the implementation -- one reader matches {c!r} and "
+                f"another does not, and both report a number. Compare it against a "
+                f"numeric literal instead"
+            )
+    deps = {nm: names_of(t) for nm, t in trees.items()}
+    # §4.2 rule 10: whether a name RESOLVES is a property of the header, so it
+    # is the same answer in every row -- including a row whose `if` selects the
+    # other branch. Otherwise a merge that adds the first row taking that branch
+    # poisons the column, and every aggregate over it, without touching a
+    # formula or a header.
+    unresolved = {}
+    if cols:
+        for nm, d in deps.items():
+            miss = sorted(d - set(cols))
+            if miss:
+                unresolved[nm] = f"#REF!({miss[0]})"
     for r in seq:
-        pending = dict(plain)
+        pending = set(plain)
         deferred = set()
-        for _ in range(len(plain) + 1):
-            if not pending:
-                break
+        while pending:
             progressed = False
-            for nm, expr in list(pending.items()):
+            for nm in sorted(pending):
+                d = deps[nm]
+                if d & (later | deferred):
+                    # A row-relative or group column computes in a later pass.
+                    # Writing #REF! now would poison it before that pass runs,
+                    # and a real cycle would then surface as a broken reference
+                    # instead of #REF!(cycle).
+                    deferred.add(nm)
+                    pending.discard(nm)
+                    progressed = True
+                    continue
+                if d & pending:
+                    continue  # waits on a pending column, itself included
+                if nm in unresolved:
+                    r[nm] = unresolved[nm]
+                    pending.discard(nm)
+                    progressed = True
+                    continue
                 try:
-                    r[nm] = ev(_ast(expr, nm), r)
-                    del pending[nm]
-                    progressed = True
+                    r[nm] = ev(trees[nm], r)
                 except KeyError as e:
-                    if e.args[0] in pending:
-                        continue  # depends on a pending column
-                    if e.args[0] in later or e.args[0] in deferred:
-                        # A row-relative or group column computes in a later
-                        # pass. Writing #REF! now would poison it before that
-                        # pass runs, and a real cycle would then surface as a
-                        # broken reference instead of #REF!(cycle).
-                        deferred.add(nm)
-                        del pending[nm]
-                        progressed = True
-                        continue
                     r[nm] = f"#REF!({e.args[0]})"
-                    del pending[nm]
-                    progressed = True
+                pending.discard(nm)
+                progressed = True
             if not progressed:
                 break
         for nm in pending:
@@ -655,7 +933,13 @@ def evaluate(text):
         if not any(re.fullmatch(rf"\s*{f}\s*\(\s*\w+\s*\)\s*", e) for f in ROWREL)
         and not _GROUP.fullmatch(e.strip())
     }
-    _eval_plain(seq, plain, later=frozenset(formulas) - frozenset(plain))
+    _eval_plain(
+        seq,
+        plain,
+        later=frozenset(formulas) - frozenset(plain),
+        computed=frozenset(formulas),
+        cols=frozenset(cols),
+    )
     for nm, expr in formulas.items():
         m = re.fullmatch(r"\s*(\w+)\s*\(\s*(\w+)\s*\)\s*", expr)
         if not (m and m.group(1) in ROWREL):
@@ -711,7 +995,7 @@ def evaluate(text):
         if not groups:
             break
 
-    _eval_plain(seq, plain)
+    _eval_plain(seq, plain, computed=frozenset(formulas), cols=frozenset(cols))
     # row-relative, computed over the DERIVED order
     out = {}
     for nm, (fn, col, pred) in decls.items():

@@ -46,11 +46,23 @@ EQUIVALENT = {
         "column, and str(float) never contains a comma. .replace(',', '') is "
         "therefore a no-op on every reachable input"
     ),
+    "a-missing-column-is-blank-under-a-text-comparison": (
+        "§4.2 rule 10's header rule makes this unreachable: `_eval_plain` "
+        "resolves every static name against `cols` BEFORE any row is "
+        "evaluated, so a name that does not exist never reaches the cell "
+        "lookup at all. The mutant is kept rather than deleted because the "
+        "lookup is the second of two independent defences and was itself a "
+        'live defect once -- `.get(name, "")` returned one sentinel for a '
+        'blank cell and a missing column, and `if(nope = "", 1, 0)` fired '
+        "the missing-data fallback in every row. The mutant that bites today "
+        "is `a-missing-name-is-an-error-only-where-its-branch-is-taken`"
+    ),
     "computed-columns-evaluated-in-reverse-header-order": (
-        "the plain-formula loop is a bounded FIXPOINT: a formula whose "
-        "dependency is still pending is skipped and retried next round, and "
-        "the round bound len(plain)+1 is sufficient in either direction, so "
-        "iteration order over `pending` cannot change the fixed point"
+        "the plain-formula loop evaluates a column only once its STATIC "
+        "dependencies have left `pending`, so a column's value is decided by "
+        "the dependency graph and never by the order the loop happens to "
+        "visit it in -- which is §4.2 rule 9, and the reason header order is "
+        "not an input to any value"
     ),
 }
 
@@ -59,6 +71,101 @@ EQUIVALENT = {
 ALL = "all-occurrences"
 
 MUTANTS = {
+    # --- rules added AFTER the first adversarial pass ----------------------
+    # Commissioned by the suite author, who could name the case each should die
+    # to without being able to write the mutant -- they may not read the
+    # implementation. A guard nothing bites is not a guard.
+    "signed-drops-the-minus": (
+        "            sign = -1.0",
+        "            sign = 1.0",
+    ),
+    "signed-applies-to-the-left-operand": (
+        '    a = _number(c.lhs, env)\n    b = c.rhs if c.kind == "num" else _number(c.rhs, env)',
+        "    a = -_number(c.lhs, env) if c.rhs < 0 else _number(c.lhs, env)\n"
+        '    b = abs(c.rhs) if c.kind == "num" else _number(c.rhs, env)',
+    ),
+    "signed-strips-the-minus-from-a-string-rhs": (
+        '                kind, rhs = "str", v3',
+        '                kind, rhs = "str", v3.lstrip("-")',
+    ),
+    "string-comparison-against-a-computed-column-is-allowed": (
+        "        for c in sorted(str_cmp_lhs(t) & computed):",
+        "        for c in sorted(frozenset() & computed):",
+    ),
+    "nine-22-refuses-every-string-comparison": (
+        "        for c in sorted(str_cmp_lhs(t) & computed):",
+        "        for c in sorted(str_cmp_lhs(t)):",
+    ),
+    "function-names-match-case-insensitively": (
+        '        if name != "if":',
+        '        if name.lower() != "if":',
+    ),
+    "cond-parens-do-not-count-toward-64": (
+        "        eat(name)\n        depth += 1",
+        "        eat(name)\n        depth += 0",
+    ),
+    # The natural OVER-correction to the header/data rule: hoist a fault found
+    # while evaluating one row to the whole column, which is right for a name
+    # that does not resolve and wrong for a division by zero. Commissioned by
+    # the suite author, who noted nothing measured the DATA side of that line.
+    "a-data-fault-is-hoisted-to-the-whole-column-like-a-name-fault": (
+        '                except KeyError as e:\n                    r[nm] = f"#REF!({e.args[0]})"',
+        "                except KeyError as e:\n"
+        '                    r[nm] = f"#REF!({e.args[0]})"\n'
+        "                    for _o in seq:\n"
+        "                        _o[nm] = r[nm]",
+    ),
+    "a-missing-name-is-an-error-only-where-its-branch-is-taken": (
+        "            miss = sorted(d - set(cols))",
+        "            miss = []",
+    ),
+    "a-missing-column-is-blank-under-a-text-comparison": (
+        "    v = env[name]",
+        '    v = env.get(name, "")',
+    ),
+    # --- §4.2 rule 10, `if` -----------------------------------------------
+    # Every one of these is a reading the rule explicitly decided AGAINST, so a
+    # survivor is not a missing test in the abstract: it names the [CHOICE] the
+    # suite currently takes on faith.
+    "if-evaluates-both-branches": (
+        "        return ev(node.a, env) if truth(node.c, env) else ev(node.b, env)",
+        "        _a, _b = ev(node.a, env), ev(node.b, env)\n"
+        "        return _a if truth(node.c, env) else _b",
+    ),
+    "if-cycle-analysis-follows-only-one-branch": (
+        "        names_of(node.a, out)\n        names_of(node.b, out)",
+        "        names_of(node.a, out)",
+    ),
+    "if-comparison-names-are-not-dependencies": (
+        "        out.add(node.c.lhs)\n"
+        '        if node.c.kind == "name":\n'
+        "            out.add(node.c.rhs)",
+        "        pass",
+    ),
+    "if-equality-is-always-numeric": (
+        '        if c.kind == "str":',
+        "        if False:",
+    ),
+    "if-equality-is-always-text": (
+        "        eq = _number(c.lhs, env) == c.rhs",
+        "        eq = str(_cell(c.lhs, env)) == str(c.rhs)",
+    ),
+    "if-blank-is-loud-even-in-an-equality": (
+        "            lv = _cell(c.lhs, env)",
+        "            lv = _number(c.lhs, env)",
+    ),
+    "if-ordering-is-textual-when-both-sides-are-text": (
+        '    a = _number(c.lhs, env)\n    b = c.rhs if c.kind == "num" else _number(c.rhs, env)',
+        "    try:\n"
+        "        a = _number(c.lhs, env)\n"
+        '        b = c.rhs if c.kind == "num" else _number(c.rhs, env)\n'
+        "    except KeyError:\n"
+        "        a, b = str(_cell(c.lhs, env)), str(c.rhs)",
+    ),
+    "if-is-recognised-with-a-space-before-its-paren": (
+        '            if i < len(expr) and expr[i] == "(":',
+        '            if expr[i:].lstrip().startswith("("):',
+    ),
     "drop-every-third-row": (
         "rows.append(_ANY)",
         "if len(rows) % 3 != 2: rows.append(_ANY)",
@@ -153,8 +260,8 @@ MUTANTS = {
     ),
     # --- I3's headline promise: a blank cell is NEVER zero ----------------------
     "blank-cell-in-a-real-column-is-zero": (
-        'v = env.get(node.id, "")',
-        'v = env.get(node.id, "")\nif node.id in env and v == "":\n    return 0.0',
+        '    v = _cell(name, env)\n    if v == "":\n        raise KeyError(name)',
+        '    v = _cell(name, env)\n    if v == "":\n        return 0.0',
     ),
     # --- numeric coercion, entirely unspecified and entirely untested -----------
     # was `float-accepts-thousands-separators`; the permissive float() it
@@ -175,8 +282,8 @@ MUTANTS = {
     ),
     # so deleting the explicit .strip(...) would be a no-op. The named
     "computed-columns-evaluated-in-reverse-header-order": (
-        "for nm, expr in list(pending.items()):",
-        "for nm, expr in reversed(list(pending.items())):",
+        "for nm in sorted(pending):",
+        "for nm in sorted(pending, reverse=True):",
     ),
     # the two ordering defects that each produced a silent wrong number:
     # a group aggregate over a computed column summed empty cells to 0, and a
@@ -184,7 +291,9 @@ MUTANTS = {
     # The SECOND plain pass. Removing it is what made a per-vendor subtotal over
     # a computed column evaluate to 0 with `check` reporting 0 refused.
     "plain-pass-runs-only-once": (
-        "    _eval_plain(seq, plain)\n    # row-relative, computed over the DERIVED order",
+        "    _eval_plain(seq, plain, computed=frozenset(formulas), "
+        "cols=frozenset(cols))\n"
+        "    # row-relative, computed over the DERIVED order",
         "    # row-relative, computed over the DERIVED order",
     ),
     # Writes the right value to the WRONG row. Under the old `str(value) in out`

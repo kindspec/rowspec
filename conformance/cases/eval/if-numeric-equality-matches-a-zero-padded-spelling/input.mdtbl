@@ -1,0 +1,7 @@
+| id | code | m = if(code = 7, 1, 0) | t = if(code = "7", 1, 0) |
+| --- | --- | --: | --: |
+| r_01 | 007 |  |  |
+
+key := id
+sm := sum(m)
+st := sum(t)

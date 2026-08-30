@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "sm": 1.0,
+    "sn": 1.0
+  },
+  "kind": "eval"
+}

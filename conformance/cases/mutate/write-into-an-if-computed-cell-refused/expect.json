@@ -1,0 +1,7 @@
+{
+  "column": "x",
+  "expect": "refuse",
+  "kind": "mutate",
+  "row_key": "r_01",
+  "value": 1
+}

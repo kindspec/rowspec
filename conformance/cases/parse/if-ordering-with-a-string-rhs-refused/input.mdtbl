@@ -1,0 +1,6 @@
+| id | name | x = if(name < "m", 1, 0) |
+| --- | --- | --: |
+| r_01 | widget |  |
+
+key := id
+s := sum(x)

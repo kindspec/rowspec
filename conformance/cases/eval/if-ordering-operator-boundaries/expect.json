@@ -1,0 +1,9 @@
+{
+  "aggregates": {
+    "sge": 1.0,
+    "sgt": 0.0,
+    "sle": 1.0,
+    "slt": 0.0
+  },
+  "kind": "eval"
+}

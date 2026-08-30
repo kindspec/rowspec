@@ -1,0 +1,6 @@
+| id | c | x = if(c = "x", "PASS", "FAIL") |
+| --- | --- | --- |
+| r_01 | x |  |
+
+key := id
+n := count(x)

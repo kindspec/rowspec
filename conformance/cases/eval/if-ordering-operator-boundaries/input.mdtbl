@@ -1,0 +1,9 @@
+| id | q | ge = if(q >= 0, 1, 0) | gt = if(q > 0, 1, 0) | le = if(q <= 0, 1, 0) | lt = if(q < 0, 1, 0) |
+| --- | --: | --: | --: | --: | --: |
+| r_01 | 0 |  |  |  |  |
+
+key := id
+sge := sum(ge)
+sgt := sum(gt)
+sle := sum(le)
+slt := sum(lt)

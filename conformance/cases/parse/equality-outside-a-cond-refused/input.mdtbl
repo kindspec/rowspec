@@ -1,0 +1,6 @@
+| id | q | flag = q = 3 |
+| --- | --: | --- |
+| r_01 | 3 |  |
+
+key := id
+n := count(flag)

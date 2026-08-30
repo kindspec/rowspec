@@ -1,0 +1,7 @@
+| id | region | m = if(region = "KS TV \| Action", 1, 0) |
+| --- | --- | --: |
+| r_01 | KS TV \| Action |  |
+| r_02 | KS TV Action |  |
+
+key := id
+s := sum(m)

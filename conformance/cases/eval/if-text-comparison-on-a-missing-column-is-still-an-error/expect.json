@@ -1,0 +1,8 @@
+{
+  "aggregates": {
+    "sm": "#REF!(nope)",
+    "sn": "#REF!(nope)",
+    "st": "#REF!(nope)"
+  },
+  "kind": "eval"
+}

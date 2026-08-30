@@ -309,8 +309,18 @@ agg-fn      = "sum" / "count" / "min" / "max" / "avg"
 expr        = term *( *WSP ( "+" / "-" ) *WSP term )
 term        = factor *( *WSP ( "*" / "/" ) *WSP factor )
 factor      = [ "-" *WSP ] primary
-primary     = literal / ident / "(" *WSP expr *WSP ")"
+primary     = literal / cond / ident / "(" *WSP expr *WSP ")"
 literal     = 1*DIGIT [ "." 1*DIGIT ]        ; unsigned -- rule 7
+
+cond        = "if" "(" *WSP comparison *WSP
+                   "," *WSP expr *WSP "," *WSP expr *WSP ")"      ; rule 10
+comparison  = ident *WSP ( order-op *WSP order-rhs
+                         / eq-op *WSP eq-rhs )
+order-op    = "<=" / ">=" / "<" / ">"        ; numeric, always
+eq-op       = "<>" / "="                     ; the RHS spelling decides
+order-rhs   = signed / ident
+eq-rhs      = string / signed
+signed      = [ "-" *WSP ] literal          ; rule 10: a bound may be negative
 
 predicate   = equality *( 1*WSP "and" 1*WSP equality )
 equality    = ident *WSP "=" *WSP pred-rhs
@@ -341,9 +351,13 @@ set. Precedence, tightest first: parentheses; unary `-`; `*` and `/`; `+` and
 `8 / 4 / 2` is `1`. Unary `-` binds tighter than any binary operator, so
 `-a + b` is `(-a) + b`.
 
-**[CHOICE]** `**`, `^`, `%`, `//`, `&`, `|`, `<<`, `>>`, `~`, the comparison
-operators (`<`, `>`, `<=`, `>=`, `==`, `!=`, `<>`), and the words `or` and `not`
-are **refused** rather than given a meaning. `^` is the case that decides the
+**[CHOICE]** `**`, `^`, `%`, `//`, `&`, `|`, `<<`, `>>`, `~`, `==`, `!=`, and
+the words `or` and `not` are **refused** rather than given a meaning. So are
+`<`, `>`, `<=`, `>=`, `=` and `<>` **as operators of `expr`** — they appear only
+inside a `cond` (rule 10), which is the whole of their grammar. `a < b` is not a
+column formula, because there is no value for it to have: the format has numbers
+and errors and no boolean, and rule 10 exists precisely so that adding `if` did
+not have to add a third kind of value. `^` is the case that decides the
 policy: it is exponentiation in Excel, Sheets, Lotus and every spreadsheet the
 users of this format have met, and bitwise XOR in C, Python, Java and Go. Both
 readings are total functions over numbers, neither raises, and `3 ^ 2` is `9`
@@ -417,9 +431,19 @@ The composition is available by writing the intermediate column down:
 `| run = cumulative(a) | twice = run * 2 |` is two well-formed formulas, and by
 rule 9 their order in the header does not matter.
 
-**4. The function names are not reserved words.** The eight names of `rowrel-fn`
-and `agg-fn` are recognised **only** immediately before `(`, with no `WSP`
-between the two. So `| x = sum |` is a reference to a column named `sum`, `sum`
+**4. The function names are not reserved words, and they are lower-case.**
+The eight names of `rowrel-fn` and `agg-fn`, and `if` (rule 10), are recognised
+**only** immediately before `(`, with no `WSP` between the two.
+
+**Every function name in this document is matched case-sensitively**, despite
+RFC 5234 §2.3 making a bare ABNF string literal case-insensitive. Read the
+literals in this section as `%s`-prefixed. **[CHOICE]** `SUM(` and `IF(` are the
+spellings a spreadsheet export arrives in, so admitting them looks helpful, and
+it is refused because `ident` is case-sensitive everywhere else (§3 fixes NFC
+and nothing more): a table may have columns named both `IF` and `if`, and under
+case-insensitive function matching rule 4 could no longer say which of them
+`IF(` refers to. One case convention, applied everywhere, costs an importer one
+`lower()` and costs a reader nothing. So `| x = sum |` is a reference to a column named `sum`, `sum`
 is a legal column name, and `sum (a where b = "x")` — with a space — is refused.
 The no-space rule is §4.1's: `rhs` is written `ident "("` with no `*WSP` between
 them, and a header-cell call spells its calls the same way. **[CHOICE]** —
@@ -508,12 +532,18 @@ may be named `123`, and `123` is also a well-formed `literal`. Two positions
 exist and each admits exactly one of them:
 
 - **Name positions** — the `ident` argument of `rowrel-call` and `group-call`,
-  §4.1's `arg`, either `ident` of an `equality`, and the argument of `key` and
-  `order` — admit `ident` and have **no literal alternative**. `sum(123)` is the
-  column named `123`. So is `sum(1)`.
-- **Operand position** — `primary` — tries `literal` first, so a token matching
-  `literal` is a number. `| c = 123 * 2 |` is `246`, and `| c = 123 |` is the
-  number `123`, not the column.
+  §4.1's `arg`, either `ident` of an `equality`, the **left-hand `ident` of a
+  `comparison`** (rule 10), and the argument of `key` and `order` — admit
+  `ident` and have **no literal alternative**. `sum(123)` is the column named
+  `123`. So is `sum(1)`, and so is the `123` in `if(123 > 0, a, b)`.
+- **Operand position** — `primary`, and a `comparison`'s **right-hand** side —
+  tries `literal` first, so a token matching `literal` is a number.
+  `| c = 123 * 2 |` is `246`, and `| c = 123 |` is the number `123`, not the
+  column. The two sides of a comparison therefore read a bare `3` differently,
+  which is the same asymmetry `equality` already has in a `where` predicate —
+  `ident` on the left, a value on the right — and it is deliberate: the left of
+  a comparison is the thing being tested and the right is what it is tested
+  against.
 
 **Tokenisation is maximal munch over `ident`, and it happens BEFORE anything is
 classified as a literal.** `ident` is a strict *superset* of `literal`, so the
@@ -625,6 +655,179 @@ both poison every aggregate over the column identically under §8, and no
 computed value anywhere branches on which of the two it is. The collision costs
 a diagnostic and never a number, and closing it would change the output of a
 conforming implementation for no gain.
+
+**10. `if` is a `primary`, and a comparison exists nowhere else.**
+`if(c, a, b)` is an operand like any other, so it composes — `if(q > 0, t, 0) * 2`
+and `if(q > 0, if(r > 0, 1, 2), 3)` are well-formed (**a `cond`'s parenthesis
+counts toward §9.23's limit of 64 exactly as a bare one does — the recursion is
+the same recursion, since `cond` is reached through `primary`**) — and rule 4 applies to its
+name unchanged: `if` is recognised only immediately before `(`, so `| x = if |`
+is a reference to a column named `if`, and `if (q > 0, 1, 0)` with a space is
+refused.
+
+A `comparison` is **not** an expression and has no value. It is a syntactic part
+of `cond`, which is why the format still has exactly two kinds of value — a
+number and an error (§8) — after this rule as before it. **[CHOICE]** The
+alternative, a boolean value produced by `<` and consumed by `if`, is how every
+host language does it and it is refused here for the format's usual reason: a
+boolean is storable, so `| flag = q > 0 |` becomes a column whose data cells
+hold something §4.1.6 has no spelling for, and §10 could not canonicalise it,
+and `sum` over it would need a meaning. Making the comparison syntactic costs
+one nesting rule and leaves §5, §8 and §10 untouched.
+
+**Only the selected branch is evaluated.** **[CHOICE]**, and it is the rule the
+feature exists for:
+
+    | qty | total | avg = if(qty > 0, total / qty, 0) |
+
+Under eager evaluation of both branches every row with `qty` of `0` is
+`#REF!(/0)`, and the guard the author wrote — the guard *every* spreadsheet
+lineage would write — does nothing. An implementation that evaluates both
+branches is not merely slower; it computes a different table.
+
+**A name that does not resolve is `#REF!(name)` in EVERY row, even where the
+branch naming it is not selected.** `if(c > 0, c * 2, nope)` with no column
+`nope` is `#REF!(nope)` throughout, not `c * 2` in the rows where `c` is
+positive.
+
+**[CHOICE]**, and the line it draws is between the *header* and the *data*.
+Whether `nope` resolves is a property of the header alone: it is knowable
+before a single row is read, it is the same for every row, and no edit to any
+cell can change it. Whether `b` is zero in `if(c > 0, a / b, 0)` is a property
+of the data, so `#REF!(/0)` is legitimately a per-row answer and this rule does
+not touch it. Errors that come and go with the data are ordinary; an error that
+comes and goes with the data while its *cause* sits unchanged in the header is
+not.
+
+The alternative was measured against the format's own thesis and lost. Under
+it, a column is well-formed until the day a merge adds the first row that takes
+the other branch — and then that column, and every aggregate over it, is
+poisoned by a commit that touched no formula and no header. Two branches can
+each add rows that are individually fine and produce a table that is not, which
+is §1's failure with a different trigger. It also delays the diagnostic: the
+author who mistypes a column name learns about it when a row happens to select
+that branch, rather than when they write it.
+
+**Dependency and cycle analysis is over the whole formula, both branches
+included, and is not affected by which branch a row selects.** `| x = if(c > 0,
+0, x) |` is `#REF!(cycle)` in every row, including rows where `c` is positive
+and the cycle is not reached. **[CHOICE]** The alternative makes a file's
+acceptance and a column's cycle-hood depend on the *data*, so adding one row
+could turn a working table into a cyclic one, and two branches inserting
+different rows could disagree about whether the table has a cycle at all — which
+is exactly the class of silent-wrong merge §1 exists to remove.
+
+**Comparison semantics, which are two rules and not one.**
+
+- `<`, `<=`, `>`, `>=` are **numeric, always**. Both operands are converted as
+  §4.2 rule 2 converts them, and an operand that is not a number — blank,
+  text, or an error — makes the whole `cond` that error, by §8, exactly as it
+  would in arithmetic. **[CHOICE]** They are never textual, because ordering
+  text means collation, collation is locale-dependent, and §3 fixes NFC and
+  nothing else: `"a" < "B"` is true in one locale and false in another, and a
+  format whose claim is that two readers agree cannot have an operator whose
+  answer depends on the reader's locale.
+- `=` and `<>` compare **text or numbers, and the right-hand side's spelling
+  decides which**. A `string` right-hand side compares text under rule 6's
+  treatment, unchanged — trimmed, unescaped, NFC. A `literal` right-hand side
+  compares numbers. So `if(qty = "3", …)` matches a cell holding `3` and not one
+  holding `3.0`, while `if(qty = 3, …)` matches both.
+
+  **[CHOICE]**, and the reason it is the spelling rather than the data: the
+  author wrote `"Y"` or wrote `0`, and that is the clearest available statement
+  of which comparison they meant. The alternative — decide by inspecting the
+  cell — makes the same formula mean different things in two files, which rule 7
+  already refused for bare numeric tokens on the identical ground that *a grammar
+  that cannot be read without the table is not a grammar*.
+
+**An error operand is an error under every operator, `=` and `<>` included.**
+If the left-hand column holds a `#REF!` of any shape, the whole `cond` is that
+error and the row's cell carries it, with the originating name preserved by §8.
+It is *not* treated as blank. The distinction is worth a sentence because the
+blank test below invites the opposite reading — "the operand produced no number,
+so call it blank" — under which a `#REF!(/0)` cell silently tests equal to `""`
+and a division by zero becomes the author's missing-data fallback. That is a
+plausible number standing in for an error, which is §1's failure exactly.
+
+**`if(x = "", a, b)` is the blank test**, and it is the one place in the format
+where a blank cell is data rather than an absence. A blank cell's text is the
+empty string, so the equality is true; it does not become `#REF!(x)` the way
+`x + 1` does. This is deliberate: without it there is no way to write "use this
+when that is missing", which is the second most common shape in the corpus
+(§E4). Every *other* mention of a blank operand stays loud — `if(x > 0, …)` on a
+blank `x` is `#REF!(x)`, because that is an ordering comparison and blank is not
+a number.
+
+**A `string` right-hand side may not be compared against a computed column
+(§9.22).** `if(total = "20", 1, 0)` over a computed `total` is refused. Rule 5's
+argument transfers word for word — §5 requires a computed column's data cells
+empty, so the only available reading compares against the *rendered* form of a
+number, and §2 leaves rendering to the implementation. Measured on this
+document's own reference implementation, `total` of `20` renders `20.0` and
+never matches `"20"`, so the comparison is false in every row and says nothing;
+a reader that renders `20` matches every row. Both report a number.
+
+A **numeric** right-hand side carries no such restriction: `if(total = 20, …)`
+and `if(total > 15, …)` over a computed column are well-formed and rule 9 gives
+them a value. Comparing `if` over the column one cell to its left is the second
+most common shape in the corpus, and over-applying §9.22 to every `ident` in
+every comparison — one line, and it looks like defence in depth — refuses it.
+
+**An `ident` on the right-hand side of `=` or `<>` is refused (§9.24).**
+`if(a = b, …)` is not generated by `comparison`, while `if(a < b, …)` is. The
+asymmetry is not an oversight: for ordering the answer is numeric whatever the
+operands are, and for equality it is precisely the question the spelling rule
+above answers — and with a column on the right there is no spelling to read. The
+two available readings differ on real data, `1` against `1.0` being the whole of
+it, and rule 6 has already argued that a value which compares equal as a number
+and unequal as text splits `where` predicates from key identity. Measured, this
+costs 121 of 12,697 corpus `if` cells (0.95%).
+
+**A branch that is not a number is refused, and it is refused by the grammar
+rather than by a rule.** `expr` does not generate `string`, so
+`if(c = "x", "PASS", "FAIL")` is not a `formula` and the header cell is refused
+under §9.20. This is worth stating because it is **5,943 corpus cells, 47% of
+every `if` in the corpus, and the single largest thing this rule does not do.**
+Admitting it is not a grammar change but a *value-model* change: a computed
+column that can hold text changes what `sum` over that column means, what a
+`where` predicate compares against, what §10 canonicalises and what §9.17
+checks. That is a proposal with its own evidence, and folding it into the
+addition of one function would have been the way to make it without ever
+arguing for it.
+
+**11. There is no row-wise `sum`, and the measurement is the reason.**
+`sum` aggregates a column down the table (§7). It is deliberately not also a
+variadic function across a row, which is the shape `SUM(a, b, c)` has in a
+spreadsheet.
+
+The case for adding it looked strong from function names alone and did not
+survive looking at the expressions. Of 5,912 corpus cells that call `SUM` and
+are otherwise within this grammar, **3,485 are `SUM(a, b, c)` over named
+columns — which `a + b + c` already generates — and 2,376 are `SUM(col)` over
+one whole column, which is a §7 declaration. 5,861 of 5,912, 99.1%, need no
+grammar at all**; 51 remain, and they are an array-formula idiom. Adding a
+variadic `sum` to spell the first group would be a second spelling of `+`,
+which §4.1.6 and rule 7 refuse on their own grounds.
+
+What `SUM` genuinely carries that `+` does not is **blank tolerance**: `SUM`
+skips a blank operand and `+` does not, and by §8 a blank operand here is
+`#REF!`. That difference is not small — it is the largest single disagreement
+between this format and real spreadsheets, **30.4% of 55,681 compared corpus
+cells**, every one a cell where a spreadsheet had a number and this format
+declined to invent one.
+
+Rule 10 settles it without a function, because the author can now write the
+tolerance down:
+
+    | t = if(a = "", 0, a) + if(b = "", 0, b) |
+
+**[CHOICE]**, and it is I3 (loud failure) applied rather than bypassed. A
+row-wise `sum` would make blank-skipping the *default* and invisible in the
+formula, so a column silently under-totals the day someone leaves a cell empty
+and nothing in the file says that was intended. The `if` spelling is longer and
+says which cells are allowed to be missing, in the formula, where a reviewer
+reads it. `+` stays loud, and nothing that was an error becomes a number
+without an author saying so.
 
 ## 5. Columns
 
@@ -741,12 +944,21 @@ A reference to a name that does not exist evaluates to `#REF!(name)`. An
 aggregate over any column containing a `#REF!` is itself `#REF!` — **it must not
 sum the values it can read**.
 
-**There are exactly three `#REF!` shapes**, and an implementation emits no
-fourth. `#REF!(name)` carries the *originating* name — the column that could not
+**There are exactly four `#REF!` shapes**, and an implementation emits no
+fifth. `#REF!(name)` carries the *originating* name — the column that could not
 be resolved or whose value would not coerce, not the column the error surfaces
 in. `#REF!(/0)` is division by zero (§4.2 rule 2). `#REF!(cycle)` is a cycle
-among computed columns (§4.2 rule 9). All three are values, all three propagate
-identically, and none of them is ever a number.
+among computed columns (§4.2 rule 9). `#REF!(overflow)` is an operation whose
+IEEE result is an infinity (§4.2 rule 2). All four are values, all four
+propagate identically, and none of them is ever a number.
+
+This paragraph said *three* while rule 2 already required `overflow`, which is
+the kind of drift a document acquires when a rule is added in one section and
+counted in another. Note that `overflow` is a well-formed `ident` and therefore
+collides with a broken reference to a column actually named `overflow`, exactly
+as `cycle` does and unlike `/0`; §4.2 rule 9's argument for accepting that
+collision — both readings are errors, both poison every aggregate identically,
+and no computed value branches on which it is — applies here unchanged.
 
 A broken reference never evaluates to zero, empty, or a stale value. A blank
 cell is not zero. A value that will not coerce to a number is `#REF!`, not a
@@ -810,7 +1022,10 @@ An implementation MUST refuse:
 21. a table whose second line is not a valid alignment row, a table shorter than
     two lines included (§4, §4.1.5)
 22. an equality in a `where` predicate whose left-hand `ident`, or whose `ident`
-    after `@`, names a **computed** column (§4.2 rule 5). §9.20 cannot reach
+    after `@`, names a **computed** column (§4.2 rule 5) — and, for the same
+    reason, an `=`/`<>` comparison inside `if` whose right-hand side is a
+    `string` and whose left-hand `ident` names a computed column (§4.2 rule 10).
+    §9.20 cannot reach
     this one: that entry is scoped to a right-hand side the grammar does not
     generate, and this constraint is semantic — no grammar can tell a stored
     column from a computed one
@@ -823,6 +1038,13 @@ An implementation MUST refuse:
     person approaches it, and a generator or a hostile commit that exceeds it
     gets a refusal rather than a traceback — §8's totality is a security
     property as well as a correctness one
+24. an `=` or `<>` comparison inside `if` whose right-hand side is an `ident`
+    (§4.2 rule 10). Unlike §9.22 this one *is* reachable by the grammar —
+    `comparison` does not generate it — and it is listed separately only because
+    an implementation that admits `ident` uniformly on both sides of every
+    comparison operator, which is the natural way to write the parser, will
+    accept it and then have to invent a text-or-number reading that §4.2 rule 10
+    declines to fix
 
 **The numbering is not a precedence order.** When one file violates several
 refusals, *which* is reported is deliberately unspecified, and the three

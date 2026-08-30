@@ -1,0 +1,7 @@
+| id | region | a | total = a * 2 | m = if(region = "EU", 1, 0) |
+| --- | --- | --: | --: | --: |
+| r_01 | EU | 10 |  |  |
+| r_02 | US | 5 |  |  |
+
+key := id
+s := sum(m)

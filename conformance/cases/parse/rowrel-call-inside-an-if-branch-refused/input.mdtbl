@@ -1,0 +1,7 @@
+| id | c | a | x = if(c > 0, cumulative(a), 0) |
+| --- | --: | --: | --: |
+| r_01 | 1 | 5 |  |
+
+key := id
+order := by(c)
+s := sum(x)

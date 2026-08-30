@@ -1,0 +1,8 @@
+| id | region | amt | big = if(amt > 100, amt, 0) | rt = sum(big where region = @region) |
+| --- | --- | --: | --: | --: |
+| r_01 | EU | 200 |  |  |
+| r_02 | EU | 50 |  |  |
+| r_03 | US | 300 |  |  |
+
+key := id
+s := sum(rt)

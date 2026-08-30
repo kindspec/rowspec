@@ -1,0 +1,7 @@
+| id | if | x = if * 2 |
+| --- | --: | --: |
+| r_01 | 5 |  |
+
+key := id
+s := sum(x)
+n := count(if)
