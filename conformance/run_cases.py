@@ -72,9 +72,11 @@ def run(impl, root="cases"):
     ref = importlib.import_module(impl)
     importlib.reload(ref)
     fails = []
+    seen = 0
     for dirpath, _, names in sorted(os.walk(root)):
         if "expect.json" not in names:
             continue
+        seen += 1
         cid = os.path.relpath(dirpath, root)
         e = json.load(open(os.path.join(dirpath, "expect.json")))
         f = {
@@ -185,6 +187,13 @@ def run(impl, root="cases"):
                     bad(f"{len(res)} distinct outcomes across merge orders")
         except Exception as ex:
             bad(f"{type(ex).__name__}: {ex}")
+    if not seen:
+        # A suite that finds no cases must not report success. `root` is
+        # relative, so running this from the repo root instead of `conformance/`
+        # walked an empty path and printed "0 failure(s)" over 226 unrun cases
+        # -- four of which were failing.
+        fails.append(f"no cases found under {os.path.abspath(root)!r}")
+        print(f"  FAIL no cases found under {os.path.abspath(root)!r}")
     return fails
 
 
