@@ -27,19 +27,22 @@ def sh(*a, cwd=None):
 def git_merge(files, order, fn="a.mdtbl"):
     d = tempfile.mkdtemp()
     try:
-        sh("git", "init", "-q", d)
+        if sh("git", "init", "-q", d).returncode:
+            raise RuntimeError("git init failed: merge cases cannot be run")
         for k, v in [("user.email", "t@e"), ("user.name", "t")]:
             sh("git", "config", k, v, cwd=d)
         p = os.path.join(d, fn)
         open(p, "w").write(files["base"])
         sh("git", "add", "-A", cwd=d)
-        sh("git", "commit", "-qm", "b", cwd=d)
+        if sh("git", "commit", "-qm", "b", cwd=d).returncode:
+            raise RuntimeError("git commit failed: merge cases cannot be run")
         sh("git", "branch", "-M", "main", cwd=d)
         for i, name in enumerate(order):
             sh("git", "checkout", "-q", "main", cwd=d)
             sh("git", "checkout", "-qb", f"b{i}", cwd=d)
             open(p, "w").write(files[name])
-            sh("git", "commit", "-qam", name, cwd=d)
+            if sh("git", "commit", "-qam", name, cwd=d).returncode:
+                raise RuntimeError(f"git commit failed on branch {name}")
         sh("git", "checkout", "-q", "main", cwd=d)
         for i in range(len(order)):
             if sh("git", "merge", f"b{i}", "-m", "m", cwd=d).returncode:
@@ -68,6 +71,19 @@ def ev_at(ref, text, base):
     return ref.evaluate(text)
 
 
+KINDS = {
+    "parse",
+    "roundtrip",
+    "eval",
+    "rowrel",
+    "mutate",
+    "canon",
+    "merge",
+    "confluence",
+}
+CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
+
+
 def run(impl, root="cases"):
     ref = importlib.import_module(impl)
     importlib.reload(ref)
@@ -89,6 +105,16 @@ def run(impl, root="cases"):
         def bad(msg, cid=cid):
             fails.append(f"{cid}: {msg}")
             print(f"  FAIL {cid}  {msg}")
+
+        if k not in KINDS:
+            bad(f"unknown kind {k!r}; nothing would have run")
+            continue
+        if k == "eval" and not e.get("aggregates"):
+            bad("eval case asserts no aggregate")
+            continue
+        if k == "canon" and e["check"] not in CANON_CHECKS:
+            bad(f"unknown canon check {e['check']!r}; nothing would have run")
+            continue
 
         try:
             if k == "parse":
@@ -133,12 +159,23 @@ def run(impl, root="cases"):
                                 f"wanted {e['aggregate']}={e['result']}, "
                                 f"got {a.get(e['aggregate'])}"
                             )
-                    elif str(e["value"]) not in out:
-                        bad("mutation not visible")
+                    else:
+                        # Not `str(value) in out`: a substring test over the whole
+                        # file passes when the value already appears anywhere in
+                        # it, including in the row that was NOT written.
+                        rows_out, _ = ev_at(ref, out, dirpath)
+                        hit = [r for r in rows_out if rk in r.values()]
+                        if not hit:
+                            bad(f"row {rk!r} is gone from the rendered output")
+                        elif str(hit[0].get(e["column"])) != str(e["value"]):
+                            bad(
+                                f"{e['column']} of row {rk}: wanted {e['value']!r}, "
+                                f"got {hit[0].get(e['column'])!r}"
+                            )
             elif k == "canon":
                 c1 = ref.canon(f["input"])
                 c2 = ref.canon(c1)
-                if "idempotent" in e["check"] and c1 != c2:
+                if e["check"] == "idempotent" and c1 != c2:
                     bad("canon not idempotent")
                 elif (
                     e["check"] == "preserves-values"

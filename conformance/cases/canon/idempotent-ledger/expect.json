@@ -1,4 +1,4 @@
 {
-  "check": "idempotent-ledger",
+  "check": "idempotent",
   "kind": "canon"
 }
