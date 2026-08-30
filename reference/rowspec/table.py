@@ -107,6 +107,12 @@ def parse(text):
             break  # the run ended; §4 makes the table contiguous
     if not tbl:
         raise Malformed("no table found")
+    # Membership only. `tbl` stays a list because §4's contiguous run is
+    # ordered -- tbl[0] is the header and tbl[1] the alignment row -- but the
+    # scan below asked `line not in tbl` once per line, which is a linear
+    # search per line and quadratic over the file. Measured before this: 5k
+    # rows 0.13s, 40k rows 6.58s -- 8x the rows for 50x the time.
+    tbl_set = set(tbl)
     decls, order, key = {}, None, None
     order_seen = False
     for n, line in enumerate(lines, 1):
@@ -114,7 +120,7 @@ def parse(text):
             continue  # SPEC §9: the ignorable channel, inert whatever it contains
         stripped = re.sub(r"\s+#.*$", "", line)
         if ":=" not in stripped:
-            if stripped.strip() and line not in tbl:
+            if stripped.strip() and line not in tbl_set:
                 if stripped.strip().startswith("|"):
                     raise Malformed(
                         f"line {n}: this is a valid table line, but the table already "
