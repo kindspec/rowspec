@@ -14,7 +14,7 @@ import os
 import sys
 
 from .csvmode import Finding, check_file
-from .table import Malformed, canon, evaluate, parse
+from .table import Malformed, _why_not_a_number, canon, escape_cell, evaluate, parse
 
 CSV_EXT = (".csv", ".tsv", ".tab")
 TABLE_EXT = (".mdtbl",)
@@ -30,7 +30,7 @@ def validate(path: str) -> list[Finding]:
         except Malformed as e:
             return [Finding("refused", str(e))]
     try:
-        text = open(path, encoding="utf-8").read()
+        text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
         return [Finding("encoding", f"not valid UTF-8: {e}")]
     try:
@@ -76,9 +76,27 @@ def _print_github(path, findings, explained, out):
         print(f"::{kind} file={path},title=rowspec::{msg}", file=out)
 
 
+def _offending_cell(rows, col):
+    """The first cell in `col` that will not parse as a number, if any."""
+    from .table import num
+
+    for r in rows:
+        v = r.get(col)
+        if v in ("", None) or not isinstance(v, str):
+            continue
+        try:
+            num(v)
+        except (ValueError, TypeError):
+            return v
+    return None
+
+
 def _fmt_value(v):
     if isinstance(v, float):
-        return f"{v:g}" if v == int(v) else f"{v}"
+        if v == int(v):
+            return f"{int(v)}"
+        r = round(v, 10)
+        return f"{r:.10f}".rstrip("0").rstrip(".")
     return "" if v is None else str(v)
 
 
@@ -99,6 +117,8 @@ def cmd_eval(paths, out=sys.stdout) -> int:
                 open(path, encoding="utf-8", newline="").read()
             )
         except Malformed as e:
+            if not path.lower().endswith(TABLE_EXT):
+                continue  # `eval` is for tables; `check` owns everything else
             print(f"{path}: {e}", file=sys.stderr)
             bad += 1
             continue
@@ -134,6 +154,10 @@ def cmd_eval(paths, out=sys.stdout) -> int:
                 seen.add(sig)
                 where = f"row {rowkey}, " if rowkey else ""
                 print(f"    {where}{col} = {v}", file=sys.stderr)
+                name = v[len("#REF!(") : -1] if v.startswith("#REF!(") else ""
+                cell = _offending_cell(rows, name)
+                if cell is not None:
+                    print(f"        {_why_not_a_number(cell)}", file=sys.stderr)
     return 1 if bad else 0
 
 
@@ -165,7 +189,7 @@ def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
         return 1
     supplied = dict(zip(fillable, values, strict=True))
     cells = [rid if c == key else "" if c in formulas else supplied.get(c, "") for c in cols]
-    line = "| " + " | ".join(cells).replace("|  |", "|  |") + " |"
+    line = "| " + " | ".join(escape_cell(c) for c in cells) + " |"
     lines = text.splitlines(keepends=True)
     last = max(i for i, ln in enumerate(lines) if ln.strip().startswith("|"))
     eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
