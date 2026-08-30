@@ -545,12 +545,30 @@ exist and each admits exactly one of them:
   a comparison is the thing being tested and the right is what it is tested
   against.
 
-**Tokenisation is maximal munch over `ident`, and it happens BEFORE anything is
-classified as a literal.** `ident` is a strict *superset* of `literal`, so the
-two are not alternatives a tokeniser may try in order: `1000_2999` is one
-`ident` token, never the literal `1000` followed by `_2999`. Only a token that
-is *entirely* `1*DIGIT [ "." 1*DIGIT ]` is ambiguous, and only that one is
-resolved by position above. This is not hypothetical — measured against 8,171
+**Tokenisation is maximal munch, and it happens BEFORE anything is classified as
+a literal.** The two are not alternatives a tokeniser may try in order:
+`1000_2999` is one token, never the literal `1000` followed by `_2999`. Only a
+token that is *entirely* `1*DIGIT [ "." 1*DIGIT ]` is ambiguous, and only that
+one is resolved by position above.
+
+**The rule, stated exactly**, because the obvious reading of the paragraph above
+is wrong and does not parse:
+
+> A token is the longest run of `ident` characters — except that where such a
+> run is entirely ASCII digits and is immediately followed by `.` and at least
+> one ASCII digit, the token extends across the `.` and the following longest
+> run of ASCII digits.
+
+`ident` is **not** a superset of `literal`, and an earlier draft of this
+paragraph said it was. `literal` admits `.`; §4.1.9's second **[CHOICE]**
+excludes `.` from `ident` by name. So `ident` is a superset only of `literal`'s
+*integer* spelling, and a reader who munches `ident` maximally and only then
+classifies can never produce the token `1.2` at all — `| gross = net * 1.2 |`
+fails to parse under it. The carve-out above is what makes a decimal literal
+reachable, and it is deliberately narrow: `a1.5` is the token `a1` followed by a
+character that no production admits, and `1.2.3` is `1.2` followed by the same,
+so both are refused (§9.20) rather than being read as something the author did
+not write. This is not hypothetical — measured against 8,171
 real spreadsheet headers, 43 carry a name of this shape (`10_15` for a time of
 day, `1_0` for a version, `31_03_2021` for a date, `1000_2999` for an amount
 band), and a host language that reads `1000_2999` as a digit-separated number
