@@ -5,21 +5,44 @@ jobs:
   conformance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: just check
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      # `just` is not on the runner image. Without this the job died at its
+      # first command with exit code 127, and the red masked the fact that the
+      # conformance suite and the mutation gate had never run at all -- a job
+      # that fails before its checks is indistinguishable, from the outside,
+      # from one whose checks fail. Installed through uv rather than a third
+      # party action: uv is already a dependency here and nothing else is.
+      - name: install just
+        run: |
+          uv tool install rust-just
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: just is actually on PATH
+        run: just --version
+
+      # Each gate reports independently. A failing `check` must not hide
+      # whether `conform` and `mutants` ran, which is the whole complaint
+      # above -- and this project's own thesis applied to its own CI.
+      - name: lint and format
+        if: always()
+        run: just check
       - name: conformance suite (stock git)
+        if: always()
         run: just conform
       - name: the suite must be able to fail
+        if: always()
         run: just mutants
+
       # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
       # meant to be malformed. This is the recipe a USER should copy: `check`
       # answers "will this survive being edited", `eval` answers "does it
       # currently say anything false", and a pipeline with only the first is
       # green on a broken total.
       - name: example -- the recipe a user should copy
+        if: always()
         run: |
           uv run python -m rowspec check docs/example || true
           uv run python -m rowspec eval  docs/example || true
       - name: corpus-scoped checks
+        if: always()
         run: uv run python conformance/corpus_check.py .
