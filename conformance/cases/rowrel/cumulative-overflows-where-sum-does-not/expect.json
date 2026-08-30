@@ -1,0 +1,6 @@
+{
+  "column": "bal",
+  "kind": "rowrel",
+  "row_index": 3,
+  "value": "#REF!(overflow)"
+}

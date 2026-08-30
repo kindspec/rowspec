@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "a": 1e+308,
+    "s": "#REF!(overflow)"
+  },
+  "kind": "eval"
+}
