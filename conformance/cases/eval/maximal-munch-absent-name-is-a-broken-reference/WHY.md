@@ -1,10 +1,17 @@
 # Why this case exists
 
-§4.2: "**Tokenisation is maximal munch over `ident`, and it happens BEFORE
-anything is classified as a literal.** `ident` is a strict *superset* of
-`literal`, so the two are not alternatives a tokeniser may try in order:
-`1000_2999` is one `ident` token, never the literal `1000` followed by
+§4.2: "**Tokenisation is maximal munch, and it happens BEFORE anything is
+classified as a literal.** The two are not alternatives a tokeniser may try in
+order: `1000_2999` is one token, never the literal `1000` followed by
 `_2999`."
+
+> This quoted the earlier wording, which added "`ident` is a strict *superset*
+> of `literal`". §4.2 has since retracted that: `literal` admits `.` and
+> §4.1.9 excludes it from `ident`, so the containment never held and an
+> implementer following it could not tokenise `1.2`. Nothing about **this**
+> case changes — the token here is all digits and underscores, where maximal
+> munch is unaffected — and the case's expectation is untouched. Only the
+> sentence it cites moved.
 
 And the measurement the rule carries: "measured against 8,171 real spreadsheet
 headers, 43 carry a name of this shape (`10_15` for a time of day, `1_0` for a
