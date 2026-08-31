@@ -344,6 +344,50 @@ Every mutant now asserts that it changed something before the run starts, and
 that assertion was itself tested by breaking it — because an arming check that
 cannot fail is the same bug one level up.
 
+## The formula ceiling is deliberate, and the cell counts that argue against it are inflated
+
+`.mdtbl` computes arithmetic over named columns, with `if`, comparisons and five
+aggregates. Measured against 5,526 real workbooks, that leaves 8,417 corpus
+cells it cannot evaluate. The obvious response is to add the functions those
+cells name — `ROUND`, `ROUNDDOWN`, `INT`, `MIN`, `MAX`, `CEILING`. Together
+those are 4,362 of the 8,417.
+
+They are also **nine distinct expressions**.
+
+    Call:ROUNDDOWN     2,052 cells      1 distinct expression
+    Call:ROUND           921 cells      2
+    Call:INT             621 cells      2
+    Call:MIN             543 cells      2
+    Call:CEILING         186 cells      1
+    Call:MAX              39 cells      1
+
+`ROUNDDOWN`'s 2,052 cells are one formula — a bowling average — filled down a
+column in a problem the corpus ships six times. The mean across those six
+functions is **485 cells per distinct expression**.
+
+Two multipliers stack and neither is visible in a function tally: the corpus
+replicates each problem about sixfold, and one authored formula occupies every
+row of its column. So a single decision by a single person arrives as five
+hundred cells.
+
+This is the same finding as the one above about `SUM`, corrected one term
+further. There, *function-name frequency is not demand for a grammar*. Here,
+**cell frequency is not demand either** — the unit that matters is a distinct
+expression, because that is the unit somebody wrote.
+
+Adding a function is not local. It costs normative text with its choices
+argued, fixtures written by an author who may not read the implementation,
+mutants proving those fixtures bite, and a second implementation built from the
+prose alone. That is the right price for a capability and the wrong price for
+nine formulas.
+
+The one entry with real breadth is `IF` returning **text** — 2,602 cells across
+29 distinct expressions, the widest by an order of magnitude. That is not a
+function to add: it changes what a computed value *is*, and reaches §5, §7, §8,
+§9.17 and §10's canonical form. §4.2 rule 10 declines it deliberately and says
+so. If this ceiling is ever raised, that is the only candidate whose evidence is
+breadth rather than replication, and it deserves its own argument.
+
 ## What this format deliberately does not do
 
 Domain validation. Whether a country code is in ISO 3166, whether a URL
