@@ -1176,6 +1176,13 @@ help. **That precedence is transitive**: a column that merely *depends* on a
 cycle, and separately names something absent, is also `#REF!(cycle)`, for the
 same reason — the cycle is the thing that must be fixed first.
 
+**Cycle precedence outranks the leftmost rule, wherever the two disagree.**
+In `| z = nope + x |` with `x` on a cycle and no column `nope`, the leftmost
+unresolved name is `nope` and the answer is still `#REF!(cycle)`. Stated rather
+than left to the order these paragraphs happen to appear in: the two rules
+select different names on the same formula, and a reader who applies them in
+the other order gets a different value with nothing to announce it.
+
 **The leftmost rule reads a declaration's right-hand side the same way**, so
 `g := sum(nope1 where nope2 = "x")` is `#REF!(nope1)`. Nothing about it is
 specific to a header cell.
@@ -1253,8 +1260,10 @@ An implementation MUST refuse:
    is an `align-cell` (§4.1.5)
 9. a row-relative operator with no declared order
 10. `order := by(c)` where `c` is not a stored column, is computed, mixes types,
-    or holds a non-finite spelling (`inf`, `nan`, `infinity`, any case) in any
-    row (§6)
+    **is blank in any row**, or holds a non-finite spelling (`inf`, `nan`,
+    `infinity`, any case) in any row (§6). Blank is listed explicitly because
+    it is not one of the three types §6 admits, so "mixes types" reaches it
+    only through an argument rather than through the words
 11. an unknown aggregate function
 12. a malformed declaration — a line containing `:=` that does not match
     `declaration` (§4.1.11)
