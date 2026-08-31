@@ -428,10 +428,10 @@ def _agg(fn, vals, what):
         got = _exact(nums, 1)
     elif fn == "avg":
         if not nums:
-            return f"#REF!({what} empty)"
+            return "#REF!(empty)"
         got = _exact(nums, len(nums))
     elif not nums:
-        return f"#REF!({what} empty)"
+        return "#REF!(empty)"
     else:
         got = min(nums) if fn == "min" else max(nums)
     if got in (float("inf"), float("-inf")):

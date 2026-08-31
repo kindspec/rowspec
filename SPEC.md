@@ -979,6 +979,41 @@ What the two share is the part that matters: **neither invents a number.** `+`
 refuses to add a value that is not there; `sum` declines to count a row that has
 none. `0` is not substituted in either.
 
+**An aggregate with no operands returns its identity element if it has one, and
+`#REF!(empty)` if it does not.** `sum` of nothing is `0` and `count` of nothing
+is `0`, because those *are* the sum and the count of nothing. `min`, `max` and
+`avg` of nothing are `#REF!(empty)`: there is no smallest member of an empty
+set, and a mean of nothing is a division by zero.
+
+Three routes reach it and they are one condition, so they get one answer: a
+`where` predicate that matches no row, a table with no data rows, and — since
+an aggregate skips blanks (below) — a column whose every cell is blank. That
+last one is the reachable one. It is what an ordinary optional column looks
+like before anyone has filled it in.
+
+**The third route empties each aggregate's own operand multiset, not the
+column.** So over an all-blank column of two rows, `min` is `#REF!(empty)` and
+`count` is **2**: `count` counts rows and never coerces, so the skip rule never
+reaches it and its operands were never empty. An implementation that treats the
+column as empty and answers `0` has read the rule one level too high. Under the
+other two routes `count` is `0`, because there the *rows* are what is missing.
+
+**[CHOICE]**, against two alternatives that both produce something worse than
+an error.
+
+*Not a number.* A spreadsheet answers `0` for the minimum of an empty range,
+which is a plausible value and indistinguishable from a real minimum of zero —
+the failure §1 exists to remove, and the only one here that a reader cannot
+detect.
+
+*Not blank.* Blank is the more tempting mistake, because SQL answers NULL and
+it reads as honest. It is not, in this format: a blank is what a *stored* cell
+holds, and the rule below says an aggregate **skips** blanks. So an empty
+aggregate feeding another aggregate would be silently dropped from it rather
+than poisoning it, and the same value would be loud in arithmetic (§8) and
+quiet in a `sum`. `#REF!(empty)` propagates the same way everywhere, which is
+the only property that makes an error value useful.
+
 **An aggregate's value is defined on the multiset of its operands, never on an
 accumulation order.** `sum(c)` is the correctly-rounded binary64 value of the
 **exact mathematical sum** of the values it aggregates. `avg(c)` is the
@@ -1097,19 +1132,21 @@ whose decimal spelling is finite but whose binary64 value is already infinite is
 refuses the *spellings* `inf` and `nan`, and a four-hundred-digit cell is
 neither.
 
-**There are exactly four `#REF!` shapes**, and an implementation emits no
-fifth. `#REF!(name)` carries the *originating* name — the column that could not
+**There are exactly five `#REF!` shapes**, and an implementation emits no
+sixth. `#REF!(name)` carries the *originating* name — the column that could not
 be resolved or whose value would not coerce, not the column the error surfaces
 in. `#REF!(/0)` is division by zero (§4.2 rule 2). `#REF!(cycle)` is a cycle
-among computed columns (§4.2 rule 9). `#REF!(overflow)` is an operation whose
-IEEE result is an infinity (§4.2 rule 2). All four are values, all four
+among computed columns (§4.2 rule 9). `#REF!(empty)` is an aggregate with no
+operands and no identity element (§7). `#REF!(overflow)` is an operation whose
+IEEE result is an infinity (§4.2 rule 2). All five are values, all five
 propagate identically, and none of them is ever a number.
 
-This paragraph said *three* while rule 2 already required `overflow`, which is
-the kind of drift a document acquires when a rule is added in one section and
-counted in another. Note that `overflow` is a well-formed `ident` and therefore
-collides with a broken reference to a column actually named `overflow`, exactly
-as `cycle` does and unlike `/0`; §4.2 rule 9's argument for accepting that
+This paragraph said *three* while rule 2 already required `overflow`, and later
+*four* while §7 required `empty` — the kind of drift a document acquires when a
+rule is added in one section and counted in another. The count is now asserted
+by a conformance case rather than only claimed here. Note that `overflow` and
+`empty` are well-formed `ident`s and therefore collide with a broken reference
+to a column actually named that, exactly as `cycle` does and unlike `/0`; §4.2 rule 9's argument for accepting that
 collision — both readings are errors, both poison every aggregate identically,
 and no computed value branches on which it is — applies here unchanged.
 
