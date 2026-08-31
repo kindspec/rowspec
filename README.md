@@ -73,6 +73,28 @@ stock `git merge`, evaluates the merged file, and asserts on the computed
 number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
+    410 conformance cases          two implementations, both passing
+     76 mutants                    74 killed, 0 survived, 0 stale
+
+**The second implementation is the point.** `reference/rowspec_alt/` was written
+from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`, and it
+runs against the same fixture tree in CI on every push. It is the only evidence
+that this document *defines* the format rather than describing one program, and
+it has repeatedly been the half that was right: on the last three questions
+where the two disagreed, the independent implementation was correct and the
+reference was wrong.
+
+**The mutation gate is the other half.** The suite is only worth its green tick
+if it can go red, so the implementation is deliberately broken in 76 specific
+ways and the suite must notice every one. A mutant that survives is reported as
+a failure, and so is a *stale* one whose pattern no longer matches the source —
+because a check that quietly stopped running is the failure this project keeps
+finding in itself.
+
+Neither number is a claim about correctness in general. See
+[docs/rationale.md](docs/rationale.md) for what has been measured, and what has
+been measured and found wanting.
+
 ## Run it
 
 ```sh
@@ -81,6 +103,7 @@ just check      # fmt-check + lint
 just test       # conformance suite + mutation gate + corpus checks
 just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
+just conform-alt # the SECOND implementation, against the same fixture tree
 just run FILE   # validate an artifact (rowspec check)
 just eval FILE  # print computed values and FAIL on any #REF!
 ```

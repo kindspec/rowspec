@@ -24,9 +24,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
@@ -45,6 +45,24 @@ jobs:
       # ---------------------------------------------------------------
       - name: validate tables
         run: rowspec check --format github data
+
+      # ---------------------------------------------------------------
+      # BOTH commands, and you need both. `check` applies the structural
+      # refusals: will this table survive being edited by several people?
+      # `eval` computes it: does it currently say anything false?
+      #
+      # They catch different things and neither subsumes the other. A
+      # misspelled column name, a pasted `1,299.00` and a non-breaking space in
+      # a number are all #REF! and are correctly NOT refusals -- the file is
+      # well formed and its total is wrong. A pipeline with only `check` is
+      # GREEN on a broken total, which is the one failure this format exists to
+      # make visible.
+      #
+      # On a tree of plain .csv files this step passes trivially: a CSV has no
+      # formulas, so there is nothing to resolve.
+      # ---------------------------------------------------------------
+      - name: computed values must resolve
+        run: rowspec eval --format github data
 
       # Optional: also fail on CRLF line endings and a UTF-8 byte-order mark.
       # Both are legal in CSV (RFC 4180 makes CRLF the default and Excel writes

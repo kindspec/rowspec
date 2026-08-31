@@ -100,7 +100,7 @@ def _fmt_value(v):
     return "" if v is None else str(v)
 
 
-def cmd_eval(paths, out=sys.stdout) -> int:
+def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
     """Print computed columns and aggregates, and FAIL on any #REF!.
 
     Validation alone reports "0 refused" on a table whose total is wrong: a
@@ -145,6 +145,19 @@ def cmd_eval(paths, out=sys.stdout) -> int:
                 refs.append((None, name, v))
         if refs:
             bad += 1
+            if fmt == "github":
+                # Without this, `eval` failures reach CI as a bare exit code
+                # with nothing attached to a file, so the one thing this format
+                # does that a CSV cannot is invisible in the place it matters.
+                for rowkey, col, v in refs:
+                    where = f"row {rowkey}, " if rowkey is not None else ""
+                    print(
+                        f"::error file={path},title=rowspec::{where}{col} = {v}"
+                        f" — a computed value did not resolve. `check` does not"
+                        f" see this: the file is well formed and its total is"
+                        f" wrong.",
+                        file=out,
+                    )
             print(f"  {len(refs)} unresolved reference(s):", file=sys.stderr)
             seen = set()
             for rowkey, col, v in refs:
@@ -201,18 +214,16 @@ def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] == "check":
-        argv.pop(0)
+    # Pull the subcommand off BEFORE argparse. Leaving it as a `nargs="?"`
+    # positional beside a `nargs="+"` one made argparse mis-split
+    # `eval --format github DIR` -- it reported "unrecognized arguments: DIR"
+    # and the same line worked only with the option written after the path.
+    cmd = "check"
+    if argv and argv[0] in ("check", "eval", "add-row"):
+        cmd = argv.pop(0)
 
     p = argparse.ArgumentParser(
         prog="rowspec check", description="Validate .csv, .tsv and .mdtbl tables."
-    )
-    p.add_argument(
-        "command",
-        nargs="?",
-        choices=("check", "eval", "add-row"),
-        default="check",
-        help="check: apply the refusals. eval: print computed values and fail on #REF!",
     )
     p.add_argument("paths", nargs="+", help="files or directories")
     p.add_argument("--fmt", action="store_true", help="rewrite .mdtbl files into canonical form")
@@ -224,9 +235,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--strict", action="store_true", help="treat warnings (CRLF, BOM) as refusals")
     p.add_argument("--format", choices=("plain", "github"), default="plain", help="output format")
     a = p.parse_args(argv)
-    if a.command == "eval":
-        return cmd_eval(a.paths)
-    if a.command == "add-row":
+    if cmd == "eval":
+        return cmd_eval(a.paths, fmt=a.format)
+    if cmd == "add-row":
         return cmd_add_row(a.paths[0], a.paths[1:])
 
     files = collect(a.paths)
