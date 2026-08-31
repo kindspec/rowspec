@@ -229,11 +229,17 @@ def cell_value(raw):
 
 
 def coerce_cell(raw):
+    """§8: a stored cell whose decimal spelling is finite but whose binary64
+    value is not (four hundred digits, say) is `#REF!(overflow)` wherever it
+    is used as an OPERAND -- not at storage.  So the infinity is kept here and
+    turned into the error at the operand sites (`operand`, `numeric_column`,
+    the four coercing aggregates): `count` never uses the cell as an operand
+    and counts its row (§7), while `sum` over the same cell is poisoned."""
     s = cell_value(raw)
     if s == "":
         return BLANK
     if NUMBER_RE.match(s):
-        return fin(float(s))
+        return float(s)
     return TextVal(s)
 
 
@@ -1494,6 +1500,14 @@ class Evaluator:
                 continue
             if isinstance(v, TextVal):
                 return Ref(name)
+            # §8: a stored cell whose binary64 value is already infinite is
+            # `#REF!(overflow)` where it is used as an operand, and these
+            # four coerce -- `min` and `max` included, which only compare
+            # their operands but still use them: their result would be the
+            # infinity itself, a value the format cannot store.
+            v = fin(v)
+            if isinstance(v, Ref):
+                return v
             nums.append(v)
         if fn == "sum":
             # §7: the correctly-rounded binary64 of the EXACT mathematical
