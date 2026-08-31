@@ -1,0 +1,9 @@
+| id | a | opt |
+| --- | --: | --: |
+| r_01 | 5 |  |
+
+key := id
+via_missing_column := sum(empty)
+via_no_operands := min(opt)
+also_overflow := sum(overflow)
+also_cycle := sum(cycle)

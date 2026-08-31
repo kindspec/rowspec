@@ -1,0 +1,9 @@
+| id | v |
+| --- | --: |
+
+key := id
+s := sum(v)
+n := count(v)
+lo := min(v)
+hi := max(v)
+m := avg(v)

@@ -1,0 +1,11 @@
+{
+  "aggregates": {
+    "ok": 5.0,
+    "shape_cycle": "#REF!(cycle)",
+    "shape_empty": "#REF!(empty)",
+    "shape_name": "#REF!(nope)",
+    "shape_overflow": "#REF!(overflow)",
+    "shape_zero": "#REF!(/0)"
+  },
+  "kind": "eval"
+}

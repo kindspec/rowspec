@@ -1,0 +1,10 @@
+{
+  "aggregates": {
+    "hi": "#REF!(empty)",
+    "lo": "#REF!(empty)",
+    "m": "#REF!(empty)",
+    "n": 0,
+    "s": 0.0
+  },
+  "kind": "eval"
+}

@@ -1,0 +1,11 @@
+| id | region | v |
+| --- | --- | --: |
+| r_01 | EU | 5 |
+| r_02 | US | 3 |
+
+key := id
+s := sum(v where region = "ZZ")
+n := count(v where region = "ZZ")
+lo := min(v where region = "ZZ")
+hi := max(v where region = "ZZ")
+m := avg(v where region = "ZZ")

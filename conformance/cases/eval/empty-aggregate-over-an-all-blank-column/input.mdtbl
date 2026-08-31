@@ -1,0 +1,11 @@
+| id | a | opt |
+| --- | --: | --: |
+| r_01 | 5 |  |
+| r_02 | 3 |  |
+
+key := id
+s := sum(opt)
+n := count(opt)
+lo := min(opt)
+hi := max(opt)
+m := avg(opt)

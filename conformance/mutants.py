@@ -108,6 +108,23 @@ MUTANTS = {
     # while evaluating one row to the whole column, which is right for a name
     # that does not resolve and wrong for a division by zero. Commissioned by
     # the suite author, who noted nothing measured the DATA side of that line.
+    # --- §7/§8: an aggregate with no operands -------------------------------
+    "empty-min-is-blank": (
+        'elif not nums:\n    return "#REF!(empty)"',
+        'elif not nums:\n    return ""',
+    ),
+    "empty-avg-is-zero": (
+        'if not nums:\n            return "#REF!(empty)"',
+        "if not nums:\n            return 0.0",
+    ),
+    "the-blank-route-empties-count-too": (
+        'if fn == "count":\n    return len(vals)',
+        'if fn == "count":\n    return len([v for v in vals if v not in ("", None)])',
+    ),
+    "ref-empty-is-disambiguated-into-a-sixth-shape": (
+        'elif not nums:\n    return "#REF!(empty)"',
+        'elif not nums:\n    return f"#REF!(empty:{what})"',
+    ),
     # --- §7: an aggregate is defined on the MULTISET ------------------------
     # Each is a reading §7 decided against, and each should die to the case
     # written for it. A rule with a passing suite and no mutant is a rule
