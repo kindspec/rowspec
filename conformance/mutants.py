@@ -108,6 +108,27 @@ MUTANTS = {
     # while evaluating one row to the whole column, which is right for a name
     # that does not resolve and wrong for a division by zero. Commissioned by
     # the suite author, who noted nothing measured the DATA side of that line.
+    # --- canon/render terminators, and the header-cell `where` -------------
+    # All three reproduce a bug that ACTUALLY happened: the first is the
+    # divergence issue #5 reported, the second is a patch that landed in the
+    # wrong function, the third is what made issue #7's fixture vacuous.
+    "canon-leaves-declaration-terminators-verbatim": (
+        '    return "".join(out).replace("\\r\\n", "\\n").replace("\\r", "\\n")',
+        '    return "".join(out)',
+    ),
+    "render-normalises-terminators-like-canon": (
+        # Anchored on the line ABOVE the return, which is unique to
+        # `render`. The return alone is not: the matcher compares token
+        # runs, so `return "".join(out)` is a PREFIX of canon's
+        # `return "".join(out).replace(...)` and matches both.
+        '    out += st["row_raws"]\n    out += st["tail"]\n    return "".join(out)',
+        '    out += st["row_raws"]\n    out += st["tail"]\n'
+        '    return "".join(out).replace("\\r\\n", "\\n")',
+    ),
+    "header-group-call-does-not-require-where": (
+        r'_GROUP = re.compile(r"(\w+)\(\s*(\w+)\s+where\s+(.+?)\s*\)\s*$")',
+        r'_GROUP = re.compile(r"(\w+)\(\s*(\w+)(?:\s+where\s+(.+?))?\s*\)\s*$")',
+    ),
     # --- the four that were LIVE DIVERGENCES between the implementations ----
     # Each restores the behaviour one side actually had. A survivor here means
     # the suite would let that divergence come back.

@@ -1,0 +1,8 @@
+| id | item | qty |
+| --- | --- | --: |
+| r_01 | widget | 10 |
+| r_02 | gadget | 5 |
+
+# two  spaces sit in this annotation on purpose
+key := id
+grand := sum(qty)
