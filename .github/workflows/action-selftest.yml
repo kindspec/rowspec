@@ -1,0 +1,69 @@
+# Dogfoods the action at the repository root, in BOTH directions.
+#
+# A self-test that only runs the passing case proves the action can succeed and
+# says nothing about whether it can fail -- which is the property that matters,
+# and the one this project keeps catching itself missing. So the second job
+# feeds it a table that is well formed and whose total is wrong, and asserts
+# the action reports failure.
+name: action self-test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  passes-on-a-good-tree:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./
+        with:
+          paths: docs/example
+
+  fails-on-a-broken-total:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Well formed, and its total is wrong: `z` is 0, so `t` is #REF!(/0).
+      # `check` alone passes this file. That is the whole point of the action
+      # running `eval` too, and this job is what proves it does.
+      - name: a table check alone would pass
+        run: |
+          mkdir -p /tmp/broken
+          printf '| id | a | z | t = a / z |\n| -- | -: | -: | -: |\n| r_1 | 5 | 0 |  |\n' \
+            > /tmp/broken/quietly-wrong.mdtbl
+
+      - uses: ./
+        id: should_fail
+        continue-on-error: true
+        with:
+          paths: /tmp/broken
+
+      - name: the action must have failed
+        run: |
+          if [ "${{ steps.should_fail.outcome }}" != "failure" ]; then
+            echo "::error::the action PASSED a table whose total is #REF! — it cannot fail, so its green tick means nothing"
+            exit 1
+          fi
+          echo "the action correctly refused a table whose total is quietly wrong"
+
+      # And the same file with eval disabled must PASS, which is what makes the
+      # previous assertion about `eval` specifically rather than about the file.
+      - uses: ./
+        id: check_only
+        continue-on-error: true
+        with:
+          paths: /tmp/broken
+          eval: "false"
+
+      - name: with eval off, check alone is green on it
+        run: |
+          if [ "${{ steps.check_only.outcome }}" != "success" ]; then
+            echo "::error::expected check-only to PASS this file; if it fails, the previous job proves nothing about eval"
+            exit 1
+          fi
+          echo "confirmed: check alone is green on a broken total, eval is what catches it"

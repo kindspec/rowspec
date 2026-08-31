@@ -55,6 +55,19 @@ jobs:
           fi
           echo "tag v$tag matches built version $built"
 
+      # The action at the repository root installs a pinned rowspec. If that
+      # pin drifts from the version being released, `uses: kindspec/rowspec@vX`
+      # runs something other than X and nothing says so.
+      - name: action.yml must pin the version being released
+        run: |
+          pinned=$(grep -oE 'rowspec==[0-9]+\.[0-9]+\.[0-9]+' action.yml | head -1 | cut -d= -f3)
+          built=$(ls dist/*.tar.gz | sed -E 's/.*rowspec-(.*)\.tar\.gz/\1/')
+          if [ "$pinned" != "$built" ]; then
+            echo "::error::action.yml pins rowspec==$pinned but this release is $built"
+            exit 1
+          fi
+          echo "action.yml pins rowspec==$pinned, matching the release"
+
       # An artifact whose own CLI does not run is not publishable.
       - name: the built wheel actually works
         run: |

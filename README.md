@@ -60,6 +60,30 @@ rest. See [docs/csv.md](docs/csv.md), and copy
 [docs/ci/rowspec-check.yml](docs/ci/rowspec-check.yml) into
 `.github/workflows/`.
 
+### In CI, in three lines
+
+```yaml
+- uses: actions/checkout@v7
+- uses: kindspec/rowspec@v0.1.0
+  with:
+    paths: data
+```
+
+It runs **both** commands, because that is the whole reason it exists: `check`
+applies the structural refusals, `eval` computes every table and fails on an
+unresolved value, and **neither subsumes the other**. A misspelled column name
+or a pasted `1,299.00` is `#REF!` and correctly *not* a structural refusal, so
+a pipeline with only `check` is green on a broken total.
+
+The action's own test suite proves that in both directions: one job asserts it
+passes a good tree, and another feeds it a well-formed table whose total is
+`#REF!` and asserts the action **fails** — then runs the same file with
+`eval: false` and asserts it **passes**, so the first assertion is about `eval`
+and not about the file.
+
+Or copy [docs/ci/rowspec-check.yml](docs/ci/rowspec-check.yml) if you would
+rather own the workflow.
+
 Run against 1,564 CSVs in three public data repositories it refused 16: two
 grouped-header spreadsheet exports, thirteen truncated CDC snapshots in
 `owid/covid-19-data` whose header declares 14 columns for a 6-field row, and

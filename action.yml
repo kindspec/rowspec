@@ -1,0 +1,78 @@
+# A GitHub Action, at the repository root so that `uses: kindspec/rowspec@vX.Y.Z`
+# resolves without a second repository to keep in sync. The action installs the
+# rowspec version that matches its own tag, so the ref you pin is the behaviour
+# you get -- `release.yml` refuses to build if these two ever disagree.
+name: rowspec
+description: Validate tables that must survive version control, and fail on a total that is quietly wrong.
+branding:
+  icon: check-square
+  color: purple
+
+inputs:
+  paths:
+    description: Files or directories to validate. Space-separated.
+    required: false
+    default: "."
+  eval:
+    description: >
+      Also compute every table and fail on an unresolved value. Default true,
+      and you should leave it true: `check` alone reports "0 refused" on a
+      table whose total is wrong, because a misspelled column name or a pasted
+      "1,299.00" is #REF! under the spec and correctly NOT a structural
+      refusal. A pipeline with only `check` is green on a broken total, which
+      is the one failure this format exists to make visible.
+    required: false
+    default: "true"
+  strict:
+    description: >
+      Treat CRLF line endings and a UTF-8 byte-order mark as refusals rather
+      than warnings. Both are legal in CSV -- RFC 4180 makes CRLF the default
+      and Excel writes the BOM -- so turn this on only once a repository is
+      already clean, or every pull request goes red at once.
+    required: false
+    default: "false"
+  python-version:
+    description: Python used to run rowspec. It has no dependencies.
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: install rowspec
+      shell: bash
+      run: pip install --disable-pip-version-check "rowspec==0.1.0"
+
+    # Both checks run even if the first fails, and the result is decided at the
+    # end. A failing step that stops the job hides whether the later ones ran --
+    # which is indistinguishable, from the outside, from their having passed.
+    - name: rowspec check
+      id: check
+      shell: bash
+      continue-on-error: true
+      run: |
+        rowspec check --format github ${{ inputs.strict == 'true' && '--strict' || '' }} ${{ inputs.paths }}
+
+    - name: rowspec eval
+      id: eval
+      if: inputs.eval == 'true'
+      shell: bash
+      continue-on-error: true
+      run: rowspec eval --format github ${{ inputs.paths }}
+
+    - name: result
+      shell: bash
+      run: |
+        c='${{ steps.check.outcome }}'
+        e='${{ steps.eval.outcome }}'
+        echo "check: $c"
+        echo "eval:  ${e:-skipped}"
+        if [ "$c" != "success" ] || { [ "${{ inputs.eval }}" = "true" ] && [ "$e" != "success" ]; }; then
+          echo "::error title=rowspec::validation failed — see the annotations above"
+          exit 1
+        fi
+        echo "rowspec: tables validated and every computed value resolved"
