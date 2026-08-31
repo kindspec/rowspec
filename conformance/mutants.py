@@ -138,30 +138,62 @@ MUTANTS = {
         "        got = _exact(nums, 1) / len(nums)",
     ),
     "cumulative-uses-the-exact-sum-instead-of-stepping": (
-        # Spans the initialiser so the mutant can carry the prefix. Rounding
-        # `acc + v` once is NOT the alternative reading -- that is precisely
-        # what a binary64 addition already does, which made the first attempt
-        # at this mutant equivalent. The reading §7 rejects is an exact sum
+        # ONE mutant, spanning the initialiser through the accumulation:
+        # splitting it left half that adds an unused variable (equivalent)
+        # and half that references one the other half declares, and
+        # mutants are applied one at a time. Rounding `acc + v` once is
+        # also not the alternative reading -- that is what a binary64
+        # addition already does. The reading §7 rejects is an exact sum
         # over the whole prefix, rounded once at the end.
-        "acc, prev = 0.0, None\n"
-        "for r in seq:\n"
-        "    try:\n"
-        "        v = num(r[src])\n"
-        "    except (ValueError, TypeError, KeyError):\n"
-        '        r[nm] = f"#REF!({src})"\n'
-        "        continue\n"
-        '    if fn == "cumulative":\n'
-        "        acc += v",
-        "acc, prev, _seen = 0.0, None, []\n"
-        "for r in seq:\n"
-        "    try:\n"
-        "        v = num(r[src])\n"
-        "    except (ValueError, TypeError, KeyError):\n"
-        '        r[nm] = f"#REF!({src})"\n'
-        "        continue\n"
-        '    if fn == "cumulative":\n'
-        "        _seen.append(v)\n"
-        "        acc = _exact(_seen, 1)",
+        """acc, prev, poisoned = 0.0, None, False
+for r in seq:
+    raw = str(r.get(src, "")).strip()
+    try:
+        v = num(raw)
+    except (ValueError, TypeError):
+        v = None
+    if fn == "prior":
+        r[nm] = "" if prev is None else prev
+    elif fn == "delta":
+        if prev is None:
+            r[nm] = ""
+        elif v is None or not isinstance(prev, float):
+            r[nm] = f"#REF!({src})"
+        else:
+            d = v - prev
+            r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
+    elif fn == "cumulative":
+        if v is None:
+            poisoned = True
+        if poisoned:
+            r[nm] = f"#REF!({src})"
+        else:
+            acc += v""",
+        """acc, prev, poisoned, _seen = 0.0, None, False, []
+for r in seq:
+    raw = str(r.get(src, "")).strip()
+    try:
+        v = num(raw)
+    except (ValueError, TypeError):
+        v = None
+    if fn == "prior":
+        r[nm] = "" if prev is None else prev
+    elif fn == "delta":
+        if prev is None:
+            r[nm] = ""
+        elif v is None or not isinstance(prev, float):
+            r[nm] = f"#REF!({src})"
+        else:
+            d = v - prev
+            r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
+    elif fn == "cumulative":
+        if v is None:
+            poisoned = True
+        if poisoned:
+            r[nm] = f"#REF!({src})"
+        else:
+            _seen.append(v)
+            acc = _exact(_seen, 1)""",
     ),
     "a-data-fault-is-hoisted-to-the-whole-column-like-a-name-fault": (
         '                except KeyError as e:\n                    r[nm] = f"#REF!({e.args[0]})"',
@@ -241,8 +273,7 @@ MUTANTS = {
         "if bad:\n    return 0.0",
     ),
     "off-by-one-cumulative": (
-        'if fn == "cumulative":\n    acc += v\n'
-        '    r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc',
+        'if poisoned:\n    r[nm] = f"#REF!({src})"\nelse:\n    acc += v',
         'if fn == "cumulative":\n    r[nm] = acc\n    acc += v',
     ),
     "render-drops-tail": (
@@ -283,16 +314,16 @@ MUTANTS = {
     ),
     # --- two of the three row-relative operators are never exercised -----------
     "prior-always-blank": (
-        'elif fn == "prior":\n    r[nm] = prev if prev is not None else ""',
-        'elif fn == "prior":\n    r[nm] = ""',
+        'if fn == "prior":\n    r[nm] = "" if prev is None else prev',
+        'if fn == "prior":\n    r[nm] = ""',
     ),
     "delta-first-row-is-the-value": (
-        'elif fn == "delta":\n    d = (v - prev) if prev is not None else ""',
-        'elif fn == "delta":\n    r[nm] = v',
+        'if prev is None:\n    r[nm] = ""\nelif v is None or not isinstance(prev, float):',
+        'if False:\n    r[nm] = ""\nelif v is None or not isinstance(prev, float):',
     ),
     "delta-is-negated": (
-        'elif fn == "delta":\n    d = (v - prev) if prev is not None else ""',
-        'elif fn == "delta":\n    r[nm] = (prev - v) if prev is not None else ""',
+        "    d = v - prev",
+        "    d = prev - v",
     ),
     # --- aggregate functions -----------------------------------------------------
     "count-off-by-one": (
