@@ -90,6 +90,7 @@ class Ref:
 REF_DIV0 = Ref("/0")
 REF_CYCLE = Ref("cycle")
 REF_OVERFLOW = Ref("overflow")
+REF_EMPTY = Ref("empty")
 
 
 def display(v):
@@ -1479,7 +1480,10 @@ class Evaluator:
             for v in sel:
                 if isinstance(v, Ref):
                     return v
-            return float(len(sel))
+            # A count is a cardinality: `count` never coerces an operand to
+            # binary64, so its result is the exact row count, not a binary64
+            # computation.  §7 spells its identity as `0`, an integer.
+            return len(sel)
         nums = []
         for v in sel:
             # §8: an aggregate over any column containing a `#REF!` is itself
@@ -1496,7 +1500,14 @@ class Evaluator:
             # sum -- order-independent, and finite whenever the exact sum is.
             return rounded_quotient(exact_scaled_sum(nums), 1 << 1074) if nums else 0.0
         if not nums:
-            return BLANK
+            # §7: an aggregate with no operands returns its identity element
+            # if it has one, and `#REF!(empty)` if it does not.  `min`, `max`
+            # and `avg` have none.  Blank would be wrong here: an aggregate
+            # SKIPS blanks, so an empty aggregate feeding another aggregate
+            # would be silently dropped from it rather than poisoning it.
+            # All three routes (no matching rows, no data rows, all-blank
+            # column) land here, so they get one answer as §7 requires.
+            return REF_EMPTY
         if fn == "min":
             return min(nums)
         if fn == "max":
