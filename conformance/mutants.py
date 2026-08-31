@@ -763,6 +763,12 @@ def apply_mutant(src, old, new, mode=None):
 CRASH = "<runner crashed>"
 
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+IMPL = os.path.join(HERE, "..", "reference", "rowspec", "table.py")
+RUNNER = os.path.join(HERE, "run_cases.py")
+SCRATCH = os.path.join(HERE, "mutant_impl.py")
+
+
 def failing_cases(impl):
     """Case ids the fixture tree reports as failing for `impl`.
 
@@ -771,7 +777,14 @@ def failing_cases(impl):
     "the mutant made N cases fail" proves nothing. A mutant is killed only if
     it breaks a case that passes WITHOUT it.
     """
-    r = subprocess.run([sys.executable, "run_cases.py", impl], capture_output=True, text=True)
+    # cwd=HERE, and every path anchored to __file__: `run_cases.py` resolves
+    # its fixture tree relatively, and this file used to read
+    # `../reference/...`, so running the gate from the repository root raised
+    # FileNotFoundError. It was loud rather than silent, which is the only
+    # reason it was harmless -- `run_cases.py` had the same shape once and
+    # printed "0 failure(s) across the fixture tree" over 226 cases it had
+    # never opened, four of them failing.
+    r = subprocess.run([sys.executable, RUNNER, impl], capture_output=True, text=True, cwd=HERE)
     ids, total = set(), False
     for line in r.stdout.splitlines():
         m = re.match(r"\s+FAIL (\S+)", line)
@@ -785,13 +798,13 @@ def failing_cases(impl):
 
 
 def mutant_failures(mutated):
-    with open("mutant_impl.py", "w") as fh:
+    with open(SCRATCH, "w") as fh:
         fh.write(mutated)
     return failing_cases("mutant_impl")
 
 
 def main():
-    src = open("../reference/rowspec/table.py").read()
+    src = open(IMPL).read()
     base = failing_cases("rowspec.table")
     if base:
         print(f"  BASELINE the reference already fails {len(base)} case(s):")
@@ -821,8 +834,8 @@ def main():
         else:
             survived.append(name)
             print(f"  SURVIVED {name:31} <-- HOLE IN THE SUITE")
-    if os.path.exists("mutant_impl.py"):
-        os.remove("mutant_impl.py")
+    if os.path.exists(SCRATCH):
+        os.remove(SCRATCH)
     print(
         f"\n{len(killed)} killed, {len(survived)} survived, "
         f"{len(equiv)} equivalent, {len(stale)} stale"
