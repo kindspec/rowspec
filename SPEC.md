@@ -266,7 +266,18 @@ whose first non-`WSP` character is `#`, outside the table; everything after the
 malformed declaration, because commenting a declaration out is the reason the
 channel exists. An inline annotation is `WSP` followed by `#` to end of line, on
 a **declaration line only**; `g := sum(v)# note` has no whitespace before the
-`#` and is a malformed declaration. **`#` inside a table line is data**, never
+`#` and is a malformed declaration.
+
+**The scan for that `#` skips string literals**, because §4.2 rule 6's `string`
+may contain both `WSP` and `#`. So
+
+    g := sum(a where r = "x #y")
+
+has no inline annotation and the predicate matches the value `x #y`. The
+production says as much by placing the annotation after the whole `rhs`, but
+the plain-language sentence above does not, and an implementation that follows
+the sentence truncates the line mid-string and **refuses a valid file** —
+measured, on exactly this input. **`#` inside a table line is data**, never
 an annotation: cells legitimately hold `#4`, `#widget` and `#ff8800`, there is
 only one escape and it is for the pipe (rule 3), and an inline channel inside
 the table would make those values unwritable while silently truncating the rows
@@ -678,7 +689,9 @@ conforming implementation for no gain.
 `if(c, a, b)` is an operand like any other, so it composes — `if(q > 0, t, 0) * 2`
 and `if(q > 0, if(r > 0, 1, 2), 3)` are well-formed (**a `cond`'s parenthesis
 counts toward §9.23's limit of 64 exactly as a bare one does — the recursion is
-the same recursion, since `cond` is reached through `primary`**) — and rule 4 applies to its
+the same recursion, since `cond` is reached through `primary`**; `cond` is also
+the **only** call whose parenthesis can, because `rowrel-call` and `group-call`
+take an `ident` and so contain no `expr` to nest) — and rule 4 applies to its
 name unchanged: `if` is recognised only immediately before `(`, so `| x = if |`
 is a reference to a column named `if`, and `if (q > 0, 1, 0)` with a space is
 refused.
@@ -775,6 +788,15 @@ when that is missing", which is the second most common shape in the corpus
 (§E4). Every *other* mention of a blank operand stays loud — `if(x > 0, …)` on a
 blank `x` is `#REF!(x)`, because that is an ordering comparison and blank is not
 a number.
+
+**`signed` admits whitespace after its `-`; a cell's `number` does not.**
+`if(a > - 1, …)` is well-formed while a cell spelled `- 1` is not a number and
+is `#REF!` under §8. **[CHOICE]**, and the asymmetry is deliberate rather than
+an oversight: §4.2 rule 8 makes `WSP` free between any two tokens of an
+expression, and a bound is written in an expression, whereas §4.1.6 fixes one
+spelling for a *stored value* precisely so two cells cannot differ as text and
+compare equal as numbers. The two rules govern different things and neither
+bends for the other.
 
 **A `string` right-hand side may not be compared against a computed column
 (§9.22).** `if(total = "20", 1, 0)` over a computed `total` is refused. Rule 5's
@@ -903,6 +925,12 @@ all four. Every failure was silent.
   concatenation: concatenating lets the row id decide the order of rows whose
   keys differ, which would make the id an address after all.
 - Non-finite numbers in `c` are refused.
+- **A blank cell in `c` is refused** (§9.10). Blank is none of `number`, `date`
+  or `text`, so a column mixing blanks with any of them mixes types.
+  **[CHOICE]** against admitting it and sorting blanks first: the order is what
+  every row-relative value is computed over, so a spelling that has no defined
+  place in it would put a running total's meaning in the hands of whichever
+  reader guessed. Refusing costs an author one cell and costs a reader nothing.
 
 **A row's position in the file is never an input to any computation.** Shuffling
 every line leaves all values unchanged. A backdated row appended last still
@@ -916,8 +944,18 @@ Arithmetic over column names, referring to the current row.
 the derived order and never over file position:
 
     cumulative(c)   running total
-    prior(c)        that column's value in the preceding row
+    prior(c)        that column's value in the preceding row, blank included
     delta(c)        c minus prior(c)
+
+**A blank in `c` is the preceding row's value, not a reason to look further
+back.** If the row before this one has a blank `c`, then `prior(c)` here is
+blank and `delta(c)` here is `#REF!(c)`, because a difference needs a number.
+An implementation must not skip the blank row and answer with the value from
+the row before it. **[CHOICE]**, and it is §8's own words that decide it: "a
+broken reference never evaluates to zero, empty, or a **stale value**". Reading
+past a blank produces exactly a stale value, and a plausible one — the reader
+sees a number that was true two rows ago and nothing says so. `cumulative(c)`
+is `#REF!(c)` from the blank row onward, by ordinary propagation.
 
 **Per-row group aggregates.** `@c` means *this row's* value of `c`:
 
@@ -947,7 +985,23 @@ in `conformance/reserved/`.
 
 Functions: `sum`, `count`, `min`, `max`, `avg`. An unknown function is refused.
 
-**`count` counts rows and never coerces.** It is poisoned by a `#REF!` actually
+**`count` counts rows and never coerces**, and that reaches further than it
+looks: a cell whose decimal spelling is finite but whose binary64 value is not
+— four hundred digits, say — is `#REF!(overflow)` wherever it is used as an
+**operand** (§8), and `count` never uses one as an operand. So `count` over
+that cell is `1`. The rule is only reachable by composing this sentence with
+§8's, which is why it is spelled out here: an implementation that finds §8's
+overflow rule first applies it uniformly and poisons a count that nothing asked
+to be numeric.
+
+**The same reading governs a text comparison.** `where a = "999…9"` and
+`if(a = "999…9", …)` match such a cell, because rule 6 compares the cell's text
+and never consults its numeric value — so nothing has used it as an operand.
+The failure this avoids is an implementation that converts a cell to binary64
+when it is *stored* rather than when it is *used*: that makes the cell hold a
+`#REF!`, which then poisons `count` and every predicate over it, and §7 says a
+`#REF!` "actually present in the column" does poison `count`. It would be
+right about that, and wrong about the cell. It is poisoned by a `#REF!` actually
 present in the column, because that is an error value — but not by a value that
 merely fails to parse as a number, because `count` never uses it as an operand.
 Without this, `count` can never count a text column, which is surprising for a
@@ -1118,7 +1172,19 @@ reading the formula would name first.
 `#REF!(cycle)` takes precedence over `#REF!(name)` when a column is both on a
 cycle and names something absent: a cycle is a property of the whole header,
 and reporting a missing name would send a reader to add a column that would not
-help.
+help. **That precedence is transitive**: a column that merely *depends* on a
+cycle, and separately names something absent, is also `#REF!(cycle)`, for the
+same reason — the cycle is the thing that must be fixed first.
+
+**The leftmost rule reads a declaration's right-hand side the same way**, so
+`g := sum(nope1 where nope2 = "x")` is `#REF!(nope1)`. Nothing about it is
+specific to a header cell.
+
+**An aggregate poisoned by a `#REF!` among its operands carries THAT error,
+unchanged.** `sum(v where g = "A")` over a matched `#REF!(/0)` is `#REF!(/0)`,
+not a relabelled `#REF!(v)`. It is the originating-error rule above applied to
+an aggregate: relabelling at the boundary sends a reader to inspect a
+well-formed aggregate instead of the cell that divided by zero.
 
 **An aggregate whose result is not finite is `#REF!(overflow)`**, on the same
 ground as §4.2 rule 2: `inf` is not a `number` under §4.1.6, so an
@@ -1212,7 +1278,9 @@ An implementation MUST refuse:
 21. a table whose second line is not a valid alignment row, a table shorter than
     two lines included (§4, §4.1.5)
 22. an equality in a `where` predicate whose left-hand `ident`, or whose `ident`
-    after `@`, names a **computed** column (§4.2 rule 5) — and, for the same
+    after `@`, names a **computed** column (§4.2 rule 5) — in a header cell and
+    on a declaration line alike, since rule 5's reason is that a computed column
+    has no cell text to compare, which is true wherever the predicate is written — and, for the same
     reason, an `=`/`<>` comparison inside `if` whose right-hand side is a
     `string` and whose left-hand `ident` names a computed column (§4.2 rule 10).
     §9.20 cannot reach

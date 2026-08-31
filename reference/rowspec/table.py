@@ -25,6 +25,7 @@ class Malformed(Exception):
 CONFLICT = ("<<<<<<<", "=======", ">>>>>>>", "|||||||")
 ROWREL = {"cumulative", "prior", "delta"}
 INF = float("inf")
+BLANK = object()  # "the preceding row exists and is blank" -- not None
 
 
 _UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
@@ -87,6 +88,25 @@ def _check_ident(name, what):
             )
 
 
+_ANNOT = re.compile(r'"[^"]*"|\s#')
+
+
+def _strip_annotation(line):
+    r"""Cut an inline annotation, skipping string literals (§4.1.10).
+
+    `re.sub(r"\s+#.*$", ...)` cut at the first ` #` anywhere, so
+    `g := sum(a where r = "x #y")` was truncated mid-string and the line was
+    then refused as a malformed declaration -- a valid file rejected. §4.2
+    rule 6's `string` may contain both WSP and `#`, and the ABNF says so by
+    placing the annotation after the whole `rhs`.
+    """
+    for m in _ANNOT.finditer(line):
+        if m.group().startswith('"'):
+            continue  # a string literal: its contents are not a scan
+        return line[: m.start()]
+    return line
+
+
 def parse(text):
     if re.search(r"\r(?!\n)", text):
         raise Malformed("lone CR: two rows would share one line")
@@ -120,7 +140,7 @@ def parse(text):
     for n, line in enumerate(lines, 1):
         if line.lstrip().startswith("#"):
             continue  # SPEC §9: the ignorable channel, inert whatever it contains
-        stripped = re.sub(r"\s+#.*$", "", line)
+        stripped = _strip_annotation(line)
         if ":=" not in stripped:
             if stripped.strip() and line not in tbl_set:
                 if stripped.strip().startswith("|"):
@@ -316,7 +336,16 @@ def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
     vals = [str(r.get(col, "")).strip() for r in rows]
-    vals = [v for v in vals if v != ""]
+    if any(v == "" for v in vals):
+        # §6: blank is none of number/date/text, so a column mixing it with any
+        # of them mixes types. Previously blanks were filtered out here and the
+        # sort then called `num("")` on them, raising an uncaught ValueError --
+        # neither a value nor a refusal, which §8's totality forbids.
+        raise Malformed(
+            f"order column {col!r} has a blank cell; an ordering column must "
+            f"have a single type across every row (§9.10), and blank is none "
+            f"of number, date or text"
+        )
     if not vals:
         return "text"
     kinds = set()
@@ -1024,27 +1053,46 @@ def evaluate(text):
         if not (m and m.group(1) in ROWREL):
             continue
         fn, src = m.groups()
-        acc, prev = 0.0, None
+        # Each operator depends on a DIFFERENT thing, and collapsing them into
+        # one "is this row's cell a number?" guard got two of the three wrong:
+        #   prior       needs only the PRECEDING row's value -- not this one
+        #   delta       needs both, as numbers
+        #   cumulative  needs every value so far, so one bad cell poisons the
+        #               rest of the column rather than being stepped over
+        # §8 forbids a stale value, and skipping a blank row produced exactly
+        # one: `prior` reported a number true two rows ago, and `cumulative`
+        # resumed as though the blank had not happened.
+        acc, prev, poisoned = 0.0, None, False
         for r in seq:
+            raw = str(r.get(src, "")).strip()
             try:
-                v = num(r[src])
-            except (ValueError, TypeError, KeyError):
-                r[nm] = f"#REF!({src})"
-                continue
-            if fn == "cumulative":
-                acc += v
-                # §8: `inf` is not a `number` under §4.1.6, so storing one
-                # writes a file this implementation could not read back and
-                # `canon` would not round-trip its own output. §7 keeps
-                # `cumulative` a step-by-step binary64 addition, which is
-                # exactly why it can overflow where the exact `sum` does not.
-                r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
-            elif fn == "prior":
-                r[nm] = prev if prev is not None else ""
+                v = num(raw)
+            except (ValueError, TypeError):
+                v = None
+            if fn == "prior":
+                # `prev` is None only before the first row; after that it is the
+                # preceding row's value, blank included.
+                r[nm] = "" if prev is None else prev
             elif fn == "delta":
-                d = (v - prev) if prev is not None else ""
-                r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
-            prev = v
+                if prev is None:
+                    r[nm] = ""
+                elif v is None or not isinstance(prev, float):
+                    r[nm] = f"#REF!({src})"
+                else:
+                    d = v - prev
+                    r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
+            elif fn == "cumulative":
+                if v is None:
+                    poisoned = True
+                if poisoned:
+                    r[nm] = f"#REF!({src})"
+                else:
+                    acc += v
+                    # §8: `inf` is not a `number` under §4.1.6, so storing one
+                    # writes a file this implementation could not read back and
+                    # `canon` would not round-trip its own output.
+                    r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
+            prev = raw if v is None else v
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
     # One fixpoint over BOTH kinds. A group aggregate over a computed column
