@@ -108,6 +108,29 @@ MUTANTS = {
     # while evaluating one row to the whole column, which is right for a name
     # that does not resolve and wrong for a division by zero. Commissioned by
     # the suite author, who noted nothing measured the DATA side of that line.
+    # --- the four that were LIVE DIVERGENCES between the implementations ----
+    # Each restores the behaviour one side actually had. A survivor here means
+    # the suite would let that divergence come back.
+    "prior-reads-past-a-blank-row": (
+        "prev = raw if v is None else v",
+        "prev = prev if v is None else v",
+    ),
+    "cumulative-resumes-after-a-blank": (
+        "                    poisoned = True",
+        "                    poisoned = poisoned",
+    ),
+    "order-column-accepts-a-blank-cell": (
+        '    if any(v == "" for v in vals):',
+        "    if False:",
+    ),
+    "the-annotation-scan-does-not-skip-strings": (
+        "        if m.group().startswith('\"'):",
+        "        if False:",
+    ),
+    "count-coerces-like-the-other-four": (
+        '    if fn == "count":\n        return len(vals)',
+        "    if False:\n        return len(vals)",
+    ),
     # --- §7/§8: an aggregate with no operands -------------------------------
     "empty-min-is-blank": (
         'elif not nums:\n    return "#REF!(empty)"',

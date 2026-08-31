@@ -1,0 +1,6 @@
+| id | a |
+| --- | --: |
+| r_01 | 5 |
+
+key := id
+g := sum(zz_gone where aa_gone = "x")

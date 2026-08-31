@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "g": "#REF!(zz_gone)"
+  },
+  "kind": "eval"
+}

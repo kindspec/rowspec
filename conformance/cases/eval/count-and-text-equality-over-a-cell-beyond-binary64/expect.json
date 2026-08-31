@@ -1,0 +1,11 @@
+{
+  "aggregates": {
+    "av": "#REF!(overflow)",
+    "mn": "#REF!(overflow)",
+    "mx": "#REF!(overflow)",
+    "n": 1,
+    "s": "#REF!(overflow)",
+    "t": 3.0
+  },
+  "kind": "eval"
+}

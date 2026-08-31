@@ -1,0 +1,6 @@
+| id | b | a | x = sum((a) where b = "p") |
+| --- | --- | --: | --: |
+| r_01 | p | 10 |  |
+
+key := id
+s := sum(x)

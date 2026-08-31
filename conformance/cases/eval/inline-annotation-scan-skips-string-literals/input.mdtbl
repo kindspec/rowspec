@@ -1,0 +1,9 @@
+| id | r | a |
+| --- | --- | --: |
+| r_01 | x #y | 5 |
+| r_02 | x | 7 |
+| r_03 | x #y | 11 |
+
+key := id
+g := sum(a where r = "x #y")
+h := sum(a where r = "x #y") # matches the same rows

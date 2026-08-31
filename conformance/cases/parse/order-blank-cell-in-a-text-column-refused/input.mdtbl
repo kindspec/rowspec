@@ -1,0 +1,9 @@
+| id | tag | amt |
+| --- | --- | --: |
+| r_01 | apple | 5 |
+| r_02 |  | 7 |
+| r_03 | cherry | 6 |
+
+key := id
+order := by(tag)
+g := sum(amt)
