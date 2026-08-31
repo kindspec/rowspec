@@ -117,7 +117,7 @@ escaped     = "\" "|"                        ; the sole escape
 ;   NORMATIVELY on unescaped pipes: `escaped` wins. The two readings give
 ;   different FIELD COUNTS, which is the exact harm rule 3 exists to prevent.
 ;   A backslash not followed by "|" is a literal backslash.
-declaration = *WSP ident *WSP ":=" *WSP rhs [ 1*WSP "#" *char ] eol
+declaration = *WSP ident *WSP ":=" *WSP rhs [ 1*WSP "#" *char ] *WSP eol
 rhs         = ident "(" *WSP arg *WSP ")" / ident
 arg         = ident [ 1*WSP "where" 1*WSP predicate ]      ; predicate: §4.2
 ident       = 1*( LETTER / MARK / NUM / "_" )
@@ -139,9 +139,25 @@ skipped line is a missing row, and a missing row is a plausible smaller total.
 
 **1. Lines.** `LF` and `CRLF` are both `eol` and both round-trip byte-exactly
 (§3). The terminator on the file's last line is optional; its presence or
-absence is part of the file's bytes, is preserved by `render`, and never changes
-the parse. `canon` terminates every table line it emits and leaves annotations
-and declarations byte-verbatim.
+absence is part of the file's bytes, is preserved by `render` **and by `canon`,
+which never adds one**, and never changes the parse. `canon` terminates every table line it emits, **normalises every terminator in
+the file to `LF`**, and otherwise leaves the content of annotations and
+declarations byte-verbatim.
+
+**"Byte-verbatim" is about what a line SAYS, not how it ends**, and the two had
+to be separated because they contradicted each other on a `CRLF` file. §3 says
+only the canonical form is `LF`; §4.1.1 said `canon` left declarations
+byte-verbatim. An implementation cannot do both: measured, one converted table
+lines to `LF` and left declarations `CRLF`, emitting a canonical form with
+**mixed terminators** — which is not canonical by §3's own words, and which
+means `canon`'s own output would not survive a second reader agreeing with the
+first. The other normalised everything. Both were idempotent, both passed every
+case in the tree, and they produced files differing in three bytes.
+
+§3 wins because a canonical form whose output is not canonical is not one. The
+inertness promise §9 makes for the annotation channel is unaffected: a line
+terminator is not something an annotation *says*, and nothing in it can reach a
+computed value either way.
 
 **2. The table.** The table is the *maximal contiguous run* of `table-line`s.
 Annotations and blank lines may precede and follow it; they may not appear
@@ -1275,7 +1291,12 @@ An implementation MUST refuse:
     any character outside `ident` (§3, §4, §4.1.9)
 17. a value in a computed cell (§5)
 18. a table line that does not match `table-line`, in particular one lacking its
-    closing `|` (§4.1.3)
+    closing `|` (§4.1.3). **A line is a table line for this purpose when its
+    first non-`WSP` character is `|`** — said because §4.1's classification rule
+    otherwise sends every unmatched line to §9.19, leaving this entry naming a
+    state no reader could reach. Which of the two fires is unobservable under
+    §9's note below, so the rule costs nothing and stops the next implementer
+    concluding the entry is dead
 19. a line that is none of annotation, table line, declaration, or blank —
     including a table line after the table's contiguous run has ended (§4.1.2)
 20. a malformed **column formula** — a header cell containing `=` whose

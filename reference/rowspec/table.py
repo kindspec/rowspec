@@ -1266,7 +1266,13 @@ def canon(text):
             + "\n"
         )
     out += st["tail"]
-    return "".join(out)
+    # §4.1.1: canon normalises EVERY terminator to LF. `prefix` and `tail` carry
+    # annotations and declarations through byte-verbatim, which on a CRLF file
+    # left them CRLF while the table lines emitted above are LF -- a canonical
+    # form with mixed terminators, which §3 says is not canonical at all, and
+    # which made canon's own output something a second reader would canonicalise
+    # differently. "Byte-verbatim" is about what a line says, not how it ends.
+    return "".join(out).replace("\r\n", "\n").replace("\r", "\n")
 
 
 def set_cell(st, row_key, col, value):
