@@ -2,6 +2,15 @@
 
 Instructions for AI coding agents working in this repository.
 
+**Read the org contract first:**
+[kindspec/.github/AGENTS.md](https://github.com/kindspec/.github/blob/main/AGENTS.md)
+— the two standing rules, the worktree information barrier, the review gate, and
+the conventions that travel between kinds. This file carries only what is
+specific to rowspec, and wins where the two conflict.
+
+The measurements cited below and throughout `docs/rationale.md` live in
+[kindspec/research](https://github.com/kindspec/research).
+
 ## Project
 
 rowspec is a specification, an executable conformance suite, and a reference
@@ -29,7 +38,11 @@ tests/                pytest wrappers around the suite
 
 ```sh
 just setup    just check    just test    just conform    just mutants
+just conform-alt          # the SECOND implementation, same fixture tree
 ```
+
+[ROADMAP.md](ROADMAP.md) is what is next and what is deliberately not.
+[CHANGELOG.md](CHANGELOG.md) is what has shipped.
 
 ## Conventions
 
