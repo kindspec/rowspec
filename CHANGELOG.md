@@ -128,7 +128,10 @@ argument against writing one.
   suite loop rather than crash hung the gate until CI's job timeout, with no
   verdict and nothing saying so. It now times out and reports the no-verdict it
   already has a name for. Watched: the same run takes exit 124 from an outer
-  `timeout 15` without it, and refuses in 3s with it.
+  `timeout 15` without it, and refuses in 3s with `PROBE_TIMEOUT` lowered to 3
+  for the demonstration. The shipped value is 300s; the 3s figure is not
+  reproducible from the committed constant, and saying so is cheaper than a
+  reader discovering it.
 
 - **`just test` had never run in CI.** The conformance suite and the mutation
   gate did, through `just conform` and `just mutants`, so the gap was invisible
