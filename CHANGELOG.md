@@ -84,16 +84,29 @@ argument against writing one.
   write, so two mutations of the same size inside one mtime second are no
   longer indistinguishable to the loader.
 
-  The ingredients are in the table today. Applying all 76 mutants and measuring
-  `len(out.encode())` gives **14 groups of mutants that produce byte-identical
-  file sizes**, the largest holding five. `strip-eats-non-ascii-spaces` and
-  `allow-duplicate-order-declaration` are one such pair — both 49,765 bytes
-  against an unmutated 49,770 (`wc -c reference/rowspec/table.py`) — and they
-  are killed by disjoint cases.
+  **The size precondition is present; the timing one is not, and no real gate
+  run reaches the window.** Both halves are measured, and the second is why
+  this is a hazard closed rather than a wrong result corrected.
 
-  Watched red on exactly those two, unmodified, through a deliberately fast
-  probe over the same adapter and two real fixtures, because a 2-second
-  410-case run puts consecutive writes ~2s apart and never reaches the window:
+  Applying all 76 mutants and measuring `len(out.encode())` gives **14 groups
+  of mutants that produce byte-identical file sizes**, the largest holding
+  five. `strip-eats-non-ascii-spaces`, `allow-duplicate-order-declaration` and
+  `order-accepts-any-function` are one such group — all three 49,765 bytes
+  against an unmutated 49,770 (`wc -c reference/rowspec/table.py`). Two of
+  those groups are even **adjacent in table order**, so the sizes collide in
+  the position that matters.
+
+  What does not collide is the clock. Instrumenting the gate to `stat` the
+  scratch file after each of its 77 writes: **minimum inter-write gap 1.368 s,
+  mean 1.804 s, no gap under 1 s**, and **0 pairs across the whole run share
+  both a whole-second mtime and a size**. A 410-case probe simply takes too
+  long. So the defect has never fired in a real run here, and the numbers this
+  gate has published were never at risk — which is exactly what makes it worth
+  fixing now rather than after someone makes the probe faster.
+
+  Watched red on two of those mutants, unmodified, through a deliberately fast
+  probe over the same adapter and two real fixtures, because that is the only
+  way to reach the window:
 
       BEFORE  killed  strip-eats-non-ascii-spaces        (eval/non-ascii-space-padding-refused)
               killed  allow-duplicate-order-declaration  (eval/non-ascii-space-padding-refused)
@@ -144,7 +157,10 @@ Draft 0. First release.
   computed number. The rest cover parsing (144), evaluation (135), row-relative
   operators (70), canonicalisation (21), round-trip (11), mutation (7) and
   confluence (3).
-- **The mutation gate** — 76 mutants; a surviving mutant is a failure and so is
+- **The mutation gate** — 76 mutants, of which **74 are distinct mutations**:
+  two `(old, new)` pairs appear twice, so `74 killed` is 72 distinct kills.
+  Pre-existing and tracked in #48; the figure is stated rather than quietly
+  published. A surviving mutant is a failure and so is
   a stale one whose pattern no longer matches the source.
 - **A second implementation** — `reference/rowspec_alt/`, written from `SPEC.md`
   alone by an author forbidden to read `reference/rowspec/`, running against the

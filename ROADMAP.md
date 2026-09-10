@@ -19,6 +19,8 @@ path.
     74 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
+    74 distinct mutations     two (old, new) pairs are duplicated -- see #48,
+                              so `74 killed` is 72 distinct kills
     52 passed, 1 skipped      just test
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
