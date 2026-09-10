@@ -521,6 +521,14 @@ SCRATCH = os.path.join(HERE, "mutant_impl.py")
 _FAIL = re.compile(r"\s+FAIL (\S+)")
 _TOTAL = re.compile(r"(\d+) failure\(s\) across (\d+) case\(s\) in the fixture tree")
 
+#: Seconds a single probe may take. The whole tree runs in about two, so this
+#: is two orders of magnitude of headroom and only a mutant that made the suite
+#: LOOP could reach it -- `drop-every-third-row` is one line away from being
+#: that mutant. Without it the gate hangs until CI's job timeout kills it, and
+#: a hang is the one outcome that carries no verdict at all while looking, from
+#: the outside, exactly like a slow one.
+PROBE_TIMEOUT = 300
+
 
 def probe(path):
     """Case ids the fixture tree reports as failing for the module in `path`.
@@ -541,14 +549,27 @@ def probe(path):
     intended: the exit code has to be one of the two that mean a verdict, the
     accounting line has to be there, it has to account for at least the whole
     tree, and it has to agree with the FAIL lines printed above it. A run
-    missing any of those measured something other than this suite.
+    missing any of those measured something other than this suite -- and a run
+    that never finishes is the same finding, reached by waiting.
     """
     module = os.path.splitext(os.path.basename(path))[0]
     # cwd=HERE and every path anchored to __file__. This file used to read
     # `../reference/...` relative to wherever the gate was started, and
     # `run_cases.py` had the same shape once and printed "0 failure(s)" over
     # 226 cases it had never opened, four of them failing.
-    run = subprocess.run([sys.executable, RUNNER, module], capture_output=True, text=True, cwd=HERE)
+    try:
+        run = subprocess.run(
+            [sys.executable, RUNNER, module],
+            capture_output=True,
+            text=True,
+            cwd=HERE,
+            timeout=PROBE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        # Not a kill, and not a survivor. The suite never finished, so it never
+        # said anything -- which is the same finding as a crash, and BROKEN is
+        # already the name for it.
+        return Verdict(reached=False)
     ids, shown, total = set(), 0, None
     for line in run.stdout.splitlines():
         hit = _FAIL.match(line)

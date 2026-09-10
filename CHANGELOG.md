@@ -74,14 +74,40 @@ argument against writing one.
 - **A stale `.pyc` can no longer credit a mutant with its neighbour's verdict**
   (closes #44). The kit purges the scratch module's cached bytecode after every
   write, so two mutations of the same size inside one mtime second are no
-  longer indistinguishable to the loader. Watched red, with a deliberately fast
-  probe to reach the window a 2-second suite run cannot: two mutants patching
-  different lines and leaving `table.py` at 49,701 bytes both times: before,
-  `allow-duplicate-order-declarations` was credited with the *first* mutant's
-  killing case, `parse/dup-column`; after, it is killed by
-  `parse/dup-order-decl`, which is the case that can actually detect it. Both
-  runs exit 0, which is the point — the loud symptom of this defect is a false
-  survivor, and the quiet one is a false kill.
+  longer indistinguishable to the loader.
+
+  The ingredients are in the table today. Applying all 76 mutants and measuring
+  `len(out.encode())` gives **14 groups of mutants that produce byte-identical
+  file sizes**, the largest holding five. `strip-eats-non-ascii-spaces` and
+  `allow-duplicate-order-declaration` are one such pair — both 49,765 bytes
+  against an unmutated 49,770 (`wc -c reference/rowspec/table.py`) — and they
+  are killed by disjoint cases.
+
+  Watched red on exactly those two, unmodified, through a deliberately fast
+  probe over the same adapter and two real fixtures, because a 2-second
+  410-case run puts consecutive writes ~2s apart and never reaches the window:
+
+      BEFORE  killed  strip-eats-non-ascii-spaces        (non-ascii-space-padding-refused)
+              killed  allow-duplicate-order-declaration  (non-ascii-space-padding-refused)
+      AFTER   killed  strip-eats-non-ascii-spaces        (non-ascii-space-padding-refused)
+              killed  allow-duplicate-order-declaration  (dup-order-decl)
+
+  Before, the second mutant is credited with the *first* one's killing case —
+  a case that cannot detect it. Both runs exit 0, which is the point: the loud
+  symptom of this defect is a false survivor, and the quiet one is a false
+  kill.
+
+- **The vacuous-implementation test could be satisfied by measuring nothing.**
+  `tests/test_conformance.py` asserted `returncode != 0`, which meant "cases
+  failed" while the runner had two exit codes and means "cases failed OR the
+  tree yielded no verdict" now that it has three. Watched: the vacuous
+  implementation over an empty root exits 2 and the old assertion passed. It
+  asserts `== 1`.
+- **The mutation probe had no subprocess timeout**, so a mutant that made the
+  suite loop rather than crash hung the gate until CI's job timeout, with no
+  verdict and nothing saying so. It now times out and reports the no-verdict it
+  already has a name for. Watched: the same run takes exit 124 from an outer
+  `timeout 15` without it, and refuses in 3s with it.
 
 - **`just test` had never run in CI.** The conformance suite and the mutation
   gate did, through `just conform` and `just mutants`, so the gap was invisible
