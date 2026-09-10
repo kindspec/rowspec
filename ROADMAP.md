@@ -18,7 +18,7 @@ path.
     0 failures, second impl   just conform-alt
     74 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
-    44 tests passed           just test
+    52 passed, 1 skipped      just test
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
@@ -27,24 +27,30 @@ questions where the two disagreed, the independent implementation was right.
 
 ## Next
 
-### 0.2.0 — rowspec on kindkit
+### 0.2.0 — rowspec on kindkit — **landed**
 
-The runner, the mutation gate and the case-tree convention become
-[kindspec/kindkit](https://github.com/kindspec/kindkit), and rowspec becomes its
-first consumer. The point is not tidiness: blockspec and nodespec would
+The runner and the mutation gate are now
+[kindspec/kindkit](https://github.com/kindspec/kindkit), and rowspec is its
+first consumer (#33). The point was not tidiness: blockspec and nodespec would
 otherwise each re-derive them, and this project has twice caught duplicated
-implementations drifting apart invisibly.
+implementations drifting apart invisibly. kindkit is a dev dependency pinned to
+a commit — vendoring a copy would have been the drift the kit exists to
+prevent.
 
-**Compatibility.** Internals move freely. `rowspec check`, `rowspec eval`, the
-fixture tree layout and the Action's inputs do not change. The suite must be at
-410/410 on **both** implementations and the gate at 0 survivors and 0 stale
-before and after — the same numbers, not merely green.
+**The abstraction fit.** Every acceptance number is identical before and
+after, and so is every individual verdict: the same kill, the same equivalence
+and the same killing cases for all 76 mutants. `rowspec check`, `rowspec eval`,
+the fixture tree layout and the Action's inputs are unchanged, and not one of
+the 410 cases was edited. What the kit could not be told about rowspec — what a
+`parse` case means, what a `canon` check asserts, how the merge sides are filed
+— stayed in rowspec, which is where the line was supposed to fall.
+
+It also closed three open defects rowspec had and the kit did not: an orphaned
+equivalence claim (#37), a stale `.pyc` crediting a mutant with its
+neighbour's verdict (#44), and a mutant that crashes the runner before any case
+opens being scored as killed (#45).
 
 **This is load-bearing**, so it takes more than one independent review pass.
-
-If the abstraction does not survive contact with a single example, the honest
-outcome is to say so and keep the kit as documented convention. A kit designed
-around one consumer is a kit fitted to that consumer.
 
 ### 0.2.0 — export to `.xlsx`
 

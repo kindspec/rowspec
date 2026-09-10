@@ -115,6 +115,12 @@ a failure, and so is a *stale* one whose pattern no longer matches the source â€
 because a check that quietly stopped running is the failure this project keeps
 finding in itself.
 
+**Both are [kindkit](https://github.com/kindspec/kindkit)** â€” the shared
+machinery every kindspec kind runs on. What lives here is the part that knows
+what a rowspec case means; walking the tree, reading fixtures as exact bytes,
+splicing mutants and accounting for the verdicts are the kit's, and rowspec is
+its first consumer.
+
 Neither number is a claim about correctness in general. See
 [docs/rationale.md](docs/rationale.md) for what has been measured, and what has
 been measured and found wanting.

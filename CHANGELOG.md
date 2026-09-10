@@ -7,8 +7,10 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
-`v0.1.0` tags `625ddb2`. Three commits have landed on `main` since; the third,
-`efeb513`, is documentation only and is not listed separately.
+`v0.1.0` tags `625ddb2`. Everything below has landed on `main` since;
+documentation-only commits are not listed separately. A hand-maintained count
+of them used to stand here and was wrong within two commits, which is the
+argument against writing one.
 
 ### Added
 
@@ -27,7 +29,59 @@ prose, and where the two disagree the suite wins.
   identifier and `007` and `7` are two rows. Closes #34; #35 and #36 are the
   round-trip claim.
 
+### Changed
+
+- **The runner and the mutation gate are now
+  [kindkit](https://github.com/kindspec/kindkit)** (closes #33). rowspec is the
+  kit's first consumer, and the adoption is measured rather than asserted: 0
+  failures across 410 cases on both implementations, and 74 killed, 0 survived,
+  2 equivalent, 0 stale, with the same verdict and the same killing cases for
+  all 76 mutants before and after. What is left in `conformance/run_cases.py`
+  is the eight handlers that know what a rowspec case *means*; what is left in
+  `conformance/mutants.py` is the mutant table and the probe that runs this
+  suite. Walking the tree, reading fixtures as exact bytes, splicing mutants as
+  normalised token runs, hashing, and the accounting are the kit's, and are the
+  same for every kind.
+
+  kindkit is a **dev** dependency, pinned to a commit rather than a branch.
+  `dependencies` stays empty, `pip install rowspec` still pulls nothing, and
+  `reference/` still imports the standard library and nothing else —
+  `tests/test_boundary.py` is unchanged and still holds that line.
+
+- **The runner has three exit codes, not two**: 0 every case passed, 1 at least
+  one case failed, 2 the fixture tree yielded no verdict at all. A missing
+  root, an empty root, and a root that has shrunk below the 410 cases `find
+  conformance/cases -name expect.json | wc -l` reports are all the third thing.
+  "Every case passed" and "no case ran" no longer look alike from the outside.
+
 ### Fixed
+
+- **An `EQUIVALENT` claim naming a mutant that no longer exists is a hard
+  failure** (closes #37). The claim is a field on the mutant now, not a row in
+  a side table keyed by name, so it cannot outlive what it excuses. The
+  orphaned `float-accepts-thousands-separators` entry — ignored in silence
+  since the mutant it named was replaced — is removed. Watched red: putting it
+  back exits 2 with `HARD FAILURE: equivalence claimed for a mutant that does
+  not exist`.
+- **A mutant that leaves the suite with no verdict is reported BROKEN, never
+  killed** (closes #45). The `<runner crashed>` sentinel is gone. The probe
+  reports what the run *produced* — the exit code, the accounting line, the
+  case count it accounts for, and whether that count agrees with the `FAIL`
+  lines above it — so a run that opened no case cannot be read as one that
+  caught something. Watched red: a mutant that makes `table.py` unimportable
+  scored `killed (1 case(s): <runner crashed>)` at exit 0 before, and `BROKEN`
+  at exit 1 after.
+- **A stale `.pyc` can no longer credit a mutant with its neighbour's verdict**
+  (closes #44). The kit purges the scratch module's cached bytecode after every
+  write, so two mutations of the same size inside one mtime second are no
+  longer indistinguishable to the loader. Watched red, with a deliberately fast
+  probe to reach the window a 2-second suite run cannot: two mutants patching
+  different lines and leaving `table.py` at 49,701 bytes both times: before,
+  `allow-duplicate-order-declarations` was credited with the *first* mutant's
+  killing case, `parse/dup-column`; after, it is killed by
+  `parse/dup-order-decl`, which is the case that can actually detect it. Both
+  runs exit 0, which is the point — the loud symptom of this defect is a false
+  survivor, and the quiet one is a false kill.
 
 - **`just test` had never run in CI.** The conformance suite and the mutation
   gate did, through `just conform` and `just mutants`, so the gap was invisible
