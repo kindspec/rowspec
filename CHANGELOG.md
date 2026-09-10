@@ -43,6 +43,14 @@ argument against writing one.
   normalised token runs, hashing, and the accounting are the kit's, and are the
   same for every kind.
 
+  **The sdist ships the suite but cannot declare kindkit.** PEP 735
+  dependency-groups are not packaged metadata, and a direct git requirement
+  cannot go in `optional-dependencies` because PyPI rejects it, so an unpacked
+  sdist needs `uv sync --group dev` (network, and git) before `just conform`
+  will run. Measured: `python3 conformance/run_cases.py` inside an unpacked
+  sdist raises `ModuleNotFoundError: No module named 'kindkit'`. Tracked in
+  #47; publishing kindkit to PyPI is the real fix.
+
   kindkit is a **dev** dependency, pinned to a commit rather than a branch.
   `dependencies` stays empty, `pip install rowspec` still pulls nothing, and
   `reference/` still imports the standard library and nothing else —
@@ -87,10 +95,10 @@ argument against writing one.
   probe over the same adapter and two real fixtures, because a 2-second
   410-case run puts consecutive writes ~2s apart and never reaches the window:
 
-      BEFORE  killed  strip-eats-non-ascii-spaces        (non-ascii-space-padding-refused)
-              killed  allow-duplicate-order-declaration  (non-ascii-space-padding-refused)
-      AFTER   killed  strip-eats-non-ascii-spaces        (non-ascii-space-padding-refused)
-              killed  allow-duplicate-order-declaration  (dup-order-decl)
+      BEFORE  killed  strip-eats-non-ascii-spaces        (eval/non-ascii-space-padding-refused)
+              killed  allow-duplicate-order-declaration  (eval/non-ascii-space-padding-refused)
+      AFTER   killed  strip-eats-non-ascii-spaces        (eval/non-ascii-space-padding-refused)
+              killed  allow-duplicate-order-declaration  (parse/dup-order-decl)
 
   Before, the second mutant is credited with the *first* one's killing case —
   a case that cannot detect it. Both runs exit 0, which is the point: the loud

@@ -18,6 +18,7 @@ path.
     0 failures, second impl   just conform-alt
     74 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
+    0 broken                  just mutants
     52 passed, 1 skipped      just test
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
@@ -49,6 +50,18 @@ It also closed three open defects rowspec had and the kit did not: an orphaned
 equivalence claim (#37), a stale `.pyc` crediting a mutant with its
 neighbour's verdict (#44), and a mutant that crashes the runner before any case
 opens being scored as killed (#45).
+
+**The bar was pre-registered, and it stays written down.** What this milestone
+committed to before the work ran was: *if the abstraction does not survive
+contact with a single example, the honest outcome is to say so and keep the kit
+as documented convention. A kit designed around one consumer is a kit fitted to
+that consumer.* It survived, on every number. Recording the criterion next to
+the result is the point — a bar that is deleted once it is cleared is a bar
+that could have moved.
+
+**And the second half of it is still open.** rowspec is the only consumer.
+"Fitted to that consumer" cannot be answered until blockspec or nodespec runs
+on the kit, and nothing here settles it.
 
 **This is load-bearing**, so it takes more than one independent review pass.
 

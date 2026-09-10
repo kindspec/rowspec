@@ -511,11 +511,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 IMPL = os.path.normpath(os.path.join(HERE, "..", "reference", "rowspec", "table.py"))
 RUNNER = os.path.join(HERE, "run_cases.py")
 
-#: A name NOTHING ELSE on the path claims. `sys.path[0]` is the directory of
-#: the script the probe runs -- this one -- and the first matching directory
-#: wins, so a leftover module of the same name anywhere on the path would
-#: shadow the file the gate is measuring. The kit refuses to let this be the
-#: implementation itself: the scratch file is overwritten and then deleted.
+#: A name NOTHING ELSE on the path claims. The first matching directory wins,
+#: and `run_cases.py` puts `reference/` ahead of its own directory, so a
+#: leftover `mutant_impl.py` under `reference/` would shadow the file the gate
+#: is measuring -- silently, and in the direction where every mutant survives.
+#: The kit refuses to let this be the implementation itself: the scratch file
+#: is overwritten and then deleted.
 SCRATCH = os.path.join(HERE, "mutant_impl.py")
 
 _FAIL = re.compile(r"\s+FAIL (\S+)")
@@ -569,6 +570,16 @@ def probe(path):
         # Not a kill, and not a survivor. The suite never finished, so it never
         # said anything -- which is the same finding as a crash, and BROKEN is
         # already the name for it.
+        #
+        # But SAY so. The kit's BROKEN line reads "nothing ran", which after a
+        # five-minute stall is the opposite of what happened, and someone
+        # reading a red gate would go hunting an import error. `Verdict` has no
+        # field to carry a reason, so this goes to stderr.
+        print(
+            f"  TIMEOUT  the suite did not finish within {PROBE_TIMEOUT}s on {module!r}; "
+            "reporting no verdict",
+            file=sys.stderr,
+        )
         return Verdict(reached=False)
     ids, shown, total = set(), 0, None
     for line in run.stdout.splitlines():

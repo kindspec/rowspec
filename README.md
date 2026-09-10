@@ -98,7 +98,8 @@ number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
     410 conformance cases          two implementations, both passing
-     76 mutants                    74 killed, 0 survived, 0 stale
+     76 mutants                    74 killed, 2 equivalent
+                                    0 survived, 0 stale, 0 broken
 
 **The second implementation is the point.** `reference/rowspec_alt/` was written
 from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`, and it
