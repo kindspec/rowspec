@@ -19,6 +19,10 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`just test` had never run in CI.** The conformance suite and the mutation
+  gate did, through `just conform` and `just mutants`, so the gap was invisible
+  — but `tests/` also holds the CSV refusals and the CLI's own behaviour, and
+  nothing on a forge ran them.
 - The mutation gate took its paths from the working directory, so it reported
   differently depending on where it was invoked from (`c0b9a7a`, closes #31).
   Paths are now anchored to `__file__`.

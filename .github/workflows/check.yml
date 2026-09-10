@@ -41,6 +41,14 @@ jobs:
         if: always()
         run: just conform-alt
 
+      # `just test` had never run here. The conformance suite and the mutation
+      # gate did, through `just conform` and `just mutants`, so the gap was
+      # invisible from the outside -- but `tests/` also holds the CSV refusals
+      # and the CLI's own behaviour, and nothing on a forge ran any of it.
+      - name: the full test suite
+        if: always()
+        run: just test
+
       # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
       # meant to be malformed. This is the recipe a USER should copy: `check`
       # answers "will this survive being edited", `eval` answers "does it
