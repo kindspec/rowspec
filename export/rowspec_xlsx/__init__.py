@@ -13,7 +13,11 @@ nothing in `rowspec` may import this package.
 What it writes today is the least interesting workbook that could be correct:
 one sheet, the header, every cell as a LITERAL value already computed by
 `rowspec.table.evaluate`, and the declared aggregates below the grid. No
-structured references, no `SUBTOTAL`, no number formats.
+structured references, no `SUBTOTAL`, no number formats — so a `1.50` in a
+currency column arrives as `1.5` and displays wrong, and `-0` arrives as
+`-0.0`. Nothing here is a formula: `_append` forces every string cell to text,
+because a stored cell is text under §5 and a spreadsheet application would
+otherwise read a leading `=` as a live formula.
 
 That is deliberate. The claim worth making — that a `.mdtbl` arrives as a live
 spreadsheet rather than a frozen picture of one — is kindspec/rowspec#35
@@ -48,10 +52,12 @@ def _value(v):
     here, exactly as they are under §8.
 
     A `#REF!(name)` is a string under §8 and fails `num`, so a broken total
-    arrives visibly broken rather than as a number or a blank.
+    arrives visibly broken rather than as a number or a blank. A blank cell
+    reaches this as `""` and arrives as an empty cell, not as `"None"`.
+
+    This is a VALUE policy and it must not be applied to the key column: §9.16
+    makes a key an identifier, not a number. See `to_workbook`.
     """
-    if v is None:
-        return None
     if isinstance(v, int | float) and not isinstance(v, bool):
         return v
     try:
@@ -60,19 +66,43 @@ def _value(v):
         return str(v) or None
 
 
+def _append(ws, values):
+    """Append one row, then force every string cell to TEXT.
+
+    openpyxl infers a cell's type from its value, so a stored cell of `=1+1`
+    lands as a LIVE FORMULA (`data_type == "f"`) and survives save and reload
+    as one. Three things are wrong with that. §5 makes a stored cell text, so
+    promoting it to a computed cell is not the file the format describes. A
+    `=A1` would put a COORDINATE in the output, which is the one thing this
+    format does not have. And a `.mdtbl` is a file anyone can open a pull
+    request against, so it is formula injection with a review step in front of
+    it.
+    """
+    ws.append(values)
+    for cell in ws[ws.max_row]:
+        if isinstance(cell.value, str):
+            cell.data_type = "s"
+
+
 def to_workbook(text, sheet_title="table"):
     """Build a workbook from `.mdtbl` source. Raises `Malformed` on a bad table."""
-    cols = parse(text)[0]
+    cols, _formulas, _rows, _decls, _order, key = parse(text)
     rows, aggs = evaluate(text)
     wb = Workbook()
     ws = wb.active
     ws.title = sheet_title
-    ws.append(list(cols))
+    _append(ws, list(cols))
     for row in rows:
-        ws.append([_value(row.get(c)) for c in cols])
+        # The KEY column is exported verbatim, never coerced. §9.16 makes a key
+        # an identifier and §4.2 rule 6 compares identifiers as text, so `007`
+        # and `7` are two rows -- §9.5 would refuse them if they were one.
+        # Coercing them to a number merges two row identities into one, in the
+        # export of a format whose whole unit of identity is the row id. §4.1.6
+        # admits `007` at all precisely so zero-padded identifiers survive.
+        _append(ws, [str(row[c]) if c == key else _value(row[c]) for c in cols])
     for name, value in aggs.items():
-        ws.append([None])  # one blank row between the grid and the aggregates
-        ws.append([name, _value(value)])
+        _append(ws, [None])  # one blank row between the grid and the aggregates
+        _append(ws, [name, _value(value)])
     return wb
 
 

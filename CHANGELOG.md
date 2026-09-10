@@ -22,7 +22,10 @@ prose, and where the two disagree the suite wins.
   standard-library-only. `tests/test_boundary.py` fails if anything under
   `reference/` imports outside the standard library, so the rule is enforced
   rather than remembered. The exporter itself is deliberately minimal: literal
-  values only. Closes #34; #35 and #36 are the round-trip claim.
+  values only — a stored cell is written as text even when it begins with `=`,
+  and the key column is never coerced to a number, because §9.16 makes a key an
+  identifier and `007` and `7` are two rows. Closes #34; #35 and #36 are the
+  round-trip claim.
 
 ### Fixed
 
