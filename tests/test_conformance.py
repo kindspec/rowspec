@@ -51,7 +51,14 @@ def test_mutation_gate_is_sound():
 
 
 def test_suite_rejects_a_vacuous_implementation():
-    """A parser that stores the raw bytes and understands nothing must FAIL."""
+    """A parser that stores the raw bytes and understands nothing must FAIL.
+
+    `== 1`, not `!= 0`. The runner now has THREE exit codes -- 2 means the
+    fixture tree yielded no verdict -- so `!= 0` is satisfied by the suite
+    measuring nothing, which is the failure this test exists to detect wearing
+    the costume of the test that detects it. Watched: with the tree pointed at
+    an empty directory the vacuous implementation exits 2, and `!= 0` passed.
+    """
     vac = os.path.join(CONF, "_vacuous.py")
     open(vac, "w").write(
         "import sys, os\n"
@@ -62,6 +69,11 @@ def test_suite_rejects_a_vacuous_implementation():
     )
     try:
         r = _run("run_cases.py", "_vacuous")
-        assert r.returncode != 0, "the suite accepted an implementation that understands nothing"
+        assert r.returncode == 1, (
+            "expected exit 1 -- cases FAILED. Exit 2 is 'no verdict from the tree', "
+            f"which is not the suite rejecting anything. Got {r.returncode}.\n"
+            + r.stdout
+            + r.stderr
+        )
     finally:
         os.path.exists(vac) and os.remove(vac)

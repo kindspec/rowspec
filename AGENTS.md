@@ -23,6 +23,12 @@ implementation exists so the suite has something to check.
 - **Python 3.11+**, managed with `uv`. Standard library only in `reference/`.
 - **ruff** for format and lint, **pytest** for tests, **just** as task runner.
 - A real `git` binary is a hard dependency of the conformance suite.
+- **[kindkit](https://github.com/kindspec/kindkit)** is the conformance runner
+  and the mutation gate, shared with every kindspec kind. It is a *dev*
+  dependency pinned to a commit, used only under `conformance/`; nothing in
+  `reference/` may reach for it, which is what `tests/test_boundary.py`
+  enforces. Move the pin deliberately and re-measure the suite and the gate
+  when you do.
 
 ## Layout
 

@@ -98,7 +98,8 @@ number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
     410 conformance cases          two implementations, both passing
-     76 mutants                    74 killed, 0 survived, 0 stale
+     76 mutants                    74 killed, 2 equivalent
+     74 distinct mutations          0 survived, 0 stale, 0 broken
 
 **The second implementation is the point.** `reference/rowspec_alt/` was written
 from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`, and it
@@ -110,10 +111,20 @@ reference was wrong.
 
 **The mutation gate is the other half.** The suite is only worth its green tick
 if it can go red, so the implementation is deliberately broken in 76 specific
-ways and the suite must notice every one. A mutant that survives is reported as
-a failure, and so is a *stale* one whose pattern no longer matches the source —
+ways. 74 must be caught by a case; the other two carry a recorded claim that no
+input could distinguish them from the original, and the gate fails the run if a
+case turns out to catch one anyway. Two `(old, new)` pairs are duplicated, so
+**74 of the 76 are distinct mutations** and `74 killed` is 72 distinct kills —
+[#48](https://github.com/kindspec/rowspec/issues/48). A mutant that survives is reported as a
+failure, and so is a *stale* one whose pattern no longer matches the source —
 because a check that quietly stopped running is the failure this project keeps
 finding in itself.
+
+**Both are [kindkit](https://github.com/kindspec/kindkit)** — the shared
+machinery every kindspec kind runs on. What lives here is the part that knows
+what a rowspec case means; walking the tree, reading fixtures as exact bytes,
+splicing mutants and accounting for the verdicts are the kit's, and rowspec is
+its first consumer.
 
 Neither number is a claim about correctness in general. See
 [docs/rationale.md](docs/rationale.md) for what has been measured, and what has

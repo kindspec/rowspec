@@ -30,6 +30,11 @@ wheels = [
 ]
 
 [[package]]
+name = "kindkit"
+version = "0.1.0"
+source = { git = "https://github.com/kindspec/kindkit?rev=d5cb2169dc265576f9c21cdf6306cf07b27ff426#d5cb2169dc265576f9c21cdf6306cf07b27ff426" }
+
+[[package]]
 name = "openpyxl"
 version = "3.1.5"
 source = { registry = "https://pypi.org/simple" }
@@ -96,6 +101,7 @@ xlsx = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "kindkit" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -106,6 +112,7 @@ provides-extras = ["xlsx"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "kindkit", git = "https://github.com/kindspec/kindkit?rev=d5cb2169dc265576f9c21cdf6306cf07b27ff426" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
 ]
