@@ -7,13 +7,13 @@ requires-python = ">=3.11"
 dependencies = []
 authors = [{ name = "Cameron Brooks", email = "cambrooks3393@gmail.com" }]
 keywords = ["csv", "markdown", "git", "merge", "conformance", "specification"]
-# The WHEEL contains only `reference/rowspec`, which is Apache-2.0 OR MIT. The
-# repository as a whole is licensed per directory -- SPEC.md and docs/ are
-# CC-BY-4.0, conformance/cases/ is CC0-1.0 -- and that split is deliberate:
-# the fixtures must be vendorable into an implementation in any language under
-# any licence. See LICENSE and LICENSES/.
+# The WHEEL contains `reference/rowspec` and `export/rowspec_xlsx`, both of
+# which are Apache-2.0 OR MIT. The repository as a whole is licensed per
+# directory -- SPEC.md and docs/ are CC-BY-4.0, conformance/cases/ is CC0-1.0
+# -- and that split is deliberate: the fixtures must be vendorable into an
+# implementation in any language under any licence. See LICENSE and LICENSES/.
 license = "Apache-2.0 OR MIT"
-license-files = ["LICENSE", "LICENSES/*.txt", "reference/LICENSE"]
+license-files = ["LICENSE", "LICENSES/*.txt", "reference/LICENSE", "export/LICENSE"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -22,6 +22,15 @@ classifiers = [
   "Topic :: Text Processing :: Markup",
   "Typing :: Typed",
 ]
+
+# xlsx export is an EXTRA, and `dependencies` above stays empty, because
+# `reference/` is standard-library-only: a dependency there is a dependency
+# every independent implementation of the format inherits, and an independent
+# implementation of a table format must not be required to read xlsx. The
+# exporter therefore lives in `export/`, outside `reference/`, and
+# `tests/test_boundary.py` fails if anything under `reference/` ever imports it.
+[project.optional-dependencies]
+xlsx = ["openpyxl>=3.1"]
 
 [project.urls]
 Homepage = "https://github.com/kindspec/rowspec"
@@ -37,7 +46,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["reference/rowspec"]
+# `export/rowspec_xlsx` ships in the wheel unconditionally; only its
+# dependency is optional. An extra that installs openpyxl and no exporter would
+# install nothing that does anything.
+packages = ["reference/rowspec", "export/rowspec_xlsx"]
 
 # The sdist carries the SPEC and the fixture tree deliberately. The suite is
 # the deliverable; shipping the implementation without the thing that checks it
@@ -45,6 +57,7 @@ packages = ["reference/rowspec"]
 [tool.hatch.build.targets.sdist]
 include = [
   "/reference",
+  "/export",
   "/conformance",
   "/tests",
   "/docs",
@@ -70,4 +83,4 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["reference", "conformance"]
+pythonpath = ["reference", "conformance", "export"]

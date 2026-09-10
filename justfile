@@ -25,9 +25,27 @@ lint:
 # Format + lint (non-mutating — safe for CI)
 check: fmt-check lint
 
-# Run tests: the conformance suite, the mutation gate, and the corpus checks
+# Run tests: the conformance suite, the mutation gate, and the corpus checks.
+# Runs WITHOUT the xlsx extra, which is what `pip install rowspec` gives you and
+# is therefore the configuration that has to stay green. The exporter's own
+# tests skip here; `just test-xlsx` is where they must not.
+#
+# `--exact` is load-bearing, not tidiness. Plain `uv run` installs what is
+# missing and removes nothing, so after one `just test-xlsx` the extra stays in
+# the environment and this recipe silently starts running WITH it -- measured:
+# `uv run --extra xlsx python -c pass` then `uv run python -c "import
+# openpyxl"` succeeds. The configuration under test would then be a local
+# accident, and a recipe whose meaning depends on what you ran before it is
+# not a check.
 test:
-    uv run pytest -q
+    uv run --exact pytest -q
+
+# The exporter, WITH its optional extra. `ROWSPEC_REQUIRE_XLSX=1` turns the
+# skip in tests/test_xlsx_export.py into a hard failure, because a test that
+# only ever skips is a check that cannot fail -- and this suite would then be
+# reporting a pass over an exporter nothing had run.
+test-xlsx:
+    ROWSPEC_REQUIRE_XLSX=1 uv run --exact --extra xlsx pytest tests/test_xlsx_export.py -q
 
 # The conformance suite alone, driven by the fixture tree
 conform:

@@ -41,6 +41,25 @@ jobs:
         if: always()
         run: just conform-alt
 
+      # `just test` had never run in CI. The suite ran here through `just
+      # conform` and `just mutants`, so the gap was invisible -- but tests/
+      # also holds the CSV refusals and the packaging boundary, and nothing on
+      # a forge executed either. It runs WITHOUT the xlsx extra, deliberately:
+      # that is what `pip install rowspec` produces, and the boundary is only
+      # worth anything if the configuration a stranger gets is the one that is
+      # checked. The assertion in front of it is the point -- `uv run` syncing
+      # an extra by default would make the whole job measure the wrong thing,
+      # silently, and it would still be green.
+      - name: the extra must be ABSENT in this job
+        if: always()
+        run: |
+          uv run python -c "import importlib.util, sys; \
+            sys.exit('openpyxl is installed; this job must run without the extra') \
+            if importlib.util.find_spec('openpyxl') else None"
+      - name: the full test suite, with the extra absent
+        if: always()
+        run: just test
+
       # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
       # meant to be malformed. This is the recipe a USER should copy: `check`
       # answers "will this survive being edited", `eval` answers "does it
@@ -54,3 +73,21 @@ jobs:
       - name: corpus-scoped checks
         if: always()
         run: uv run python conformance/corpus_check.py .
+
+  # The other half of the same boundary. The exporter's tests SKIP when the
+  # extra is absent, so without this job they would never run anywhere and the
+  # suite would report a pass over an exporter nothing had executed --- the
+  # exact failure this project keeps finding in itself. `just test-xlsx` sets
+  # ROWSPEC_REQUIRE_XLSX=1, which turns that skip into a hard failure, so this
+  # job cannot go green by measuring nothing.
+  xlsx-extra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: install just
+        run: |
+          uv tool install rust-just
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: the exporter, with its optional extra installed
+        run: just test-xlsx
