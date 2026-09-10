@@ -71,8 +71,23 @@ include = [
   "/pyproject.toml",
 ]
 
+# kindkit is the shared conformance machinery -- the tree-driven runner and the
+# mutation gate -- extracted from this repository and now depended on rather
+# than duplicated. It is a DEV dependency, deliberately: `dependencies` above
+# stays empty, so `pip install rowspec` still pulls nothing and `reference/`
+# still imports the standard library and nothing else. Only `conformance/`
+# reaches for it, and `tests/test_boundary.py` is what holds that line.
+#
+# Pinned to a COMMIT, not a branch: kindkit is pre-release, has no tag and is
+# not on PyPI, and a gate that moves under the suite it gates is the failure
+# this project keeps finding in itself. Move the pin deliberately, and
+# re-measure the suite and the gate when you do.
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = [
+  "pytest>=8",
+  "ruff>=0.6",
+  "kindkit @ git+https://github.com/kindspec/kindkit@d5cb2169dc265576f9c21cdf6306cf07b27ff426",
+]
 
 [tool.ruff]
 line-length = 100

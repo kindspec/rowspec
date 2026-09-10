@@ -19,17 +19,24 @@ outside the matched span and splicing produces unbalanced source -- which the
 compile check turns into a loud failure, never a silent wrong patch.
 
 A mutant that no longer applies is a HARD FAILURE. So is an ambiguous pattern,
-and so is an `EQUIVALENT` claim the suite turns out to refute.
+an `EQUIVALENT` claim the suite turns out to refute, an `EQUIVALENT` claim
+naming a mutant that no longer exists, and a mutant that leaves the suite
+unable to reach any verdict at all.
+
+All of that machinery is now [kindkit](https://github.com/kindspec/kindkit) and
+is the same for every kind. What is left here is the part that knows what
+`table.py` says: the mutants, the claims that some of them are inert, and the
+probe that runs THIS suite against a given file.
 """
 
-import ast
-import io
 import os
 import re
 import subprocess
 import sys
-import textwrap
-import tokenize
+
+from kindkit import ALL, GateError, Verdict, from_table, gate
+from kindkit.cli import EXIT_FAILURES, EXIT_NO_VERDICT, EXIT_OK
+from run_cases import MIN_CASES
 
 # Mutations proven to have no observable effect: an earlier fix made the
 # mutated line unreachable. A gate cannot distinguish these from suite holes on
@@ -38,14 +45,12 @@ import tokenize
 # These are still APPLIED and still run. An equivalent mutant whose pattern has
 # gone stale is just as blind as any other, and an "equivalent" mutant that the
 # suite kills is a FALSE equivalence claim -- both are reported as failures.
+#
+# And so is a claim naming a mutant that is not in MUTANTS. `from_table` below
+# refuses the orphan rather than joining past it, which is what closes #37:
+# `float-accepts-thousands-separators` outlived the mutant it named, excusing
+# nothing, and nothing said so.
 EQUIVALENT = {
-    "float-accepts-thousands-separators": (
-        "ev() raises KeyError for any string cell matching [,\\u00a0\\u202f] before "
-        "float() is reached, so no string carrying a separator ever gets there; "
-        "the only other value that reaches it is a float from an already-computed "
-        "column, and str(float) never contains a comma. .replace(',', '') is "
-        "therefore a no-op on every reachable input"
-    ),
     "a-missing-column-is-blank-under-a-text-comparison": (
         "§4.2 rule 10's header rule makes this unreachable: `_eval_plain` "
         "resolves every static name against `cols` BEFORE any row is "
@@ -68,8 +73,6 @@ EQUIVALENT = {
 
 # (old, new) -- or (old, new, ALL) to patch every occurrence rather than
 # requiring the pattern to be unique.
-ALL = "all-occurrences"
-
 MUTANTS = {
     # --- rules added AFTER the first adversarial pass ----------------------
     # Commissioned by the suite author, who could name the case each should die
@@ -497,361 +500,94 @@ for r in seq:
 
 
 # ---------------------------------------------------------------------------
-# Matching. A mutant must survive `ruff format`; it must NEVER land on the
-# wrong line.
+# The probe: run THIS suite against a given file and say what it found.
+#
+# Everything below the mutant table is rowspec-specific and nothing above it
+# is. The kit splices, hashes, purges bytecode and accounts for the verdicts;
+# it has no idea that the thing being run is a fixture tree of tables.
 # ---------------------------------------------------------------------------
-
-_SKIP = {
-    tokenize.COMMENT,
-    tokenize.NL,
-    tokenize.NEWLINE,
-    tokenize.INDENT,
-    tokenize.DEDENT,
-    tokenize.ENDMARKER,
-    getattr(tokenize, "ENCODING", -1),
-}
-_WILD = re.compile(r"_ANY\d*")
-_FSTART = getattr(tokenize, "FSTRING_START", -2)
-_FEND = getattr(tokenize, "FSTRING_END", -3)
-
-
-class MutantError(Exception):
-    """The pattern does not identify exactly one construct in the source."""
-
-
-def _key(tok):
-    """Canonical (type, text) for one token, with quote style erased.
-
-    `ruff format` rewrites 'x' to "x" and rewraps lines. Neither changes the
-    token stream once strings are compared by VALUE and layout tokens are
-    dropped, so a mutant written against pre-format source still applies.
-    """
-    t, s = tok.type, tok.string
-    if t == tokenize.STRING:
-        try:
-            return (t, repr(ast.literal_eval(s)))
-        except Exception:
-            return (t, s)
-    if t == _FSTART:  # f' / f" / rf''' ... -> one canonical opener
-        return (t, s.rstrip("\"'"))
-    if t == _FEND:
-        return (t, "")
-    return (t, s)
-
-
-_OPEN, _CLOSE = "([{", ")]}"
-
-
-def _drop_magic_commas(toks):
-    """Delete inert trailing commas: `f(a, b,)` -> `f(a, b)`.
-
-    When a call outgrows the line limit `ruff format` explodes it one argument
-    per line AND adds a magic trailing comma. That is a pure layout change, so
-    the token stream must not see it. Never dropped where it would turn a
-    one-tuple into a parenthesised scalar: `("x",)` keeps its comma.
-    """
-    kill, stack = set(), []
-    for i, t in enumerate(toks):
-        if t.type == tokenize.OP and t.string in _OPEN:
-            stack.append([t.string, _is_call(toks, i), 0])
-        elif t.type == tokenize.OP and t.string in _CLOSE:
-            if stack:
-                brk, call, commas = stack.pop()
-                prev = toks[i - 1]
-                if prev.type == tokenize.OP and prev.string == ",":
-                    if brk != "(" or call or commas > 1:
-                        kill.add(i - 1)
-        elif t.type == tokenize.OP and t.string == "," and stack:
-            stack[-1][2] += 1
-    return [t for i, t in enumerate(toks) if i not in kill]
-
-
-_KEYWORDS = {
-    "lambda",
-    "in",
-    "not",
-    "and",
-    "or",
-    "if",
-    "else",
-    "return",
-    "yield",
-    "assert",
-    "while",
-    "elif",
-    "await",
-    "from",
-    "import",
-    "raise",
-    "for",
-}
-
-
-def _is_call(toks, i):
-    """Is toks[i] an opening bracket that follows a callable/subscriptable?"""
-    if not i:
-        return False
-    prev = toks[i - 1]
-    if prev.type == tokenize.OP:
-        return prev.string in _CLOSE
-    return (
-        prev.type in (tokenize.NAME, tokenize.STRING, tokenize.NUMBER)
-        and prev.string not in _KEYWORDS
-    )
-
-
-def _pairs(toks):
-    stack, out = [], {}
-    for i, t in enumerate(toks):
-        if t.type == tokenize.OP and t.string in _OPEN:
-            stack.append(i)
-        elif t.type == tokenize.OP and t.string in _CLOSE and stack:
-            out[stack.pop()] = i
-    return out
-
-
-def _drop_clause_parens(toks, ends_line):
-    """Delete parentheses that merely wrap a whole clause.
-
-    `ruff format` parenthesises a condition or a right-hand side that outgrows
-    the line limit:  `if a and b:` becomes `if (\n    a\n    and b\n):`. The
-    parens are layout, not syntax, so the token stream must not see them.
-
-    Restricted to a pair that runs to the END of its clause -- the `)` closes
-    the logical line, or is followed by a `:` that does. Parens in that
-    position are always redundant, so erasing them cannot make two
-    semantically different constructs compare equal. `(a) * b` is left alone
-    (the `)` does not end the clause) and `("x",)` is left alone (a one-tuple
-    keeps its comma, so the pair is not empty of top-level commas).
-    """
-    pairs, kill = _pairs(toks), set()
-    for i, j in pairs.items():
-        if toks[i].string != "(" or _is_call(toks, i):
-            continue
-        depth = 0
-        for k in range(i + 1, j):
-            if toks[k].type == tokenize.OP and toks[k].string in _OPEN:
-                depth += 1
-            elif toks[k].type == tokenize.OP and toks[k].string in _CLOSE:
-                depth -= 1
-            elif depth == 0 and toks[k].type == tokenize.OP and toks[k].string == ",":
-                break  # a tuple: the parens are load-bearing
-        else:
-            if (
-                j + 1 == len(toks)
-                or ends_line[j]
-                or (toks[j + 1].string == ":" and ends_line[j + 1])
-            ):
-                kill |= {i, j}
-    return [t for k, t in enumerate(toks) if k not in kill]
-
-
-def _tokens(src):
-    """Significant tokens of a source FRAGMENT, normalised for layout.
-
-    Fragments need not be complete: an unclosed bracket raises TokenError at
-    EOF, but every token produced before that point is already yielded.
-    """
-    raw = []
-    try:
-        raw = list(tokenize.generate_tokens(io.StringIO(src).readline))
-    except (tokenize.TokenError, IndentationError, SyntaxError):
-        raw = _partial(src)
-    out, ends = [], []
-    for tok in raw:
-        if tok.type in _SKIP:
-            if tok.type == tokenize.NEWLINE and ends:
-                ends[-1] = True
-            continue
-        out.append(tok)
-        ends.append(False)
-    keep = _drop_magic_commas(out)
-    ends = dict(zip(map(id, out), ends, strict=True))
-    return _drop_clause_parens(keep, [ends[id(t)] for t in keep])
-
-
-def _partial(src):
-    """Tokens of a fragment that does not tokenise cleanly (unclosed bracket)."""
-    out = []
-    try:
-        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
-            out.append(tok)
-    except (tokenize.TokenError, IndentationError, SyntaxError):
-        pass
-    return out
-
-
-def _offsets(src):
-    off, n = [0], 0
-    for line in src.splitlines(keepends=True):
-        n += len(line)
-        off.append(n)
-    return off
-
-
-def _match_at(win, pat):
-    """Match one window, binding _ANY wildcards consistently. -> binds | None"""
-    binds = {}
-    for a, b in zip(win, pat, strict=True):
-        ka, kb = _key(a), _key(b)
-        if kb[0] == tokenize.NAME and _WILD.fullmatch(kb[1]):
-            if ka[0] != tokenize.NAME or binds.setdefault(kb[1], ka[1]) != ka[1]:
-                return None
-            continue
-        if ka != kb:
-            return None
-    return binds
-
-
-def apply_mutant(src, old, new, mode=None):
-    """Patch `src` by matching `old` as a normalised token sequence.
-
-    Three properties, in priority order:
-
-    * PRECISE -- the pattern must match EXACTLY ONE token run (or, with
-      mode=ALL, at least one and every run is patched). An ambiguous pattern
-      raises rather than silently patching the first hit; a mutant that lands
-      on the wrong line is worse than one that does not apply at all.
-    * DURABLE -- comparison is over tokens with string values normalised, so
-      quote style, indentation, line wrapping and blank lines are all
-      irrelevant. `_ANY`/`_ANY2` in a pattern match any single identifier and
-      are substituted back into the replacement, so a mutant anchored on a
-      distinctive identifier survives the rename of an incidental one.
-    * CHECKED -- the result must parse, and must differ from the input.
-    """
-    src_toks, pat = _tokens(src), _tokens(textwrap.dedent(old))
-    if not pat:
-        raise MutantError("empty pattern")
-    hits = []
-    for i in range(len(src_toks) - len(pat) + 1):
-        binds = _match_at(src_toks[i : i + len(pat)], pat)
-        if binds is not None:
-            hits.append((i, binds))
-    if not hits:
-        raise MutantError("pattern no longer matches the source")
-    if len(hits) > 1 and mode != ALL:
-        rows = ", ".join(str(src_toks[i].start[0]) for i, _ in hits)
-        raise MutantError(f"pattern is AMBIGUOUS: matches lines {rows}")
-    off = _offsets(src)
-    out = src
-    for i, binds in reversed(hits):  # back to front: earlier spans stay valid
-        a = off[src_toks[i].start[0] - 1] + src_toks[i].start[1]
-        b = off[src_toks[i + len(pat) - 1].end[0] - 1] + src_toks[i + len(pat) - 1].end[1]
-        text = textwrap.dedent(new)
-        for w, name in binds.items():
-            text = re.sub(rf"\b{w}\b", name, text)
-        lines = text.splitlines() or [""]
-        if len(lines) > 1:
-            bol = out.rfind("\n", 0, a) + 1
-            if out[bol:a].strip():
-                raise MutantError("multi-line replacement must start a line")
-            pad = out[bol:a]
-            text = lines[0] + "".join("\n" + pad + ln if ln else "\n" for ln in lines[1:])
-        out = out[:a] + text + out[b:]
-    if out == src:
-        raise MutantError("replacement is a no-op")
-    try:
-        compile(out, "<mutant>", "exec")
-    except SyntaxError as e:
-        raise MutantError(f"mutated source does not parse: {e}") from None
-    return out
-
-
-# ---------------------------------------------------------------------------
-
-
-CRASH = "<runner crashed>"
-
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-IMPL = os.path.join(HERE, "..", "reference", "rowspec", "table.py")
+IMPL = os.path.normpath(os.path.join(HERE, "..", "reference", "rowspec", "table.py"))
 RUNNER = os.path.join(HERE, "run_cases.py")
+
+#: A name NOTHING ELSE on the path claims. `sys.path[0]` is the directory of
+#: the script the probe runs -- this one -- and the first matching directory
+#: wins, so a leftover module of the same name anywhere on the path would
+#: shadow the file the gate is measuring. The kit refuses to let this be the
+#: implementation itself: the scratch file is overwritten and then deleted.
 SCRATCH = os.path.join(HERE, "mutant_impl.py")
 
+_FAIL = re.compile(r"\s+FAIL (\S+)")
+_TOTAL = re.compile(r"(\d+) failure\(s\) across (\d+) case\(s\) in the fixture tree")
 
-def failing_cases(impl):
-    """Case ids the fixture tree reports as failing for `impl`.
 
-    A SET, not a count. The reference itself does not pass every case -- the
+def probe(path):
+    """Case ids the fixture tree reports as failing for the module in `path`.
+
+    A SET, not a count. The reference itself need not pass every case -- the
     suite is written adversarially and runs ahead of the implementation -- so
     "the mutant made N cases fail" proves nothing. A mutant is killed only if
     it breaks a case that passes WITHOUT it.
+
+    And a set is not enough on its own. This function used to add a
+    `<runner crashed>` sentinel to the set when the runner produced no
+    accounting, which made "the suite never ran" indistinguishable from "every
+    case that ran said no" -- a mutant that stopped `table.py` importing was
+    scored `killed` with not one case opened (#45). `reached=False` is the
+    honest answer, and the kit reports it as BROKEN rather than as a kill.
+
+    `reached` is decided from what the run PRODUCED, not from what it
+    intended: the exit code has to be one of the two that mean a verdict, the
+    accounting line has to be there, it has to account for at least the whole
+    tree, and it has to agree with the FAIL lines printed above it. A run
+    missing any of those measured something other than this suite.
     """
-    # cwd=HERE, and every path anchored to __file__: `run_cases.py` resolves
-    # its fixture tree relatively, and this file used to read
-    # `../reference/...`, so running the gate from the repository root raised
-    # FileNotFoundError. It was loud rather than silent, which is the only
-    # reason it was harmless -- `run_cases.py` had the same shape once and
-    # printed "0 failure(s) across the fixture tree" over 226 cases it had
-    # never opened, four of them failing.
-    r = subprocess.run([sys.executable, RUNNER, impl], capture_output=True, text=True, cwd=HERE)
-    ids, total = set(), False
-    for line in r.stdout.splitlines():
-        m = re.match(r"\s+FAIL (\S+)", line)
-        if m:
-            ids.add(m.group(1))
-        elif "failure(s) across the fixture tree" in line:
-            total = True
-    if not total:
-        ids.add(CRASH)  # the runner died on this implementation: that counts
-    return ids
-
-
-def mutant_failures(mutated):
-    with open(SCRATCH, "w") as fh:
-        fh.write(mutated)
-    return failing_cases("mutant_impl")
+    module = os.path.splitext(os.path.basename(path))[0]
+    # cwd=HERE and every path anchored to __file__. This file used to read
+    # `../reference/...` relative to wherever the gate was started, and
+    # `run_cases.py` had the same shape once and printed "0 failure(s)" over
+    # 226 cases it had never opened, four of them failing.
+    run = subprocess.run([sys.executable, RUNNER, module], capture_output=True, text=True, cwd=HERE)
+    ids, shown, total = set(), 0, None
+    for line in run.stdout.splitlines():
+        hit = _FAIL.match(line)
+        if hit:
+            ids.add(hit.group(1))
+            shown += 1
+            continue
+        hit = _TOTAL.search(line)
+        if hit:
+            total = (int(hit.group(1)), int(hit.group(2)))
+    if run.returncode not in (EXIT_OK, EXIT_FAILURES) or total is None:
+        return Verdict(reached=False)  # it crashed, or it found no tree to walk
+    failures, cases = total
+    if cases < MIN_CASES or failures != shown:
+        # It ran, but not over this tree, or its own accounting disagrees with
+        # what it printed. Either way the verdict is not about these 410 cases.
+        return Verdict(reached=False)
+    return Verdict(ids)
 
 
 def main():
-    src = open(IMPL).read()
-    base = failing_cases("rowspec.table")
-    if base:
-        print(f"  BASELINE the reference already fails {len(base)} case(s):")
-        for c in sorted(base):
-            print(f"    baseline-fail: {c}")
-        print("  Kills are counted as cases that fail ONLY under the mutant.\n")
-    survived, killed, stale, equiv, bogus = [], [], [], [], []
-    for name, spec in MUTANTS.items():
-        old, new, mode = (spec + (None,))[:3]
-        try:
-            mutated = apply_mutant(src, old, new, mode)
-        except MutantError as e:
-            stale.append((name, str(e)))
-            print(f"  STALE   {name:32} {e}")
-            continue
-        caught = sorted(mutant_failures(mutated) - base)
-        if name in EQUIVALENT:
-            if caught:
-                bogus.append((name, caught))
-                print(f"  BOGUS   {name:32} claimed EQUIVALENT but {caught} detects it")
-            else:
-                equiv.append(name)
-                print(f"  equiv   {name:32} ({EQUIVALENT[name]})")
-        elif caught:
-            killed.append(name)
-            print(f"  killed  {name:32} ({len(caught)} case(s): {', '.join(caught[:3])})")
-        else:
-            survived.append(name)
-            print(f"  SURVIVED {name:31} <-- HOLE IN THE SUITE")
-    if os.path.exists(SCRATCH):
-        os.remove(SCRATCH)
-    print(
-        f"\n{len(killed)} killed, {len(survived)} survived, "
-        f"{len(equiv)} equivalent, {len(stale)} stale"
-    )
-    if stale:
-        print("\n  A STALE MUTANT MEASURES NOTHING. The source was reformatted or")
-        print("  refactored and these patterns no longer apply, so the gate went")
-        print("  quiet without failing -- the exact silent degradation this")
-        print("  project exists to eliminate. Update them:")
-        for name, why in stale:
-            print(f"    stale: {name}: {why}")
-    for name, caught in bogus:
-        print(f"  FALSE EQUIVALENCE: {', '.join(caught)} detects {name!r}; it is a real mutant")
-    for name in survived:
-        print(f'  hole: nothing in the suite detects "{name}"')
-    return 1 if (survived or stale or bogus) else 0
+    """Three exit codes, the same three the runner uses and for the same reason.
+
+    A gate that could not run is not a gate that found nothing: an orphaned
+    equivalence claim, a scratch path pointing at the implementation, or a
+    suite that reaches no verdict on the UNMUTATED source all mean every
+    number this run could print would be meaningless.
+    """
+    try:
+        report = gate(
+            source=IMPL,
+            mutants=from_table(MUTANTS, EQUIVALENT),
+            probe=probe,
+            scratch=SCRATCH,
+        )
+    except GateError as exc:
+        print(f"\nHARD FAILURE: {exc}", file=sys.stderr)
+        return EXIT_NO_VERDICT
+    return EXIT_OK if report.ok else EXIT_FAILURES
 
 
 if __name__ == "__main__":

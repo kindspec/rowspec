@@ -4,65 +4,49 @@
 It never imports the case definitions. Any implementation exposing the same
 five entry points can be checked against the same directory, in any language,
 by a runner written in that language.
+
+Everything above that line -- walking the tree, reading fixtures as exact
+bytes, dispatching on `kind`, counting what was opened, and refusing to report
+success over a tree that yielded no verdict -- is
+[kindkit](https://github.com/kindspec/kindkit) and is the same for every kind.
+This file is what is left once that is taken out: the eight handlers that know
+what a rowspec case MEANS, and nothing else.
+
+Three exit codes, not two, because "every case passed" and "no case ran" must
+never look alike from the outside:
+
+    0   every case passed
+    1   at least one case failed -- a verdict about the implementation
+    2   the fixture tree yielded no verdict at all
 """
 
 import importlib
 import inspect
 import itertools
-import json
 import os
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "reference"))
+from kindkit import Adapter, cli, gitmerge
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+CASES = os.path.join(HERE, "cases")
 
-def sh(*a, cwd=None):
-    return subprocess.run(a, cwd=cwd, capture_output=True, text=True)
+sys.path.insert(0, os.path.join(HERE, "..", "reference"))
 
+#: The tree that shrank, as opposed to the tree that vanished. `discover`
+#: already refuses an EMPTY root; this refuses a root that has quietly lost
+#: most of itself -- a filter, a bad path, a half-checked-out tree. It is a
+#: FLOOR measured with `find conformance/cases -name expect.json | wc -l`, so
+#: adding cases never touches it and removing them has to be deliberate.
+MIN_CASES = 410
 
-def git_merge(files, order, fn="a.mdtbl"):
-    d = tempfile.mkdtemp()
-    try:
-        if sh("git", "init", "-q", d).returncode:
-            raise RuntimeError("git init failed: merge cases cannot be run")
-        for k, v in [
-            ("user.email", "t@e"),
-            ("user.name", "t"),
-            # Git's background auto-maintenance writes `maintenance.lock` into
-            # the repo and outlives the command that triggered it, so it races
-            # the `rmtree` below and the case dies with a FileNotFoundError
-            # naming a file no fixture contains. Observed on a CI runner, never
-            # reproduced locally in 5 consecutive runs. Nothing here needs
-            # maintenance: these repos exist for one merge and are deleted.
-            ("gc.auto", "0"),
-            ("maintenance.auto", "false"),
-        ]:
-            sh("git", "config", k, v, cwd=d)
-        p = os.path.join(d, fn)
-        open(p, "w").write(files["base"])
-        sh("git", "add", "-A", cwd=d)
-        if sh("git", "commit", "-qm", "b", cwd=d).returncode:
-            raise RuntimeError("git commit failed: merge cases cannot be run")
-        sh("git", "branch", "-M", "main", cwd=d)
-        for i, name in enumerate(order):
-            sh("git", "checkout", "-q", "main", cwd=d)
-            sh("git", "checkout", "-qb", f"b{i}", cwd=d)
-            open(p, "w").write(files[name])
-            if sh("git", "commit", "-qam", name, cwd=d).returncode:
-                raise RuntimeError(f"git commit failed on branch {name}")
-        sh("git", "checkout", "-q", "main", cwd=d)
-        for i in range(len(order)):
-            if sh("git", "merge", f"b{i}", "-m", "m", cwd=d).returncode:
-                return "conflict", open(p).read()
-        return "clean", open(p).read()
-    finally:
-        # Failing to delete a temp directory must never fail a conformance
-        # case: the merge already happened and its outcome is already read.
-        shutil.rmtree(d, ignore_errors=True)
+CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
+
+#: The merge cases file their sides under fixed stems, and the artifact is
+#: always one file. Which stem is the base and which are the branches is
+#: rowspec's filing convention, which is why the kit is handed texts.
+ARTIFACT = "a.mdtbl"
 
 
 def ev_at(ref, text, base):
@@ -84,170 +68,180 @@ def ev_at(ref, text, base):
     return ref.evaluate(text)
 
 
-KINDS = {
-    "parse",
-    "roundtrip",
-    "eval",
-    "rowrel",
-    "mutate",
-    "canon",
-    "merge",
-    "confluence",
-}
-CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
+def merge_sides(case, order):
+    """Run stock git over the case's sides, in `order`, and report what it did."""
+    return gitmerge.merge(case.files["base"], [case.files[n] for n in order], ARTIFACT)
 
 
-def run(impl, root="cases"):
+def adapter_for(impl):
+    """Build the adapter that checks `impl` -- the ONE thing the kit is told.
+
+    The implementation module is a parameter rather than a constant because
+    the same tree checks three of them: `rowspec.table`, the independent
+    `rowspec_alt.table`, and whatever file the mutation gate has just broken.
+    """
     ref = importlib.import_module(impl)
     importlib.reload(ref)
-    fails = []
-    seen = 0
-    for dirpath, _, names in sorted(os.walk(root)):
-        if "expect.json" not in names:
-            continue
-        seen += 1
-        cid = os.path.relpath(dirpath, root)
-        e = json.load(open(os.path.join(dirpath, "expect.json")))
-        f = {
-            n.split(".")[0]: open(os.path.join(dirpath, n), encoding="utf-8", newline="").read()
-            for n in names
-            if n.endswith(".mdtbl")
-        }
-        k = e["kind"]
 
-        def bad(msg, cid=cid):
-            fails.append(f"{cid}: {msg}")
-            print(f"  FAIL {cid}  {msg}")
-
-        if k not in KINDS:
-            bad(f"unknown kind {k!r}; nothing would have run")
-            continue
-        if k == "eval" and not e.get("aggregates"):
-            bad("eval case asserts no aggregate")
-            continue
-        if k == "canon" and e["check"] not in CANON_CHECKS:
-            bad(f"unknown canon check {e['check']!r}; nothing would have run")
-            continue
-
+    def parse(case):
         try:
-            if k == "parse":
-                try:
-                    ev_at(ref, f["input"], dirpath)
-                    got = None
-                except ref.Malformed as ex:
-                    got = str(ex)
-                if e["accept"] and got is not None:
-                    bad(f"expected accept, got {got!r}")
-                elif not e["accept"] and (got is None or e["refusal_contains"] not in got):
-                    bad(f"expected refusal ~{e['refusal_contains']!r}, got {got!r}")
-            elif k == "roundtrip":
-                out = ref.render(ref.structure(f["input"]))
-                if out != f["input"]:
-                    bad(f"{len(f['input'])}B in, {len(out)}B out")
-            elif k == "eval":
-                _, a = ev_at(ref, f["input"], dirpath)
-                for kk, vv in e["aggregates"].items():
-                    if a.get(kk) != vv:
-                        bad(f"{kk}: wanted {vv!r}, got {a.get(kk)!r}")
-            elif k == "rowrel":
-                rows, _ = ev_at(ref, f["input"], dirpath)
-                got = rows[e["row_index"]].get(e["column"])
-                if got != e["value"]:
-                    bad(f"{e['column']}: wanted {e['value']!r}, got {got!r}")
-            elif k == "mutate":
-                st = ref.structure(f["input"])
-                rk = e["row_key"]
-                if e.get("expect") == "refuse":
-                    try:
-                        ref.set_cell(st, rk, e["column"], e["value"])
-                        bad("accepted a computed-cell write")
-                    except ref.Malformed:
-                        pass
-                else:
-                    out = ref.render(ref.set_cell(st, rk, e["column"], e["value"]))
-                    if "aggregate" in e:
-                        _, a = ev_at(ref, out, dirpath)
-                        if a.get(e["aggregate"]) != e["result"]:
-                            bad(
-                                f"wanted {e['aggregate']}={e['result']}, "
-                                f"got {a.get(e['aggregate'])}"
-                            )
-                    else:
-                        # Not `str(value) in out`: a substring test over the whole
-                        # file passes when the value already appears anywhere in
-                        # it, including in the row that was NOT written.
-                        rows_out, _ = ev_at(ref, out, dirpath)
-                        hit = [r for r in rows_out if rk in r.values()]
-                        if not hit:
-                            bad(f"row {rk!r} is gone from the rendered output")
-                        elif str(hit[0].get(e["column"])) != str(e["value"]):
-                            bad(
-                                f"{e['column']} of row {rk}: wanted {e['value']!r}, "
-                                f"got {hit[0].get(e['column'])!r}"
-                            )
-            elif k == "canon":
-                c1 = ref.canon(f["input"])
-                c2 = ref.canon(c1)
-                if e["check"] == "idempotent" and c1 != c2:
-                    bad("canon not idempotent")
-                elif (
-                    e["check"] == "preserves-values"
-                    and ev_at(ref, f["input"], dirpath)[1] != ev_at(ref, c1, dirpath)[1]
-                ):
-                    bad("canon changed the values")
-                elif e["check"] == "removes-padding":
-                    body = [ln for ln in c1.splitlines() if ln.startswith("|")]
-                    padded = [
-                        ln
-                        for ln in body
-                        if re.search(r"\|  +[^ |]", ln) or re.search(r"[^ |]  +\|", ln)
-                    ]
-                    if padded:
-                        bad(f"alignment padding survived canon: {padded[0]!r}")
-                    elif c1 == f["input"] and any("  " in ln for ln in f["input"].splitlines()):
-                        bad("canon is the identity function on padded input")
-                elif e["check"] == "already-canonical" and c1 != f["input"]:
-                    bad("canon changed canonical input")
-            elif k == "merge":
-                st, merged = git_merge(f, ["ours", "theirs"])
-                if st != e["git_outcome"]:
-                    bad(f"git said {st}, expected {e['git_outcome']}")
-                elif e.get("then") == "refuse":
-                    try:
-                        ev_at(ref, merged, dirpath)
-                        bad("parser ACCEPTED a corrupt merge")
-                    except ref.Malformed:
-                        pass
-                elif e.get("then") == "evaluate":
-                    _, a = ev_at(ref, merged, dirpath)
-                    for kk, vv in e["aggregates"].items():
-                        if a.get(kk) != vv:
-                            bad(f"SILENTLY WRONG: {kk} wanted {vv}, got {a.get(kk)}")
-            elif k == "confluence":
-                names = [f"branch{i}" for i in range(e["branches"])]
-                res = set()
-                for perm in itertools.permutations(names):
-                    s2, m2 = git_merge(f, list(perm))
-                    res.add(
-                        "conflict"
-                        if s2 == "conflict"
-                        else tuple(sorted(ev_at(ref, m2, dirpath)[1].items()))
-                    )
-                if len(res) != 1:
-                    bad(f"{len(res)} distinct outcomes across merge orders")
-        except Exception as ex:
-            bad(f"{type(ex).__name__}: {ex}")
-    if not seen:
-        # A suite that finds no cases must not report success. `root` is
-        # relative, so running this from the repo root instead of `conformance/`
-        # walked an empty path and printed "0 failure(s)" over 226 unrun cases
-        # -- four of which were failing.
-        fails.append(f"no cases found under {os.path.abspath(root)!r}")
-        print(f"  FAIL no cases found under {os.path.abspath(root)!r}")
-    return fails
+            ev_at(ref, case.files["input"], case.dir)
+            got = None
+        except ref.Malformed as ex:
+            got = str(ex)
+        if case.expect["accept"] and got is not None:
+            yield f"expected accept, got {got!r}"
+        elif not case.expect["accept"] and (
+            got is None or case.expect["refusal_contains"] not in got
+        ):
+            yield f"expected refusal ~{case.expect['refusal_contains']!r}, got {got!r}"
+
+    def roundtrip(case):
+        out = ref.render(ref.structure(case.files["input"]))
+        if out != case.files["input"]:
+            yield f"{len(case.files['input'])}B in, {len(out)}B out"
+
+    def eval_(case):
+        e = case.expect
+        if not e.get("aggregates"):
+            # A case that asserts nothing cannot fail, and a suite of them
+            # reports a number that means nothing.
+            yield "eval case asserts no aggregate"
+            return
+        _, a = ev_at(ref, case.files["input"], case.dir)
+        for kk, vv in e["aggregates"].items():
+            if a.get(kk) != vv:
+                yield f"{kk}: wanted {vv!r}, got {a.get(kk)!r}"
+
+    def rowrel(case):
+        e = case.expect
+        rows, _ = ev_at(ref, case.files["input"], case.dir)
+        got = rows[e["row_index"]].get(e["column"])
+        if got != e["value"]:
+            yield f"{e['column']}: wanted {e['value']!r}, got {got!r}"
+
+    def mutate(case):
+        e = case.expect
+        st = ref.structure(case.files["input"])
+        rk = e["row_key"]
+        if e.get("expect") == "refuse":
+            try:
+                ref.set_cell(st, rk, e["column"], e["value"])
+                yield "accepted a computed-cell write"
+            except ref.Malformed:
+                pass
+            return
+        out = ref.render(ref.set_cell(st, rk, e["column"], e["value"]))
+        if "aggregate" in e:
+            _, a = ev_at(ref, out, case.dir)
+            if a.get(e["aggregate"]) != e["result"]:
+                yield f"wanted {e['aggregate']}={e['result']}, got {a.get(e['aggregate'])}"
+            return
+        # Not `str(value) in out`: a substring test over the whole file passes
+        # when the value already appears anywhere in it, including in the row
+        # that was NOT written.
+        rows_out, _ = ev_at(ref, out, case.dir)
+        hit = [r for r in rows_out if rk in r.values()]
+        if not hit:
+            yield f"row {rk!r} is gone from the rendered output"
+        elif str(hit[0].get(e["column"])) != str(e["value"]):
+            yield (
+                f"{e['column']} of row {rk}: wanted {e['value']!r}, got {hit[0].get(e['column'])!r}"
+            )
+
+    def canon(case):
+        e = case.expect
+        if e["check"] not in CANON_CHECKS:
+            yield f"unknown canon check {e['check']!r}; nothing would have run"
+            return
+        c1 = ref.canon(case.files["input"])
+        c2 = ref.canon(c1)
+        if e["check"] == "idempotent" and c1 != c2:
+            yield "canon not idempotent"
+        elif (
+            e["check"] == "preserves-values"
+            and ev_at(ref, case.files["input"], case.dir)[1] != ev_at(ref, c1, case.dir)[1]
+        ):
+            yield "canon changed the values"
+        elif e["check"] == "removes-padding":
+            body = [ln for ln in c1.splitlines() if ln.startswith("|")]
+            padded = [
+                ln for ln in body if re.search(r"\|  +[^ |]", ln) or re.search(r"[^ |]  +\|", ln)
+            ]
+            if padded:
+                yield f"alignment padding survived canon: {padded[0]!r}"
+            elif c1 == case.files["input"] and any(
+                "  " in ln for ln in case.files["input"].splitlines()
+            ):
+                yield "canon is the identity function on padded input"
+        elif e["check"] == "already-canonical" and c1 != case.files["input"]:
+            yield "canon changed canonical input"
+
+    def merge(case):
+        e = case.expect
+        st, merged = merge_sides(case, ["ours", "theirs"])
+        if st != e["git_outcome"]:
+            yield f"git said {st}, expected {e['git_outcome']}"
+        elif e.get("then") == "refuse":
+            try:
+                ev_at(ref, merged, case.dir)
+                yield "parser ACCEPTED a corrupt merge"
+            except ref.Malformed:
+                pass
+        elif e.get("then") == "evaluate":
+            _, a = ev_at(ref, merged, case.dir)
+            for kk, vv in e["aggregates"].items():
+                if a.get(kk) != vv:
+                    yield f"SILENTLY WRONG: {kk} wanted {vv}, got {a.get(kk)}"
+
+    def confluence(case):
+        names = [f"branch{i}" for i in range(case.expect["branches"])]
+        res = set()
+        for perm in itertools.permutations(names):
+            s2, m2 = merge_sides(case, list(perm))
+            res.add(
+                gitmerge.CONFLICT
+                if s2 == gitmerge.CONFLICT
+                else tuple(sorted(ev_at(ref, m2, case.dir)[1].items()))
+            )
+        if len(res) != 1:
+            yield f"{len(res)} distinct outcomes across merge orders"
+
+    return Adapter(
+        fixture_suffixes=(".mdtbl",),
+        handlers={
+            "parse": parse,
+            "roundtrip": roundtrip,
+            "eval": eval_,
+            "rowrel": rowrel,
+            "mutate": mutate,
+            "canon": canon,
+            "merge": merge,
+            "confluence": confluence,
+        },
+    )
+
+
+def main(argv):
+    """`run_cases.py [IMPL] [ROOT] [--min-cases N]`.
+
+    `IMPL` is an importable module, so the gate can point this at a file it
+    has just broken. The fixture root defaults to `cases/` ANCHORED to this
+    file, not to the working directory: reading it relatively is how this
+    runner once walked an empty path and printed "0 failure(s)" over 226
+    unopened cases, four of which were failing.
+    """
+    impl, rest = "rowspec.table", list(argv)
+    if rest and not rest[0].startswith("-"):
+        impl, rest = rest[0], rest[1:]
+    return cli.main(
+        adapter_for(impl),
+        rest,
+        prog="run_cases.py",
+        default_root=CASES,
+        default_min_cases=MIN_CASES,
+    )
 
 
 if __name__ == "__main__":
-    f = run(sys.argv[1] if len(sys.argv) > 1 else "rowspec.table")
-    print(f"\n{len(f)} failure(s) across the fixture tree")
-    sys.exit(1 if f else 0)
+    sys.exit(main(sys.argv[1:]))
