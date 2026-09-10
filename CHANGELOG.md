@@ -17,12 +17,20 @@ prose, and where the two disagree the suite wins.
   whose total is `#REF!`, and that the same file passes with `eval: false` — so
   the first assertion is about `eval` and not about the file.
 
+- **The xlsx boundary** — export ships as the optional `rowspec[xlsx]` extra
+  from `export/rowspec_xlsx`, outside `reference/`, which stays
+  standard-library-only. `tests/test_boundary.py` fails if anything under
+  `reference/` imports outside the standard library, so the rule is enforced
+  rather than remembered. The exporter itself is deliberately minimal: literal
+  values only. Closes #34; #35 and #36 are the round-trip claim.
+
 ### Fixed
 
 - **`just test` had never run in CI.** The conformance suite and the mutation
   gate did, through `just conform` and `just mutants`, so the gap was invisible
   — but `tests/` also holds the CSV refusals and the CLI's own behaviour, and
-  nothing on a forge ran them.
+  nothing on a forge ran them. It now runs with the xlsx extra deliberately
+  absent, behind a step that asserts the extra really is absent.
 - The mutation gate took its paths from the working directory, so it reported
   differently depending on where it was invoked from (`c0b9a7a`, closes #31).
   Paths are now anchored to `__file__`.

@@ -128,12 +128,36 @@ just test       # conformance suite + mutation gate + corpus checks
 just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
 just conform-alt # the SECOND implementation, against the same fixture tree
+just test-xlsx  # the exporter, WITH its optional extra installed
 just run FILE   # validate an artifact (rowspec check)
 just eval FILE  # print computed values and FAIL on any #REF!
 ```
 
 A real `git` binary is required. The suite's central claim is about what stock
 git does, so it uses stock git.
+
+## Export to xlsx, only if you ask for it
+
+```sh
+pip install rowspec           # no xlsx dependency, and none is coming
+pip install 'rowspec[xlsx]'   # openpyxl, and the exporter that uses it
+python -m rowspec_xlsx table.mdtbl table.xlsx
+```
+
+The exporter lives in `export/`, **outside `reference/`**, and that is the
+whole design. `reference/` is standard-library-only because a dependency there
+is a dependency every independent implementation of the format inherits, and an
+independent implementation of a table format must not be required to read xlsx.
+A test fails if anything under `reference/` ever imports outside the standard
+library, so the boundary is a check rather than a convention.
+
+What it writes today is deliberately minimal: one sheet, literal values, the
+declared aggregates below the grid. Structured references and `SUBTOTAL`
+([#35](https://github.com/kindspec/rowspec/issues/35)) and a test that asserts
+on what LibreOffice recalculates
+([#36](https://github.com/kindspec/rowspec/issues/36)) are what make the
+round-trip claim worth stating, and neither has landed — so the claim is not
+made here.
 
 ## Two commands, and you need both
 

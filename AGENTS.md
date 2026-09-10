@@ -31,6 +31,7 @@ SPEC.md               the normative specification (CC-BY-4.0)
 conformance/cases/    fixtures: directories of real files + expect.json (CC0)
 conformance/          the tree-driven runner and the mutation gate (MIT)
 reference/rowspec/    the reference implementation (Apache-2.0 OR MIT)
+export/rowspec_xlsx/  xlsx export, outside reference/ on purpose (Apache-2.0 OR MIT)
 tests/                pytest wrappers around the suite
 ```
 
@@ -39,6 +40,7 @@ tests/                pytest wrappers around the suite
 ```sh
 just setup    just check    just test    just conform    just mutants
 just conform-alt          # the SECOND implementation, same fixture tree
+just test-xlsx            # the exporter, WITH its optional extra installed
 ```
 
 [ROADMAP.md](ROADMAP.md) is what is next and what is deliberately not.
@@ -47,7 +49,10 @@ just conform-alt          # the SECOND implementation, same fixture tree
 ## Conventions
 
 - **`reference/` is standard library only.** A dependency there is a dependency
-  every independent implementation inherits.
+  every independent implementation inherits. Code that needs one lives in
+  `export/`, behind an optional extra — and `tests/test_boundary.py` fails if
+  anything under `reference/` ever imports outside the standard library, so
+  this is a check rather than something to remember.
 - Fixtures are exact bytes. `conformance/cases/` is excluded from whitespace
   hooks for that reason — never "tidy" a fixture.
 - Errors name entities, never offsets. `#REF!(unit)`, not "error at line 7".

@@ -3,7 +3,8 @@ rowspec is licensed per directory. This is deliberate, not an oversight.
   SPEC.md, docs/            CC-BY-4.0
   conformance/cases/        CC0-1.0
   conformance/*.py          MIT
-  reference/, tests/        Apache-2.0 OR MIT
+  reference/, export/,
+  tests/                    Apache-2.0 OR MIT
 
 Full texts are in LICENSES/. Each directory carries its own LICENSE file, and
 source files carry SPDX headers.
