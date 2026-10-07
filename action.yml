@@ -1,7 +1,9 @@
 # A GitHub Action, at the repository root so that `uses: kindspec/rowspec@vX.Y.Z`
-# resolves without a second repository to keep in sync. The action installs the
-# rowspec version that matches its own tag, so the ref you pin is the behaviour
-# you get -- `release.yml` refuses to build if these two ever disagree.
+# resolves without a second repository to keep in sync. By default the action
+# installs the rowspec version that matches its own tag, so the ref you pin is
+# the behaviour you get -- `release.yml` refuses to build if these two ever
+# disagree, and smoke-tests that default once the release is on PyPI. Setting
+# the `install` input opts out of that guarantee; the self-test does, on purpose.
 name: rowspec
 description: Validate tables that must survive version control, and fail on a total that is quietly wrong.
 branding:

@@ -19,6 +19,13 @@ argument against writing one.
   whose total is `#REF!`, and that the same file passes with `eval: false` — so
   the first assertion is about `eval` and not about the file.
 
+- **An `install` input on the action** (#51), defaulting to the release the
+  tag names. The self-test sets it to `.`: until then it installed the pinned
+  wheel from PyPI, so a regression in a pull request's own code could not turn
+  either required self-test job red. Watched red both ways on the branch —
+  `eval` exiting 0 on a broken total, and `eval` exiting 1 on a good tree.
+  `release.yml` now runs the action with the default install after publishing.
+
 - **The xlsx boundary** — export ships as the optional `rowspec[xlsx]` extra
   from `export/rowspec_xlsx`, outside `reference/`, which stays
   standard-library-only. `tests/test_boundary.py` fails if anything under

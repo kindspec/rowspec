@@ -101,3 +101,42 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  # The action's DEFAULT install -- `rowspec==<pin>` from PyPI -- is what every
+  # consumer runs, and the self-test deliberately overrides it to test the
+  # checkout. This is the first point at which the pinned version exists, so it
+  # is the one place the default path can be exercised.
+  smoke:
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: wait until PyPI serves the release
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          for i in $(seq 30); do
+            pip download --no-deps --disable-pip-version-check -q -d /tmp/probe "rowspec==$v" && exit 0
+            sleep 10
+          done
+          echo "::error::rowspec==$v was not installable from PyPI after 5 minutes"
+          exit 1
+      - uses: ./
+        with:
+          paths: docs/example
+      - name: a table whose total is wrong
+        run: |
+          mkdir -p /tmp/broken
+          printf '| id | a | z | t = a / z |\n| -- | -: | -: | -: |\n| r_1 | 5 | 0 |  |\n' \
+            > /tmp/broken/quietly-wrong.mdtbl
+      - uses: ./
+        id: should_fail
+        continue-on-error: true
+        with:
+          paths: /tmp/broken
+      - name: the released action must have failed
+        run: |
+          if [ "${{ steps.should_fail.outcome }}" != "failure" ]; then
+            echo "::error::the released action PASSED a table whose total is #REF!"
+            exit 1
+          fi
