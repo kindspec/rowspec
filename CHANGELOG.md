@@ -7,6 +7,14 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Removed
+
+- **`conformance/corpus_check.py` and its CI step.** It looked for duplicate
+  `id:` lines in `.md`, `.tbl` and `.canvas` files, and never opened a
+  `.mdtbl` file, so it could not fail on anything this repository specifies.
+  On this tree it printed `0 identified artifact(s), 0 duplicate id(s)`. A
+  green step that measures nothing is a check that cannot fail.
+
 ### Changed
 
 - **The mutation gate's probe reads a JSON verdict, not the runner's prose.**

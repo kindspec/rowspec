@@ -70,9 +70,6 @@ jobs:
         run: |
           uv run python -m rowspec check docs/example || true
           uv run python -m rowspec eval  docs/example || true
-      - name: corpus-scoped checks
-        if: always()
-        run: uv run python conformance/corpus_check.py .
 
   # The other half of the same boundary. The exporter's tests SKIP when the
   # extra is absent, so without this job they would never run anywhere and the
