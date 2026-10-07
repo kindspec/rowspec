@@ -10,9 +10,12 @@ Fixtures under conformance/cases/ carry no header: they are exact bytes, and
 `.json` cannot hold a comment. That directory's LICENSE is what covers them.
 """
 
-import glob
+import fnmatch
 import os
 import re
+import subprocess
+
+import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPDX = re.compile(r"SPDX-License-Identifier: (.+?)(?: -->)?$")
@@ -31,16 +34,31 @@ DIRECTORIES = {
 }
 
 
+def tracked():
+    """The files git tracks. Not a filesystem glob: an untracked leftover --
+    `conformance/_vacuous.py` from an interrupted `just test`, say -- is not
+    part of the repository and must not decide this test."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", ROOT, "ls-files", "-z"], capture_output=True, text=True, check=True
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        pytest.skip("not a git checkout (e.g. an unpacked sdist): nothing says what is tracked")
+    return [p for p in out.split("\0") if p]
+
+
 def headed_files():
     """{path relative to ROOT: the licence its header must name}."""
+    files = tracked()
     want = {"SPEC.md": "CC-BY-4.0"}
-    want |= {p: "MIT" for p in glob.glob("conformance/*.py", root_dir=ROOT)}
-    for p in glob.glob("conformance/reserved/**/*.md", root_dir=ROOT, recursive=True):
-        want[p] = "CC0-1.0"
-    for top in ("docs", "reference", "export", "tests"):
-        for ext in ("py", "md", "yml"):
-            for p in glob.glob(f"{top}/**/*.{ext}", root_dir=ROOT, recursive=True):
-                want[p] = DIRECTORIES[top]
+    for p in files:
+        top = p.split("/", 1)[0]
+        if fnmatch.fnmatch(p, "conformance/*.py") and p.count("/") == 1:
+            want[p] = "MIT"
+        elif fnmatch.fnmatch(p, "conformance/reserved/*.md"):
+            want[p] = "CC0-1.0"
+        elif top in ("docs", "reference", "export", "tests") and p.endswith((".py", ".md", ".yml")):
+            want[p] = DIRECTORIES[top]
     return want
 
 
@@ -75,4 +93,8 @@ def test_every_licensed_directory_carries_a_license_file():
         path = os.path.join(ROOT, d, "LICENSE")
         assert os.path.isfile(path), f"{d}/LICENSE is missing"
         with open(path, encoding="utf-8") as fh:
-            assert fh.read().startswith(spdx), f"{d}/LICENSE does not name {spdx}"
+            # The whole identifier: `MIT-0` must not pass for `MIT`.
+            text = fh.read()
+            assert re.match(re.escape(spdx) + r"(?=$|\s|\.\s)", text), (
+                f"{d}/LICENSE does not name {spdx}: {text.splitlines()[0]!r}"
+            )
