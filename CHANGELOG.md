@@ -10,9 +10,7 @@ prose, and where the two disagree the suite wins.
 ## [0.2.0] — 2026-10-07
 
 Everything since `v0.1.0` (`625ddb2`); documentation-only commits are not
-listed separately. A hand-maintained count
-of them used to stand here and was wrong within two commits, which is the
-argument against writing one.
+listed separately.
 
 ### Added
 
@@ -21,12 +19,13 @@ argument against writing one.
   whose total is `#REF!`, and that the same file passes with `eval: false` — so
   the first assertion is about `eval` and not about the file.
 
-- **An `install` input on the action** (#51), defaulting to the pinned
-  release, which `release.yml` checks matches the tag being released. The self-test sets it to `.`: until then it installed the pinned
-  wheel from PyPI, so a regression in a pull request's own code could not turn
-  either required self-test job red. Watched red both ways on the branch —
-  `eval` exiting 0 on a broken total, and `eval` exiting 1 on a good tree.
-  The default install path is no longer exercised by any job (#52).
+- **An `install` input on the action** (#51), defaulting to the pinned release,
+  which `release.yml` checks matches the tag being released. The self-test sets
+  it to `.`: until then it installed the pinned wheel from PyPI, so a regression
+  in a pull request's own code could not turn either required self-test job red.
+  Watched red both ways on the branch — `eval` exiting 0 on a broken total, and
+  `eval` exiting 1 on a good tree. The default install path is no longer
+  exercised by any job (#52).
 
 - **The xlsx boundary** — export ships as the optional `rowspec[xlsx]` extra
   from `export/rowspec_xlsx`, outside `reference/`, which stays
@@ -85,6 +84,8 @@ argument against writing one.
 
 ### Fixed
 
+- **`rowspec.__version__` reported `0.0.0`**, in the published 0.1.0 wheel
+  too. It now matches the package version.
 - **An `EQUIVALENT` claim naming a mutant that no longer exists is a hard
   failure** (closes #37). The claim is a field on the mutant now, not a row in
   a side table keyed by name, so it cannot outlive what it excuses. The
