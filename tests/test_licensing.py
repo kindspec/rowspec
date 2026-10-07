@@ -21,6 +21,9 @@ SPDX = re.compile(r"SPDX-License-Identifier: (.+?)(?: -->)?$")
 DIRECTORIES = {
     "docs": "CC-BY-4.0",
     "conformance/cases": "CC0-1.0",
+    # Fixtures for features this edition reserves; fixtures are CC0 so they can
+    # be vendored, wherever in the tree they sit.
+    "conformance/reserved": "CC0-1.0",
     "conformance": "MIT",
     "reference": "Apache-2.0 OR MIT",
     "export": "Apache-2.0 OR MIT",
@@ -32,6 +35,8 @@ def headed_files():
     """{path relative to ROOT: the licence its header must name}."""
     want = {"SPEC.md": "CC-BY-4.0"}
     want |= {p: "MIT" for p in glob.glob("conformance/*.py", root_dir=ROOT)}
+    for p in glob.glob("conformance/reserved/**/*.md", root_dir=ROOT, recursive=True):
+        want[p] = "CC0-1.0"
     for top in ("docs", "reference", "export", "tests"):
         for ext in ("py", "md", "yml"):
             for p in glob.glob(f"{top}/**/*.{ext}", root_dir=ROOT, recursive=True):
@@ -53,6 +58,7 @@ def test_the_scan_reads_the_files_it_claims_to():
     for p in (
         "SPEC.md",
         "conformance/run_cases.py",
+        "conformance/reserved/README.md",
         "reference/rowspec/table.py",
         "tests/test_licensing.py",
     ):
