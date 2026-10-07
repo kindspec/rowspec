@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 # Dogfoods the action at the repository root, in BOTH directions.
 #
 # A self-test that only runs the passing case proves the action can succeed and

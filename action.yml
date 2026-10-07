@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 # A GitHub Action, at the repository root so that `uses: kindspec/rowspec@vX.Y.Z`
 # resolves without a second repository to keep in sync. By default the action
 # installs the rowspec version that matches its own tag, so the ref you pin is

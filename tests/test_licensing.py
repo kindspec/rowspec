@@ -53,7 +53,16 @@ def headed_files():
     want = {"SPEC.md": "CC-BY-4.0"}
     for p in files:
         top = p.split("/", 1)[0]
-        if fnmatch.fnmatch(p, "conformance/*.py") and p.count("/") == 1:
+        if p in ("action.yml", "action.yaml", "justfile") or fnmatch.fnmatch(
+            p, ".github/workflows/*.y*ml"
+        ):
+            # Build and CI configuration: licensed like the code it builds.
+            want[p] = "Apache-2.0 OR MIT"
+        elif p == "docs/ci/rowspec-check.yml":
+            # The copy-me CI template: CC0 so a user can paste it into their
+            # repository without an attribution obligation.
+            want[p] = "CC0-1.0"
+        elif fnmatch.fnmatch(p, "conformance/*.py") and p.count("/") == 1:
             want[p] = "MIT"
         elif fnmatch.fnmatch(p, "conformance/reserved/*.md"):
             want[p] = "CC0-1.0"
@@ -76,6 +85,10 @@ def test_the_scan_reads_the_files_it_claims_to():
     for p in (
         "SPEC.md",
         "conformance/run_cases.py",
+        "action.yml",
+        "justfile",
+        ".github/workflows/check.yml",
+        "docs/ci/rowspec-check.yml",
         "conformance/reserved/README.md",
         "reference/rowspec/table.py",
         "tests/test_licensing.py",

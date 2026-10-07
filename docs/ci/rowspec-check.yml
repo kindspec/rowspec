@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: CC-BY-4.0
+# SPDX-License-Identifier: CC0-1.0
 # Copy this file to .github/workflows/rowspec-check.yml in your repository.
 #
 # Why a workflow, and not a hook or a merge driver: a workflow file is the only
