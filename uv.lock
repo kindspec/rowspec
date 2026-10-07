@@ -32,7 +32,7 @@ wheels = [
 [[package]]
 name = "kindkit"
 version = "0.1.0"
-source = { git = "https://github.com/kindspec/kindkit?rev=d5cb2169dc265576f9c21cdf6306cf07b27ff426#d5cb2169dc265576f9c21cdf6306cf07b27ff426" }
+source = { git = "https://github.com/kindspec/kindkit?rev=e2aa3342781623188546f69ef471addaeb217a79#e2aa3342781623188546f69ef471addaeb217a79" }
 
 [[package]]
 name = "openpyxl"
@@ -112,7 +112,7 @@ provides-extras = ["xlsx"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "kindkit", git = "https://github.com/kindspec/kindkit?rev=d5cb2169dc265576f9c21cdf6306cf07b27ff426" },
+    { name = "kindkit", git = "https://github.com/kindspec/kindkit?rev=e2aa3342781623188546f69ef471addaeb217a79" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
 ]
