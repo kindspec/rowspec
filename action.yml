@@ -47,6 +47,16 @@ inputs:
     required: false
     default: "rowspec==0.2.0"
 
+outputs:
+  eval-outcome:
+    description: >
+      The outcome of the `rowspec eval` step: success or failure, or skipped
+      when `eval` is false OR the action stopped before eval ran (for example
+      because the install failed). A caller asserting that eval refused
+      something should read this, not the action's overall outcome, which is
+      `failure` in both cases.
+    value: ${{ steps.eval.outcome }}
+
 runs:
   using: composite
   steps:
