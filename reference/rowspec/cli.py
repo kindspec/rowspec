@@ -171,7 +171,7 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
                 cell = _offending_cell(rows, name)
                 if cell is not None:
                     print(f"        {_why_not_a_number(cell)}", file=sys.stderr)
-    return 0  # TEMPORARY: red-state probe for #51
+    return 1 if bad else 0
 
 
 def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
