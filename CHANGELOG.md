@@ -7,8 +7,10 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
-`v0.1.0` tags `625ddb2`. Everything below has landed on `main` since;
-documentation-only commits are not listed separately. A hand-maintained count
+## [0.2.0] — 2026-10-07
+
+Everything since `v0.1.0` (`625ddb2`); documentation-only commits are not
+listed separately. A hand-maintained count
 of them used to stand here and was wrong within two commits, which is the
 argument against writing one.
 
@@ -161,8 +163,6 @@ argument against writing one.
   differently depending on where it was invoked from (`c0b9a7a`, closes #31).
   Paths are now anchored to `__file__`.
 
-See [ROADMAP.md](ROADMAP.md) for what 0.2.0 is scoped to.
-
 ## [0.1.0] — 2026-08-31
 
 Draft 0. First release.
@@ -212,5 +212,6 @@ actually ran. The two grammars diverged invisibly until differential evaluation
 against 55,681 real spreadsheet cells found it — not a check that could not
 fail, but a check that was never against the specification at all.
 
-[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kindspec/rowspec/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kindspec/rowspec/releases/tag/v0.1.0

@@ -11,7 +11,7 @@ path.
 
 ## Where it is
 
-**Draft 0, released as `v0.1.0`**, on PyPI, with a GitHub Action.
+**Draft 0, released as `v0.2.0`**, on PyPI, with a GitHub Action.
 
     410 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
@@ -67,10 +67,13 @@ on the kit, and nothing here settles it.
 
 **This is load-bearing**, so it takes more than one independent review pass.
 
-### 0.2.0 — export to `.xlsx`
+### 0.2.0 — export to `.xlsx` — **first half landed**
 
-The strongest downstream story and the only unstarted milestone from the
-bootstrap plan. Verified in design as essentially lossless with real structured
+Literal-value export ships in 0.2.0 as the `rowspec[xlsx]` extra. Structured
+references and `SUBTOTAL` aggregates (#35) and the LibreOffice round-trip
+check (#36) are the open half.
+
+The strongest downstream story. Verified in design as essentially lossless with real structured
 references and `SUBTOTAL` aggregates recalculating in LibreOffice.
 
 **It lives outside `reference/`, as an optional extra.** `AGENTS.md` makes
