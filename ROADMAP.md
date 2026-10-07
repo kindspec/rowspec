@@ -11,7 +11,8 @@ path.
 
 ## Where it is
 
-**Draft 0, released as `v0.1.0`**, on PyPI, with a GitHub Action.
+**Draft 0**, released as `v0.1.0` and `v0.2.0` (latest), on PyPI, with a
+GitHub Action.
 
     410 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
@@ -28,9 +29,9 @@ written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
 
-## Next
+## Shipped in 0.2.0
 
-### 0.2.0 — rowspec on kindkit — **landed**
+### rowspec on kindkit
 
 The runner and the mutation gate are now
 [kindspec/kindkit](https://github.com/kindspec/kindkit), and rowspec is its
@@ -67,11 +68,17 @@ on the kit, and nothing here settles it.
 
 **This is load-bearing**, so it takes more than one independent review pass.
 
-### 0.2.0 — export to `.xlsx`
+### Export to `.xlsx`, literal values
 
-The strongest downstream story and the only unstarted milestone from the
-bootstrap plan. Verified in design as essentially lossless with real structured
-references and `SUBTOTAL` aggregates recalculating in LibreOffice.
+Literal-value export ships as the `rowspec[xlsx]` extra.
+
+## Next
+
+### Export to `.xlsx` — structured references and the round-trip (#35, #36)
+
+The strongest downstream story. Verified in design as essentially lossless
+with real structured references and `SUBTOTAL` aggregates recalculating in
+LibreOffice; neither is built yet.
 
 **It lives outside `reference/`, as an optional extra.** `AGENTS.md` makes
 `reference/` standard-library-only because *a dependency there is a dependency
@@ -80,8 +87,8 @@ of a table format must not be required to read xlsx. Export ships as
 `rowspec[xlsx]` with its own tests and its own dependency.
 
 The round-trip claim is only worth stating if it is checked against a real
-spreadsheet application, so the test asserts on values recalculated by
-LibreOffice, not on bytes we wrote.
+spreadsheet application, so the test (#36) must assert on values recalculated
+by LibreOffice, not on bytes we wrote. Until it exists, the claim is not made.
 
 ## Open, and deliberately not rushed
 
