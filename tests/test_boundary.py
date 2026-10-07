@@ -53,7 +53,19 @@ def imported_names(path):
         elif isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:  # a relative import is internal
                 names.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call) and _dynamic_import(node.func):
+            arg = node.args[0] if node.args else None
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                names.add(arg.value.split(".")[0])
     return names
+
+
+def _dynamic_import(func):
+    """`__import__(...)`, `importlib.import_module(...)` or a bare
+    `import_module(...)`. Only a constant name is readable statically."""
+    if isinstance(func, ast.Name):
+        return func.id in ("__import__", "import_module")
+    return isinstance(func, ast.Attribute) and func.attr == "import_module"
 
 
 def third_party(root):
@@ -104,6 +116,21 @@ def test_the_audit_sees_a_from_import_and_ignores_a_relative_one(tmp_path):
         "from openpyxl.workbook import Workbook\nfrom . import export_file\n"
     )
     assert imported_names(str(tmp_path / "a.py")) == {"openpyxl"}
+
+
+def test_the_audit_sees_a_dynamic_import_with_a_constant_name(tmp_path):
+    """`__import__` and `importlib.import_module` take a dependency as surely as
+    `import` does. A non-constant name cannot be read statically and is not
+    attempted."""
+    (tmp_path / "d.py").write_text(
+        "import importlib\n"
+        "from importlib import import_module\n"
+        "a = __import__('openpyxl')\n"
+        "b = importlib.import_module('lxml.etree')\n"
+        "c = import_module('yaml')\n"
+        "d = importlib.import_module(name)\n"
+    )
+    assert imported_names(str(tmp_path / "d.py")) == {"importlib", "openpyxl", "lxml", "yaml"}
 
 
 # ---------------------------------------------------------------------------
