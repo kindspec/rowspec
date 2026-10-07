@@ -30,13 +30,10 @@ probe that runs THIS suite against a given file.
 """
 
 import os
-import re
-import subprocess
 import sys
 
-from kindkit import ALL, GateError, Verdict, from_table, gate
+from kindkit import ALL, GateError, from_table, gate, probe_command
 from kindkit.cli import EXIT_FAILURES, EXIT_NO_VERDICT, EXIT_OK
-from run_cases import MIN_CASES
 
 # Mutations proven to have no observable effect: an earlier fix made the
 # mutated line unreachable. A gate cannot distinguish these from suite holes on
@@ -519,9 +516,6 @@ RUNNER = os.path.join(HERE, "run_cases.py")
 #: is overwritten and then deleted.
 SCRATCH = os.path.join(HERE, "mutant_impl.py")
 
-_FAIL = re.compile(r"\s+FAIL (\S+)")
-_TOTAL = re.compile(r"(\d+) failure\(s\) across (\d+) case\(s\) in the fixture tree")
-
 #: Seconds a single probe may take. The whole tree runs in about two, so this
 #: is two orders of magnitude of headroom and only a mutant that made the suite
 #: LOOP could reach it -- `drop-every-third-row` is one line away from being
@@ -532,73 +526,31 @@ PROBE_TIMEOUT = 300
 
 
 def probe(path):
-    """Case ids the fixture tree reports as failing for the module in `path`.
+    """What the fixture tree ran, and which of those cases failed, for `path`.
 
-    A SET, not a count. The reference itself need not pass every case -- the
-    suite is written adversarially and runs ahead of the implementation -- so
-    "the mutant made N cases fail" proves nothing. A mutant is killed only if
-    it breaks a case that passes WITHOUT it.
+    A SET of failing ids, not a count. The reference itself need not pass every
+    case -- the suite is written adversarially and runs ahead of the
+    implementation -- so "the mutant made N cases fail" proves nothing. A
+    mutant is killed only if it breaks a case that passes WITHOUT it.
 
-    And a set is not enough on its own. This function used to add a
-    `<runner crashed>` sentinel to the set when the runner produced no
-    accounting, which made "the suite never ran" indistinguishable from "every
-    case that ran said no" -- a mutant that stopped `table.py` importing was
-    scored `killed` with not one case opened (#45). `reached=False` is the
-    honest answer, and the kit reports it as BROKEN rather than as a kill.
+    And the set of cases that RAN, which is what "the suite reached a verdict"
+    is decided from. This probe once added a `<runner crashed>` sentinel to the
+    failing set when the runner produced no accounting, scoring a mutant that
+    stopped `table.py` importing as `killed` with not one case opened (#45).
+    The kit now refuses a failing id that did not run.
 
-    `reached` is decided from what the run PRODUCED, not from what it
-    intended: the exit code has to be one of the two that mean a verdict, the
-    accounting line has to be there, it has to account for at least the whole
-    tree, and it has to agree with the FAIL lines printed above it. A run
-    missing any of those measured something other than this suite -- and a run
-    that never finishes is the same finding, reached by waiting.
+    `probe_command` reads the runner's `--report-json` rather than its printed
+    summary, so nothing here parses prose. No report, an exit code other than
+    0 or 1, a report the exit code contradicts, or a run that outlasts
+    `PROBE_TIMEOUT` is no verdict -- BROKEN, never a kill. A tree that shrank
+    below `MIN_CASES` is the runner's own exit 2.
     """
     module = os.path.splitext(os.path.basename(path))[0]
     # cwd=HERE and every path anchored to __file__. This file used to read
     # `../reference/...` relative to wherever the gate was started, and
     # `run_cases.py` had the same shape once and printed "0 failure(s)" over
     # 226 cases it had never opened, four of them failing.
-    try:
-        run = subprocess.run(
-            [sys.executable, RUNNER, module],
-            capture_output=True,
-            text=True,
-            cwd=HERE,
-            timeout=PROBE_TIMEOUT,
-        )
-    except subprocess.TimeoutExpired:
-        # Not a kill, and not a survivor. The suite never finished, so it never
-        # said anything -- which is the same finding as a crash, and BROKEN is
-        # already the name for it.
-        #
-        # But SAY so. The kit's BROKEN line reads "nothing ran", which after a
-        # five-minute stall is the opposite of what happened, and someone
-        # reading a red gate would go hunting an import error. `Verdict` has no
-        # field to carry a reason, so this goes to stderr.
-        print(
-            f"  TIMEOUT  the suite did not finish within {PROBE_TIMEOUT}s on {module!r}; "
-            "reporting no verdict",
-            file=sys.stderr,
-        )
-        return Verdict(reached=False)
-    ids, shown, total = set(), 0, None
-    for line in run.stdout.splitlines():
-        hit = _FAIL.match(line)
-        if hit:
-            ids.add(hit.group(1))
-            shown += 1
-            continue
-        hit = _TOTAL.search(line)
-        if hit:
-            total = (int(hit.group(1)), int(hit.group(2)))
-    if run.returncode not in (EXIT_OK, EXIT_FAILURES) or total is None:
-        return Verdict(reached=False)  # it crashed, or it found no tree to walk
-    failures, cases = total
-    if cases < MIN_CASES or failures != shown:
-        # It ran, but not over this tree, or its own accounting disagrees with
-        # what it printed. Either way the verdict is not about these 410 cases.
-        return Verdict(reached=False)
-    return Verdict(ids)
+    return probe_command([sys.executable, RUNNER, module], cwd=HERE, timeout=PROBE_TIMEOUT)
 
 
 def main():
