@@ -77,3 +77,19 @@ def test_suite_rejects_a_vacuous_implementation():
         )
     finally:
         os.path.exists(vac) and os.remove(vac)
+
+
+def test_an_unimportable_implementation_is_no_verdict():
+    """An implementation that will not import means no case ran: exit 2, the
+    runner's no-verdict code, and never 1, which claims a case failed."""
+    r = _run("run_cases.py", "no.such.module")
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "HARD FAILURE:" in r.stderr, r.stderr
+    assert "Traceback" not in r.stderr, r.stderr
+
+
+def test_help_names_the_implementation_argument():
+    """Every caller passes IMPL first; `--help` must not hide it."""
+    r = _run("run_cases.py", "--help")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "IMPL" in r.stdout, r.stdout

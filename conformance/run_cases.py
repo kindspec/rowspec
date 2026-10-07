@@ -27,7 +27,7 @@ import os
 import re
 import sys
 
-from kindkit import Adapter, cli, gitmerge
+from kindkit import EXIT_NO_VERDICT, Adapter, cli, gitmerge
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CASES = os.path.join(HERE, "cases")
@@ -234,10 +234,23 @@ def main(argv):
     impl, rest = "rowspec.table", list(argv)
     if rest and not rest[0].startswith("-"):
         impl, rest = rest[0], rest[1:]
+    try:
+        adapter = adapter_for(impl)
+    except Exception as exc:
+        # An implementation that will not import means no case ran, which is
+        # exit 2. Left uncaught it was Python's default 1: "a case failed".
+        print(
+            f"\nHARD FAILURE: cannot import the implementation {impl!r}: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return EXIT_NO_VERDICT
     return cli.main(
-        adapter_for(impl),
+        adapter,
         rest,
-        prog="run_cases.py",
+        # IMPL is consumed above, before kindkit builds the parser, so the
+        # usage line is the only place `--help` can name it.
+        prog="run_cases.py [IMPL]",
         default_root=CASES,
         default_min_cases=MIN_CASES,
     )
