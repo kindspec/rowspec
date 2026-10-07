@@ -29,10 +29,11 @@ is the same for every kind. What is left here is the part that knows what
 probe that runs THIS suite against a given file.
 """
 
+import hashlib
 import os
 import sys
 
-from kindkit import ALL, GateError, from_table, gate, probe_command
+from kindkit import ALL, GateError, MutantError, apply_mutant, from_table, gate, probe_command
 from kindkit.cli import EXIT_FAILURES, EXIT_NO_VERDICT, EXIT_OK
 
 # Mutations proven to have no observable effect: an earlier fix made the
@@ -551,6 +552,30 @@ def probe(path):
     return probe_command([sys.executable, RUNNER, module], cwd=HERE, timeout=PROBE_TIMEOUT)
 
 
+def duplicate_mutations():
+    """Pairs of mutants whose mutated source is identical.
+
+    Two names for one mutation count it twice, and a CONTROL that is a copy of
+    a mutant cannot fail independently of it (#48). Compared on what the kit
+    actually produces, not on the `(old, new)` strings: patterns match a
+    normalised token stream, so `rows.append( _ANY )` and `rows.append(_ANY)`
+    are one mutation spelled two ways. A mutant that no longer applies is left
+    to the gate, which reports it as stale.
+    """
+    with open(IMPL, encoding="utf-8") as fh:
+        src = fh.read()
+    seen, dups = {}, []
+    for name, spec in MUTANTS.items():
+        try:
+            out = apply_mutant(src, *spec)
+        except MutantError:
+            continue
+        first = seen.setdefault(hashlib.sha256(out.encode()).hexdigest(), name)
+        if first != name:
+            dups.append((first, name))
+    return dups
+
+
 def main():
     """Three exit codes, the same three the runner uses and for the same reason.
 
@@ -560,14 +585,9 @@ def main():
     number this run could print would be meaningless.
     """
     try:
-        # Two names for one mutation count it twice and make a CONTROL that is a
-        # copy of a mutant unable to fail independently of it (#48).
-        seen = {}
-        dups = [
-            (seen[k], n) for n, s in MUTANTS.items() if seen.setdefault(k := tuple(s[:2]), n) != n
-        ]
+        dups = duplicate_mutations()
         if dups:
-            raise GateError(f"mutants share an (old, new) pair: {dups}")
+            raise GateError(f"mutants produce the same mutated source: {dups}")
         report = gate(
             source=IMPL,
             mutants=from_table(MUTANTS, EQUIVALENT),

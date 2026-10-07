@@ -113,8 +113,8 @@ reference was wrong.
 if it can go red, so the implementation is deliberately broken in 75 specific
 ways. 73 must be caught by a case; the other two carry a recorded claim that no
 input could distinguish them from the original, and the gate fails the run if a
-case turns out to catch one anyway. No two mutants share an `(old, new)` pair,
-and the gate refuses to run if two do. A mutant that survives is reported as a
+case turns out to catch one anyway. No two mutants produce the same mutated
+source, and the gate refuses to run if two do. A mutant that survives is reported as a
 failure, and so is a *stale* one whose pattern no longer matches the source —
 because a check that quietly stopped running is the failure this project keeps
 finding in itself.

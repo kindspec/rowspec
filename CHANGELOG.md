@@ -18,7 +18,8 @@ prose, and where the two disagree the suite wins.
   `CONTROL-parse-reverses-every-row`, which patches a line no other mutant
   touches. `just mutants` now prints 73 killed, 0 survived, 2 equivalent, 0
   stale, 0 broken. Every other mutant's verdict and killing cases are
-  unchanged. The gate exits 2 if two mutants share an `(old, new)` pair.
+  unchanged. The gate exits 2 if two mutants produce the same mutated source,
+  however their patterns are spelled.
 
 - **The mutation gate's probe reads a JSON verdict, not the runner's prose.**
   kindkit pin moved to `a26f8f8` (kindkit#16). `conformance/mutants.py` now

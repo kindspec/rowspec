@@ -20,7 +20,7 @@ GitHub Action.
     73 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
-    75 distinct mutations     the gate refuses a duplicated (old, new) pair
+    75 distinct mutations     the gate refuses two that mutate identically
     52 passed, 1 skipped      just test
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
