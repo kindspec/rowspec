@@ -1,7 +1,9 @@
 # A GitHub Action, at the repository root so that `uses: kindspec/rowspec@vX.Y.Z`
-# resolves without a second repository to keep in sync. The action installs the
-# rowspec version that matches its own tag, so the ref you pin is the behaviour
-# you get -- `release.yml` refuses to build if these two ever disagree.
+# resolves without a second repository to keep in sync. By default the action
+# installs the rowspec version that matches its own tag, so the ref you pin is
+# the behaviour you get -- `release.yml` refuses to build if these two ever
+# disagree. Setting the `install` input opts out of that guarantee; the
+# self-test does, on purpose, and so leaves the default path untested (#52).
 name: rowspec
 description: Validate tables that must survive version control, and fail on a total that is quietly wrong.
 branding:
@@ -35,6 +37,14 @@ inputs:
     description: Python used to run rowspec. It has no dependencies.
     required: false
     default: "3.12"
+  install:
+    description: >
+      What pip installs. Leave it alone: the default is the release this tag
+      names. It exists so this repository's own self-test can install the
+      checkout under test -- otherwise the self-test exercises the published
+      wheel and cannot see a regression in the pull request it is gating.
+    required: false
+    default: "rowspec==0.1.0"
 
 runs:
   using: composite
@@ -45,7 +55,9 @@ runs:
 
     - name: install rowspec
       shell: bash
-      run: pip install --disable-pip-version-check "rowspec==0.1.0"
+      env:
+        INSTALL: ${{ inputs.install }}
+      run: pip install --disable-pip-version-check "$INSTALL"
 
     # Both checks run even if the first fails, and the result is decided at the
     # end. A failing step that stops the job hides whether the later ones ran --
