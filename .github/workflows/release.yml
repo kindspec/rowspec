@@ -80,7 +80,7 @@ jobs:
           assert rowspec.__version__ == meta, (
               f"rowspec.__version__ is {rowspec.__version__!r} but the wheel's "
               f"metadata says {meta!r} ({rowspec.__file__})")
-          print(f"wheel version: __version__ and metadata agree on {meta}")
+          print(f"wheel version: __version__ and metadata agree on {meta} ({rowspec.__file__})")
           d = tempfile.mkdtemp()
           bad = os.path.join(d, "bad.mdtbl")
           open(bad, "w").write(
