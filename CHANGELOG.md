@@ -63,6 +63,16 @@ argument against writing one.
   `reference/` still imports the standard library and nothing else —
   `tests/test_boundary.py` is unchanged and still holds that line.
 
+- **kindkit pin moved to `e2aa334`** (from `d5cb216`), for two fixes that
+  change what a local run measures. The merge cases now run git with the
+  developer's configuration stripped out (kindkit#13). Measured: with
+  `* merge=union` in `~/.config/git/attributes`, the old pin fails 4 merge
+  cases (`git said clean, expected conflict`) and the new pin fails none. The
+  gate also now purges cached bytecode under `PYTHONPYCACHEPREFIX` (kindkit#14).
+  Re-measured on the new pin, every figure is unchanged: 0 failures across 410
+  cases on both implementations; 74 killed, 0 survived, 2 equivalent, 0 stale,
+  0 broken; 52 passed, 1 skipped.
+
 - **The runner has three exit codes, not two**: 0 every case passed, 1 at least
   one case failed, 2 the fixture tree yielded no verdict at all. A missing
   root, an empty root, and a root that has shrunk below the 410 cases `find

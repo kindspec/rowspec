@@ -86,7 +86,7 @@ include = [
 dev = [
   "pytest>=8",
   "ruff>=0.6",
-  "kindkit @ git+https://github.com/kindspec/kindkit@d5cb2169dc265576f9c21cdf6306cf07b27ff426",
+  "kindkit @ git+https://github.com/kindspec/kindkit@e2aa3342781623188546f69ef471addaeb217a79",
 ]
 
 [tool.ruff]
