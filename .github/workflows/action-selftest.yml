@@ -5,6 +5,10 @@
 # and the one this project keeps catching itself missing. So the second job
 # feeds it a table that is well formed and whose total is wrong, and asserts
 # the action reports failure.
+#
+# Every step installs THIS checkout (`install: .`), not the release the action
+# pins. Against the pin, both jobs exercise the published wheel and stay green
+# over any regression in the pull request they are gating.
 name: action self-test
 
 on:
@@ -21,6 +25,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./
         with:
+          install: .
           paths: docs/example
 
   fails-on-a-broken-total:
@@ -41,6 +46,7 @@ jobs:
         id: should_fail
         continue-on-error: true
         with:
+          install: .
           paths: /tmp/broken
 
       - name: the action must have failed
@@ -57,6 +63,7 @@ jobs:
         id: check_only
         continue-on-error: true
         with:
+          install: .
           paths: /tmp/broken
           eval: "false"
 

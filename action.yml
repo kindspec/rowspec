@@ -35,6 +35,14 @@ inputs:
     description: Python used to run rowspec. It has no dependencies.
     required: false
     default: "3.12"
+  install:
+    description: >
+      What pip installs. Leave it alone: the default is the release this tag
+      names. It exists so this repository's own self-test can install the
+      checkout under test -- otherwise the self-test exercises the published
+      wheel and cannot see a regression in the pull request it is gating.
+    required: false
+    default: "rowspec==0.1.0"
 
 runs:
   using: composite
@@ -45,7 +53,9 @@ runs:
 
     - name: install rowspec
       shell: bash
-      run: pip install --disable-pip-version-check "rowspec==0.1.0"
+      env:
+        INSTALL: ${{ inputs.install }}
+      run: pip install --disable-pip-version-check "$INSTALL"
 
     # Both checks run even if the first fails, and the result is decided at the
     # end. A failing step that stops the job hides whether the later ones ran --
