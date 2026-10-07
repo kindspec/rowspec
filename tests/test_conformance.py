@@ -1,4 +1,4 @@
-"""The conformance suite, the mutation gate, and the corpus checks, as tests.
+"""The conformance suite and the mutation gate, as tests.
 
 The suite is the deliverable; running it under pytest is a convenience, not the
 definition. `just conform` runs the same cases directly.
