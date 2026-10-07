@@ -12,8 +12,10 @@
 # The default install path is therefore not exercised here (#52).
 name: action self-test
 
+# Pushes to main only, so a PR branch produces each required check once (#43).
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
