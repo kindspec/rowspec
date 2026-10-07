@@ -15,9 +15,12 @@ Of the thirteen refusals in SPEC.md §9:
 
 Two deliberate softenings, both stated by SPEC.md §13: refusals 14 (a UTF-8
 BOM) and 15 (a lone CR) are WARNINGS in CSV mode, not refusals. Excel writes
-the BOM, and refusing either would fail files whose values are correct. CRLF is
-not among them: SPEC.md §3 accepts LF and CRLF alike, and RFC 4180 makes CRLF
-the default for CSV, so CSV mode says nothing about it.
+the BOM, and refusing either would fail files whose values are correct.
+
+CRLF is a third warning, and it is rowspec's advisory rather than a spec rule:
+SPEC.md §3 accepts LF and CRLF alike, and RFC 4180 makes CRLF the default for
+CSV. It stays a warning so that `--strict` can refuse it for a repository
+that enforces LF, which is what the action's `strict` input documents.
 """
 
 import csv
@@ -457,6 +460,16 @@ def check_file(path):
     if not raw.strip():
         raise Malformed("file contains no table: the file is empty")
     text, warnings = _decode(raw, "the file")
+    if "\r\n" in text:
+        warnings.append(
+            _warn(
+                "crlf",
+                "the file uses CRLF line endings",
+                "SPEC.md §3 accepts CRLF and RFC 4180 makes it the default for CSV, so this "
+                "is rowspec's advisory, not an error: it doubles the size of every diff on a "
+                "platform that checks out LF.",
+            )
+        )
     if "\r" in text.replace("\r\n", ""):
         warnings.append(
             _warn(

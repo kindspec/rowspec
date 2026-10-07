@@ -111,13 +111,14 @@ CSV mode both are **warnings**, as SPEC.md §13 states:
   CSV reader but not a line for git, so the rows on either side of it share one
   line in every diff and merge.
 
-`--strict` promotes both to refusals for a repository that has already cleaned
-up.
+**CRLF is also a warning, but it is rowspec's advisory, not a spec rule.**
+SPEC.md §3 accepts `LF` and `CRLF` alike, and RFC 4180 makes `CRLF` the default
+for CSV. Measured: 71 of the 72 CSVs in `iptv-org/database` use it. CSV mode
+warns because `CRLF` doubles the size of every diff on a platform that checks
+out `LF`.
 
-**CRLF is not a warning.** SPEC.md §3 accepts `LF` and `CRLF` alike, and RFC
-4180 makes `CRLF` the default for CSV. Measured: 71 of the 72 CSVs in
-`iptv-org/database` use it, so CSV mode reports nothing about line endings
-other than a lone `CR`.
+`--strict` promotes all three to refusals, for a repository that has already
+cleaned up or that enforces `LF`.
 
 ## Errors name entities
 

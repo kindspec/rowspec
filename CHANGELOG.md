@@ -9,12 +9,11 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
-- **CSV mode warns on a lone CR and no longer warns on CRLF** (#59). SPEC.md
-  §13 makes refusal 15 (a lone `CR`) a warning in CSV mode, and §3 accepts
-  `CRLF`. `rowspec check` had it the other way round: a lone `CR` passed
-  silently and `CRLF` was warned on, so `--strict` refused a file the
-  specification accepts. `--strict` now promotes the BOM and lone-`CR`
-  warnings, and `CRLF` passes with or without it.
+- **CSV mode warns on a lone CR** (#59). SPEC.md §13 makes refusal 15 (a
+  lone `CR`) a warning in CSV mode; `rowspec check` passed one silently. Under
+  `--strict` it is refused, like the BOM and `CRLF` warnings. The `CRLF`
+  warning is unchanged and now says it is rowspec's advisory: SPEC.md §3
+  accepts `CRLF`, and `docs/csv.md` no longer says §3 requires `LF`.
 
 - **The mutation gate's probe reads a JSON verdict, not the runner's prose.**
   kindkit pin moved to `a26f8f8` (kindkit#16). `conformance/mutants.py` now

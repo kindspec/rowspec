@@ -147,15 +147,23 @@ def test_bom_and_lone_cr_warn_but_do_not_refuse(tmp_path):
     assert all(x.level == "warn" for x in found)
 
 
-def test_crlf_is_accepted_without_a_warning(tmp_path):
-    """SPEC.md §3: LF and CRLF are both accepted. A warning would let
-    `--strict` refuse a file the specification accepts."""
-    assert check_file(write(tmp_path, "crlf.csv", b"id,name\r\nr_01,Ada\r\n")) == []
+def test_crlf_is_an_advisory_warning_not_a_refusal(tmp_path):
+    """SPEC.md §3 accepts LF and CRLF alike. The CRLF warning is rowspec's
+    advisory, not a spec requirement, and `--strict` refusing it is part of
+    the action's documented `strict` input."""
+    found = check_file(write(tmp_path, "crlf.csv", b"id,name\r\nr_01,Ada\r\n"))
+    assert rules(found) == ["crlf"]
+    assert all(x.level == "warn" for x in found)
 
 
 def test_a_cr_that_is_part_of_crlf_is_not_a_lone_cr(tmp_path):
     f = write(tmp_path, "mixed.csv", b"id,name\r\nr_01,Ada\nr_02,Grace\r\n")
-    assert check_file(f) == []
+    assert rules(check_file(f)) == ["crlf"]
+
+
+def test_crlf_and_a_lone_cr_are_reported_separately(tmp_path):
+    f = write(tmp_path, "both.csv", b"id,name\r\nr_01,Ada\rr_02,Grace\r\n")
+    assert rules(check_file(f)) == ["crlf", "lone-cr"]
 
 
 def test_bom_does_not_break_the_declared_key(tmp_path):
@@ -198,7 +206,7 @@ def test_keys_that_render_identically_are_one_key(tmp_path):
 
 def test_messy_file_reports_every_kind_at_once(tmp_path):
     f = write(tmp_path, "m.csv", MESSY, {"key": "id"})
-    assert rules(check_file(f)) == ["bom", "duplicate-key", "field-count"]
+    assert rules(check_file(f)) == ["bom", "crlf", "duplicate-key", "field-count"]
 
 
 def test_ragged_row_is_named_by_its_key(tmp_path):
@@ -366,10 +374,11 @@ def test_a_lone_cr_is_a_warning_on_the_cli(tmp_path, capsys):
     assert cli.main(["check", "--strict", str(tmp_path)]) == 1
 
 
-def test_crlf_alone_is_clean_even_when_strict(tmp_path, capsys):
+def test_crlf_warns_and_strict_still_refuses_it(tmp_path, capsys):
     write(tmp_path, "crlf.csv", b"a,b\r\n1,2\r\n")
-    assert cli.main(["check", "--strict", str(tmp_path)]) == 0
-    assert "warning" not in capsys.readouterr().err
+    assert cli.main(["check", str(tmp_path)]) == 0
+    assert "CRLF" in capsys.readouterr().err
+    assert cli.main(["check", "--strict", str(tmp_path)]) == 1
 
 
 def test_mdtbl_still_goes_through_the_full_parser(tmp_path):

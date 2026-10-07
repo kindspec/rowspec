@@ -233,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         help="report files that are not in canonical form, without rewriting them",
     )
     p.add_argument(
-        "--strict", action="store_true", help="treat warnings (BOM, lone CR) as refusals"
+        "--strict", action="store_true", help="treat warnings (CRLF, BOM, lone CR) as refusals"
     )
     p.add_argument("--format", choices=("plain", "github"), default="plain", help="output format")
     a = p.parse_args(argv)
