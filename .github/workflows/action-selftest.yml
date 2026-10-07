@@ -9,8 +9,7 @@
 # Every step installs THIS checkout (`install: .`), not the release the action
 # pins. Against the pin, both jobs exercise the published wheel and stay green
 # over any regression in the package code of the pull request they are gating.
-# The default install path is smoke-tested by `release.yml` after publishing,
-# the first point at which the version it pins exists.
+# The default install path is therefore not exercised here (#52).
 name: action self-test
 
 on:
