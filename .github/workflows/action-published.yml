@@ -86,7 +86,7 @@ jobs:
           CHECK_ONLY: ${{ steps.check_only.outcome }}
         run: |
           echo "good tree: $GOOD   broken total: $BROKEN   broken total, eval off: $CHECK_ONLY"
-          want_good=failure want_broken=success want_check_only=failure # INVERTED, must go red
+          want_good=success want_broken=failure want_check_only=success
           if [ "$GOOD" != "$want_good" ] || [ "$BROKEN" != "$want_broken" ] \
             || [ "$CHECK_ONLY" != "$want_check_only" ]; then
             echo "::error::wanted $want_good / $want_broken / $want_check_only"
