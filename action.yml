@@ -44,7 +44,7 @@ inputs:
       checkout under test -- otherwise the self-test exercises the published
       wheel and cannot see a regression in the pull request it is gating.
     required: false
-    default: "rowspec==0.2.0"
+    default: "rowspec==9.9.9"
 
 runs:
   using: composite
