@@ -7,6 +7,8 @@ import os
 import re
 import tomllib
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -30,6 +32,15 @@ def test_the_ruff_hook_runs_the_ruff_the_project_locks():
     # Two linters with different opinions about one tree: the hook flagged a
     # rule the locked ruff had already removed (kindspec/kindkit#9; the same drift here), and a gate
     # that cries wolf is the one that gets routed around. Bump them together.
+    # A check on the repository's tooling, not on what it ships: the sdist
+    # carries tests/ but neither file, and a skip there says so plainly.
+    missing = [
+        f
+        for f in (".pre-commit-config.yaml", "uv.lock")
+        if not os.path.exists(os.path.join(ROOT, f))
+    ]
+    if missing:
+        pytest.skip(f"repository tooling check; not present here: {', '.join(missing)}")
     hook = _hook_rev("https://github.com/astral-sh/ruff-pre-commit")
     locked = _locked_version("ruff")
     assert hook == f"v{locked}", f"pre-commit runs ruff {hook}, uv.lock resolves {locked}"
