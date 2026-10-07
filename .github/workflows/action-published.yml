@@ -21,8 +21,6 @@ name: action published
 on:
   workflow_call:
   workflow_dispatch:
-  push: # TEMPORARY: observe the red state on this branch; removed before review
-    branches: [ci/action-default-install]
 
 permissions:
   contents: read

@@ -3,7 +3,8 @@
 # installs the rowspec version that matches its own tag, so the ref you pin is
 # the behaviour you get -- `release.yml` refuses to build if these two ever
 # disagree. Setting the `install` input opts out of that guarantee; the
-# self-test does, on purpose, and so leaves the default path untested (#52).
+# self-test does, on purpose. The default path is exercised after each release
+# by `.github/workflows/action-published.yml` (#52).
 name: rowspec
 description: Validate tables that must survive version control, and fail on a total that is quietly wrong.
 branding:
@@ -44,7 +45,7 @@ inputs:
       checkout under test -- otherwise the self-test exercises the published
       wheel and cannot see a regression in the pull request it is gating.
     required: false
-    default: "rowspec==9.9.9"
+    default: "rowspec==0.2.0"
 
 runs:
   using: composite
