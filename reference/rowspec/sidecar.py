@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """The sidecar: what a CSV cannot say about itself.
 
 A CSV file carries a header row and nothing else. Which column is the row's

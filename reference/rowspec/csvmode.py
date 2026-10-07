@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """CSV mode: the specification's refusals, on a file nobody migrated.
 
 The adoption claim of this project is that a maintainer with an ordinary

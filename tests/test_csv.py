@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """CSV mode: the refusals, on files nobody migrated.
 
 Fixtures are byte literals rather than checked-in files on purpose. A CRLF

@@ -7,7 +7,10 @@ rowspec is licensed per directory. This is deliberate, not an oversight.
   tests/                    Apache-2.0 OR MIT
 
 Full texts are in LICENSES/. Each directory carries its own LICENSE file, and
-source files carry SPDX headers.
+source files carry SPDX headers. The fixtures under conformance/cases/ do not:
+they are exact bytes, a .json file cannot hold a comment, and that directory's
+LICENSE covers them. tests/test_licensing.py checks both halves of this
+paragraph.
 
 WHY THE SPLIT
 

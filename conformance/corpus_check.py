@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Corpus-scoped checks: properties no single file can violate on its own.
 
 The artifact UUID is the motivating case -- `cp doc.md copy.md` duplicates it,
