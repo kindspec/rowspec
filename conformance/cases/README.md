@@ -13,30 +13,36 @@ needs is in the files; nothing is in Python.
         WHY.md               prose, ignored by the runner
 
 A directory is a case **iff** it contains `expect.json`. A directory without
-one is walked past — that is what makes companion subdirectories and
-`_outside/` possible.
+one is walked past — that is what makes companion subdirectories possible, and
+`conformance/reserved/_outside/`, if those cases are ever run.
 
 `kind` in `expect.json` is authoritative; the parent directory name is a filing
 convention, not an input.
 
 ## The case directory is a repository
 
+**Nothing in this tree uses these rules yet.** The format's cross-artifact
+reference, `lookup()`, is reserved and not defined in this edition (SPEC §7),
+and its cases are kept, unrun, in `conformance/reserved/`. The rules below are
+how those cases are laid out, and how a later edition that specifies `lookup()`
+would lay out its own.
+
 Two rules, and everything about cross-artifact behaviour follows from them:
 
 1. **The case directory is the artifact's directory.** `input.mdtbl` sits in
-   it, and SPEC §7 resolves a `lookup()` path *relative to the referring
-   artifact* — so a companion is just a file next to `input.mdtbl`, addressed
-   by its ordinary relative path. `lookup(customers.mdtbl, ...)` finds
+   it, and the reserved design resolves a `lookup()` path *relative to the
+   referring artifact* — so a companion is just a file next to `input.mdtbl`,
+   addressed by its ordinary relative path. `lookup(customers.mdtbl, ...)` finds
    `<case>/customers.mdtbl`. `lookup(sub/b.mdtbl, ...)` finds
    `<case>/sub/b.mdtbl`, and a lookup *inside* `sub/b.mdtbl` written as
    `lookup(c.mdtbl, ...)` finds `<case>/sub/c.mdtbl`, because it is resolved
    relative to **b**, not to the case root.
 
-2. **The case directory is also the repository root.** SPEC §7 confines a
-   lookup target *to the repository*; a case is a self-contained one-artifact
-   repository, so a path that resolves above the case directory has escaped and
-   must be refused. `parse/lookup-path-escape` is that test, and
-   `cases/_outside/` exists solely to give it a real file to reach for — so
+2. **The case directory is also the repository root.** The reserved design
+   confines a lookup target *to the repository*; a case is a self-contained
+   one-artifact repository, so a path that resolves above the case directory
+   has escaped and must be refused. `reserved/parse/lookup-path-escape` is that test, and
+   `reserved/_outside/` exists solely to give it a real file to reach for — so
    that an implementation which does not enforce confinement fails loudly with
    a value rather than quietly with a missing file.
 
@@ -66,7 +72,7 @@ that is `evaluate(text, base=case_dir)`.
 | `confluence` | `branches` | every merge order yields one outcome |
 
 `rowrel` is named for the operators that motivated it, but it is the general
-single-cell assertion and is what the `lookup()` cases use.
+single-cell assertion and is what the reserved `lookup()` cases use.
 
 `refusal_contains: ""` means *refuse, for any stated reason*. It is used where
 the spec mandates a refusal but names no message — asserting invented wording
