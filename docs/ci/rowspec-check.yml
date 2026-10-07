@@ -64,10 +64,10 @@ jobs:
       - name: computed values must resolve
         run: rowspec eval --format github data
 
-      # Optional: also fail on CRLF line endings and a UTF-8 byte-order mark.
-      # Both are legal in CSV (RFC 4180 makes CRLF the default and Excel writes
-      # the BOM), so they are warnings by default. Turn this on only once the
-      # repository is already clean, or every pull request will be red.
+      # Optional: also fail on a UTF-8 byte-order mark and a lone CR. CSV mode
+      # warns on both by default (Excel writes the BOM). Turn this on only once
+      # the repository is already clean, or every pull request will be red.
+      # CRLF line endings are accepted either way.
       #
-      # - name: no CRLF, no BOM
+      # - name: no BOM, no lone CR
       #   run: rowspec check --strict --format github data

@@ -102,16 +102,22 @@ with no computed column cannot violate them.
 
 ## Two warnings, not refusals
 
-SPEC.md §3 requires LF and no BOM. In CSV mode both are **warnings**:
+SPEC.md §9 refuses a UTF-8 BOM (refusal 14) and a lone `CR` (refusal 15). In
+CSV mode both are **warnings**, as SPEC.md §13 states:
 
-- **CRLF** is RFC 4180's own default line ending.
-- **A UTF-8 BOM** is what Excel writes.
+- **A UTF-8 BOM** is what Excel writes, and it cannot change a value once it is
+  stripped.
+- **A lone `CR`** — a carriage return not followed by `LF` — ends a record for a
+  CSV reader but not a line for git, so the rows on either side of it share one
+  line in every diff and merge.
 
-Measured: 71 of the 72 CSVs in `iptv-org/database` use CRLF. Refusing it would
-reject a well-maintained public registry outright, and neither CRLF nor a BOM
-can change a value once the BOM is stripped, which is the test SPEC.md §9 sets
-for warning instead of refusing. `--strict` promotes both to refusals for a
-repository that has already cleaned up.
+`--strict` promotes both to refusals for a repository that has already cleaned
+up.
+
+**CRLF is not a warning.** SPEC.md §3 accepts `LF` and `CRLF` alike, and RFC
+4180 makes `CRLF` the default for CSV. Measured: 71 of the 72 CSVs in
+`iptv-org/database` use it, so CSV mode reports nothing about line endings
+other than a lone `CR`.
 
 ## Errors name entities
 

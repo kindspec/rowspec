@@ -137,11 +137,25 @@ def test_invalid_utf8_is_refused(tmp_path):
 # --------------------------------------------------------------------------
 
 
-def test_crlf_and_bom_warn_but_do_not_refuse(tmp_path):
-    f = write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\r\nr_01,Ada\r\n")
+def test_bom_and_lone_cr_warn_but_do_not_refuse(tmp_path):
+    """SPEC.md §13: refusals 14 (BOM) and 15 (lone CR) are warnings in CSV
+    mode. A lone CR ends a record for a CSV reader but not a line for git, so
+    two rows share one line in every diff and merge."""
+    f = write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\rr_01,Ada\n")
     found = check_file(f)
-    assert rules(found) == ["bom", "crlf"]
+    assert rules(found) == ["bom", "lone-cr"]
     assert all(x.level == "warn" for x in found)
+
+
+def test_crlf_is_accepted_without_a_warning(tmp_path):
+    """SPEC.md §3: LF and CRLF are both accepted. A warning would let
+    `--strict` refuse a file the specification accepts."""
+    assert check_file(write(tmp_path, "crlf.csv", b"id,name\r\nr_01,Ada\r\n")) == []
+
+
+def test_a_cr_that_is_part_of_crlf_is_not_a_lone_cr(tmp_path):
+    f = write(tmp_path, "mixed.csv", b"id,name\r\nr_01,Ada\nr_02,Grace\r\n")
+    assert check_file(f) == []
 
 
 def test_bom_does_not_break_the_declared_key(tmp_path):
@@ -184,7 +198,7 @@ def test_keys_that_render_identically_are_one_key(tmp_path):
 
 def test_messy_file_reports_every_kind_at_once(tmp_path):
     f = write(tmp_path, "m.csv", MESSY, {"key": "id"})
-    assert rules(check_file(f)) == ["bom", "crlf", "duplicate-key", "field-count"]
+    assert rules(check_file(f)) == ["bom", "duplicate-key", "field-count"]
 
 
 def test_ragged_row_is_named_by_its_key(tmp_path):
@@ -342,6 +356,20 @@ def test_warnings_alone_do_not_fail_unless_strict(tmp_path, capsys):
     write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\r\nr_01,Ada\r\n")
     assert cli.main(["check", str(tmp_path)]) == 0
     assert cli.main(["check", "--strict", str(tmp_path)]) == 1
+
+
+def test_a_lone_cr_is_a_warning_on_the_cli(tmp_path, capsys):
+    write(tmp_path, "lonecr.csv", b"a,b\r1,2\n")
+    assert cli.main(["check", str(tmp_path)]) == 0
+    out = capsys.readouterr()
+    assert "warning: " in out.err and "1 with warnings" in out.out
+    assert cli.main(["check", "--strict", str(tmp_path)]) == 1
+
+
+def test_crlf_alone_is_clean_even_when_strict(tmp_path, capsys):
+    write(tmp_path, "crlf.csv", b"a,b\r\n1,2\r\n")
+    assert cli.main(["check", "--strict", str(tmp_path)]) == 0
+    assert "warning" not in capsys.readouterr().err
 
 
 def test_mdtbl_still_goes_through_the_full_parser(tmp_path):

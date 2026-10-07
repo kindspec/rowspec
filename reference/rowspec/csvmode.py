@@ -13,11 +13,11 @@ Of the thirteen refusals in SPEC.md §9:
   * 3, 7, 8, 9, 11 cannot arise in a CSV -- they are about alignment rows,
     formulas and aggregates, none of which the format has.
 
-Two deliberate softenings, both because refusing would reject data that is
-correct. CRLF and a UTF-8 BOM are WARNINGS in CSV mode, not refusals: RFC 4180
-makes CRLF the default line ending and Excel writes the BOM, so refusing either
-would fail most of the corpus this mode exists to serve. Neither can change a
-value, which is the test SPEC.md §9 sets for the warn-instead-of-refuse case.
+Two deliberate softenings, both stated by SPEC.md §13: refusals 14 (a UTF-8
+BOM) and 15 (a lone CR) are WARNINGS in CSV mode, not refusals. Excel writes
+the BOM, and refusing either would fail files whose values are correct. CRLF is
+not among them: SPEC.md §3 accepts LF and CRLF alike, and RFC 4180 makes CRLF
+the default for CSV, so CSV mode says nothing about it.
 """
 
 import csv
@@ -457,13 +457,13 @@ def check_file(path):
     if not raw.strip():
         raise Malformed("file contains no table: the file is empty")
     text, warnings = _decode(raw, "the file")
-    if "\r\n" in text:
+    if "\r" in text.replace("\r\n", ""):
         warnings.append(
             _warn(
-                "crlf",
-                "the file uses CRLF line endings",
-                "RFC 4180 makes CRLF the default for CSV, so this is not an error here, "
-                "but it doubles the size of every diff on a platform that checks out LF.",
+                "lone-cr",
+                "the file contains a lone CR (a carriage return not followed by LF)",
+                "A CSV reader ends a record at a lone CR but git does not end a line there, "
+                "so the rows on either side of it share one line in every diff and merge.",
             )
         )
     findings = check_text(text, path, side, _delimiter(path, side))
