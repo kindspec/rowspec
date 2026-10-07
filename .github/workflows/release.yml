@@ -33,6 +33,13 @@ jobs:
         run: just mutants
       - name: a second implementation, from the spec alone
         run: just conform-alt
+      # tests/ holds what the four steps above do not reach: the reference/
+      # import boundary, the CSV refusals, the CLI and the exporter. Without
+      # these the tagged commit was held to them only by the PR checks (#56).
+      - name: the full test suite, with the extra absent
+        run: just test
+      - name: the exporter, with its optional extra installed
+        run: just test-xlsx
 
   build:
     needs: gate
