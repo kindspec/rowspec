@@ -1,0 +1,16 @@
+# TEMPORARY: exercises release.yml's `needs:` + `uses:` call shape on this
+# branch, without a release. Removed in the next commit.
+name: tmp call probe
+on:
+  push:
+    branches: [ci/action-default-install]
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "stands in for release.yml's publish job"
+  published-action:
+    needs: publish
+    uses: ./.github/workflows/action-published.yml
