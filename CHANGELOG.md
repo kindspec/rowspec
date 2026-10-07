@@ -7,6 +7,17 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Changed
+
+- **The mutation gate's probe reads a JSON verdict, not the runner's prose.**
+  kindkit pin moved to `a26f8f8` (kindkit#16). `conformance/mutants.py` now
+  calls `kindkit.probe_command`, which runs the suite with `--report-json` and
+  reads back which cases ran and which failed. The two regexes that parsed the
+  printed summary are gone, and the kit now refuses a failing case id that did
+  not run. Measured: the gate's output is identical, line for line, to the
+  previous pin's, and a reworded summary line no longer costs the probe its
+  verdict (the old probe exited 2 under it).
+
 ## [0.2.0] — 2026-10-07
 
 Everything since `v0.1.0` (`625ddb2`); documentation-only commits are not
