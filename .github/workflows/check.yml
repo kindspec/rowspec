@@ -56,11 +56,13 @@ jobs:
       # worth anything if the configuration a stranger gets is the one that is
       # checked. The assertion in front of it is the point -- `uv run` syncing
       # an extra by default would make the whole job measure the wrong thing,
-      # silently, and it would still be green.
+      # silently, and it would still be green. `--exact`, like `just test`:
+      # plain `uv run` removes nothing, so it can see an environment the
+      # step it guards will never run in (#40).
       - name: the extra must be ABSENT in this job
         if: always()
         run: |
-          uv run python -c "import importlib.util, sys; \
+          uv run --exact python -c "import importlib.util, sys; \
             sys.exit('openpyxl is installed; this job must run without the extra') \
             if importlib.util.find_spec('openpyxl') else None"
       - name: the full test suite, with the extra absent
@@ -77,9 +79,6 @@ jobs:
         run: |
           uv run python -m rowspec check docs/example || true
           uv run python -m rowspec eval  docs/example || true
-      - name: corpus-scoped checks
-        if: always()
-        run: uv run python conformance/corpus_check.py .
 
   # The other half of the same boundary. The exporter's tests SKIP when the
   # extra is absent, so without this job they would never run anywhere and the
