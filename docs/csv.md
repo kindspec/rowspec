@@ -68,6 +68,13 @@ SPEC.md §9.4 exists to prevent, so `{"key": "id", "key": "name"}` is an error.
 
 ## Which refusals apply
 
+This table classifies refusals 1 to 13 of SPEC.md §9, and §9's list goes on
+past them. Of the later entries this page covers only parts of §9.14 and
+§9.16: invalid UTF-8 and a `Cf` character in a column name, which are refused
+(below the table), and a BOM, which in CSV mode is a warning (*Two warnings,
+not refusals*). The rest are not classified here. SPEC.md §9 is the complete
+list, and §13 says which kinds of refusal the CSV profile cannot apply.
+
 | SPEC.md §9 | | bare CSV | with sidecar | `.mdtbl` only |
 | --- | --- | :-: | :-: | :-: |
 | 1 | conflict markers | ● | | |
