@@ -374,10 +374,6 @@ for r in seq:
         'if fn == "count":\n    return len(vals)',
         'if fn == "count":\n    return len(vals) - 1',
     ),
-    "count-ignores-blanks": (
-        'if fn == "count":\n    return len(vals)',
-        'if fn == "count":\n    return len([v for v in vals if v not in ("", None)])',
-    ),
     "unknown-aggregate-function-silently-becomes-sum": (
         'if fn not in ("sum", "count", "min", "max", "avg"):\n'
         '    raise Malformed(f"unknown aggregate function {fn!r} in {nm!r}")',
@@ -444,9 +440,11 @@ for r in seq:
         "return bool(cells) and any(_ANY.fullmatch(c) for c in cells)",
     ),
     # --- CONTROLS: these MUST be killed, or the harness is broken ---------------
-    "CONTROL-drop-every-third-row": (
-        "rows.append(_ANY)",
-        "if len(rows) % 3 != 2: rows.append(_ANY)",
+    # A control must break something no other mutant touches, or it cannot
+    # fail on its own: this one was a verbatim copy of `drop-every-third-row`.
+    "CONTROL-parse-reverses-every-row": (
+        "row = dict(zip(cols, v, strict=False))",
+        "row = dict(zip(cols, v[::-1], strict=False))",
     ),
     "CONTROL-render-reverses-rows": (
         "row_raws = [lines[i] for i in tbl_idx[2:]]",
@@ -562,6 +560,14 @@ def main():
     number this run could print would be meaningless.
     """
     try:
+        # Two names for one mutation count it twice and make a CONTROL that is a
+        # copy of a mutant unable to fail independently of it (#48).
+        seen = {}
+        dups = [
+            (seen[k], n) for n, s in MUTANTS.items() if seen.setdefault(k := tuple(s[:2]), n) != n
+        ]
+        if dups:
+            raise GateError(f"mutants share an (old, new) pair: {dups}")
         report = gate(
             source=IMPL,
             mutants=from_table(MUTANTS, EQUIVALENT),

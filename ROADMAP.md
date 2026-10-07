@@ -17,11 +17,10 @@ GitHub Action.
     410 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
     0 failures, second impl   just conform-alt
-    74 killed, 0 survived     just mutants
+    73 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
-    74 distinct mutations     two (old, new) pairs are duplicated -- see #48,
-                              so `74 killed` is 72 distinct kills
+    75 distinct mutations     the gate refuses a duplicated (old, new) pair
     52 passed, 1 skipped      just test
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
