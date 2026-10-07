@@ -135,7 +135,7 @@ been measured and found wanting.
 ```sh
 just setup      # uv sync
 just check      # fmt-check + lint
-just test       # conformance suite + mutation gate + corpus checks
+just test       # everything under tests/: suite, gate, CSV, CLI, boundary (corpus checks: CI only)
 just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
 just conform-alt # the SECOND implementation, against the same fixture tree
