@@ -27,6 +27,20 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **kindkit pin moved to `8e21b55`** (from `bf716e3`), kindkit's main after
+  its reusable workflow landed (kindkit#24). kindkit has no tag past
+  `v0.1.0`, so the pin is a commit. The new kit adds what that workflow
+  reads: the runner's report names the `root` it read, the runner takes its
+  report path from `KINDKIT_REPORT_JSON`, and `gate()` writes its verdicts
+  to `KINDKIT_GATE_REPORT`. It also makes the merge helper raise on a failed
+  git call and dates each scratch write with its own mtime. No rowspec code
+  changes: `conformance/mutants.py` already probes through `probe_command`,
+  which now carries `root` through. Measured: `just check`, `just conform`,
+  `just conform-alt` and `just mutants` print output identical line for line
+  to the previous pin's (0 failures across 410 cases on both
+  implementations; 73 killed, 0 survived, 2 equivalent, 0 stale, 0 broken),
+  and `just test` differs only in its wall time.
+
 - **The mutation gate has 75 mutants, all distinct, and refuses duplicates**
   (#48). Two `(old, new)` pairs were each in the table twice, so 76 mutants
   were 74 distinct mutations. `count-ignores-blanks` repeated
