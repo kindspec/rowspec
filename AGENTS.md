@@ -32,6 +32,9 @@ implementation exists so the suite has something to check.
   through kindkit's reusable workflow, the `kind` job in
   `.github/workflows/check.yml`, whose `uses:` names a kindkit commit too.
   Move both in one change: `tests/test_pins.py` fails when they differ.
+- **The mutation gate is POSIX-only.** It holds an `fcntl` lock for the whole
+  run, so two gates in one tree take turns (#81), and `tests/test_conformance.py`
+  imports `fcntl` too. Neither runs on Windows; CI is Linux.
 
 ## Layout
 

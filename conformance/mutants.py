@@ -613,7 +613,7 @@ def _run():
             # Possibly a mutant, and gitignored, so nothing else shows it.
             # Writing over it would also erase the evidence that a run died.
             raise GateError(
-                f"{SCRATCH} is left over from a gate run that was killed, and may "
+                f"{SCRATCH} is left over from a gate run that was interrupted or killed, and may "
                 "hold a mutant: inspect it, delete it, and run the gate again"
             )
         dups = duplicate_mutations()
