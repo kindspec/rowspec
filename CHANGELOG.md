@@ -27,6 +27,18 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **The mutation gate has 75 mutants, all distinct, and refuses duplicates**
+  (#48). Two `(old, new)` pairs were each in the table twice, so 76 mutants
+  were 74 distinct mutations. `count-ignores-blanks` repeated
+  `the-blank-route-empties-count-too` and is removed.
+  `CONTROL-drop-every-third-row` repeated `drop-every-third-row`, so it could
+  not fail independently of it. It is replaced by
+  `CONTROL-parse-reverses-every-row`, which patches a line no other mutant
+  touches. `just mutants` now prints 73 killed, 0 survived, 2 equivalent, 0
+  stale, 0 broken. Every other mutant's verdict and killing cases are
+  unchanged. The gate exits 2 if two mutants produce the same mutated source,
+  however their patterns are spelled.
+
 - **CSV mode warns on a lone CR** (#59). SPEC.md §13 makes refusal 15 (a
   lone `CR`) a warning in CSV mode; `rowspec check` passed one silently. Under
   `--strict` it is refused, like the BOM and `CRLF` warnings. The `CRLF`
