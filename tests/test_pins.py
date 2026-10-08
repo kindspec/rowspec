@@ -98,8 +98,11 @@ def test_the_scan_sees_every_shape_a_tag_pin_can_take(tmp_path):
     ]
 
 
-KINDKIT = re.compile(r"kindspec/kindkit(?:\.git)?[@/]")
-KINDKIT_SHA = re.compile(r"kindspec/kindkit(?:\.git)?(?:/[^\s@]*)?@([0-9a-f]{40})\b")
+# GitHub owner and repository names are case-insensitive, so `KindSpec/KindKit`
+# calls the same workflow; matched case-insensitively, or a stale ref spelled
+# that way is never compared. The commit stays lowercase hex, as `PINNED` wants.
+KINDKIT = re.compile(r"(?i:kindspec/kindkit)(?:\.git)?[@/]")
+KINDKIT_SHA = re.compile(r"(?i:kindspec/kindkit)(?:\.git)?(?:/[^\s@]*)?@([0-9a-f]{40})\b")
 
 
 def kindkit_pin(root=ROOT):
