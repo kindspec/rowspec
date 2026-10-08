@@ -36,9 +36,10 @@ prose, and where the two disagree the suite wins.
   every case directory under `conformance/cases`, read from that root. The
   mutation gate is judged by the gate's own report, not by its exit code.
   `just conform`, `just conform-alt` and `just mutants` are no longer steps of
-  the `conformance` job, so nothing runs twice. That job keeps its name and
-  everything else: lint, `just test` with the extra absent, and the example
-  recipe. `tests/test_pins.py` fails if the workflow's kindkit commit and
+  the `conformance` job. That job keeps its name and everything else: lint,
+  `just test` with the extra absent, and the example recipe. `just test` still
+  runs the suite and the gate too, through `tests/test_conformance.py`, as it
+  did before. The `kind` job is not a replacement for those tests. `tests/test_pins.py` fails if the workflow's kindkit commit and
   the package pin differ.
 
 - **kindkit pin moved to `8e21b55`** (from `bf716e3`), kindkit's main after
