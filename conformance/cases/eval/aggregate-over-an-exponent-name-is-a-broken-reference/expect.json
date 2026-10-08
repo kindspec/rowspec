@@ -1,6 +1,6 @@
 {
   "aggregates": {
-    "o": "#REF!(1e3)"
+    "o": "#REF!(1e4)"
   },
   "kind": "eval"
 }
