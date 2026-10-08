@@ -7,6 +7,16 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Added
+
+- **The action's default install path is exercised after every release**
+  (#52). `release.yml` now calls `action-published.yml` once `publish`
+  finishes. It runs the action exactly as a consumer does, with `install`
+  left at its default, so it pip-installs the pinned release from PyPI. It
+  asserts in both directions with the `eval: "false"` control. It can also be
+  dispatched by hand. It does not run on pull requests, because a
+  release-prep PR pins a version PyPI does not have yet.
+
 ### Removed
 
 - **`conformance/corpus_check.py` and its CI step.** It looked for duplicate
