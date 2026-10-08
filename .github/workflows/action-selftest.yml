@@ -13,8 +13,10 @@
 # each release (#52).
 name: action self-test
 
+# Pushes to main only, so a PR branch produces each required check once (#43).
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -24,7 +26,7 @@ jobs:
   passes-on-a-good-tree:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./
         with:
           install: .
@@ -33,7 +35,7 @@ jobs:
   fails-on-a-broken-total:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Well formed, and its total is wrong: `z` is 0, so `t` is #REF!(/0).
       # `check` alone passes this file. That is the whole point of the action

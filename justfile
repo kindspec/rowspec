@@ -27,8 +27,7 @@ check: fmt-check lint
 
 # Run everything under tests/: the conformance suite on both implementations,
 # the mutation gate, the CSV refusals, the CLI and the reference/ import
-# boundary. The corpus checks (conformance/corpus_check.py) are a separate CI
-# step, not run from here.
+# boundary.
 # Runs WITHOUT the xlsx extra, which is what `pip install rowspec` gives you and
 # is therefore the configuration that has to stay green. The exporter's own
 # tests skip here; `just test-xlsx` is where they must not.

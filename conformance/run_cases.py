@@ -27,7 +27,7 @@ import os
 import re
 import sys
 
-from kindkit import Adapter, cli, gitmerge
+from kindkit import EXIT_NO_VERDICT, Adapter, cli, gitmerge
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CASES = os.path.join(HERE, "cases")
@@ -222,6 +222,14 @@ def adapter_for(impl):
     )
 
 
+IMPL_HELP = """\
+IMPL is an importable module exposing the entry points the handlers call
+(default: rowspec.table). It is always the first positional argument, so
+`run_cases.py ROOT` alone reads ROOT as IMPL: give a fixture root as
+`run_cases.py rowspec.table ROOT`.
+"""
+
+
 def main(argv):
     """`run_cases.py [IMPL] [ROOT] [--min-cases N]`.
 
@@ -234,10 +242,37 @@ def main(argv):
     impl, rest = "rowspec.table", list(argv)
     if rest and not rest[0].startswith("-"):
         impl, rest = rest[0], rest[1:]
+    if "-h" in rest or "--help" in rest:
+        print(IMPL_HELP)
+    if os.path.exists(impl):
+        # `run_cases.py cases` would import the directory as a namespace
+        # package and fail every case against it: exit 1, a verdict about an
+        # "implementation" that is really a fixture root.
+        print(
+            f"\nHARD FAILURE: IMPL {impl!r} is a path, not a module. IMPL is the first "
+            f"positional argument; pass `run_cases.py rowspec.table {impl}`.",
+            file=sys.stderr,
+        )
+        return EXIT_NO_VERDICT
+    try:
+        adapter = adapter_for(impl)
+    except (Exception, SystemExit) as exc:
+        # An implementation that will not import means no case ran, which is
+        # exit 2. Left uncaught it was Python's default 1: "a case failed" --
+        # and a module calling `sys.exit(0)` while importing exited 0, a pass
+        # over a suite that never ran. KeyboardInterrupt still propagates.
+        print(
+            f"\nHARD FAILURE: cannot import the implementation {impl!r}: "
+            f"{type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return EXIT_NO_VERDICT
     return cli.main(
-        adapter_for(impl),
+        adapter,
         rest,
-        prog="run_cases.py",
+        # IMPL is consumed above, before kindkit builds the parser, so the
+        # usage line is the only place `--help` can name it.
+        prog="run_cases.py [IMPL]",
         default_root=CASES,
         default_min_cases=MIN_CASES,
     )
