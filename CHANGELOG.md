@@ -17,6 +17,13 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **kindkit pin moved to `bf716e3`, the commit kindkit's `v0.1.0` tag names.**
+  From `a26f8f8` the only package change is one docstring. The pin stays a
+  commit rather than the tag, because a tag can be re-pointed. Measured: 0
+  failures across 410 cases on both implementations, and `just mutants` output
+  identical line for line to the previous pin's (74 killed, 0 survived, 2
+  equivalent, 0 stale, 0 broken).
+
 - **The mutation gate's probe reads a JSON verdict, not the runner's prose.**
   kindkit pin moved to `a26f8f8` (kindkit#16). `conformance/mutants.py` now
   calls `kindkit.probe_command`, which runs the suite with `--report-json` and
