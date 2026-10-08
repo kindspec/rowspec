@@ -43,9 +43,26 @@ def imported_names(path):
 
     `ast.walk`, not `tree.body`: a function-local import is still an import,
     and is the shape a forbidden dependency actually arrives in.
+
+    Dynamic imports count when the module name is a constant: `__import__`,
+    `builtins.__import__`, `importlib.__import__`, `importlib.import_module`,
+    either imported under any alias, and the name passed by keyword. A
+    relative name resolves against a constant `package`, and is internal
+    without one.
+
+    Limits -- forms this static audit cannot read, and does not try to:
+    a non-constant name; `getattr(__builtins__, "__import__")` and other
+    lookups by string; `exec` and `eval`; `importlib.util.find_spec` plus a
+    loader; `pkgutil.resolve_name`; and `sys.modules` manipulation.
     """
     with open(path, encoding="utf-8") as fh:
         tree = ast.parse(fh.read(), path)
+    aliases = {"__import__", "import_module"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module in ("importlib", "builtins"):
+            aliases |= {
+                a.asname or a.name for a in node.names if a.name in ("__import__", "import_module")
+            }
     names = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -53,7 +70,41 @@ def imported_names(path):
         elif isinstance(node, ast.ImportFrom):
             if node.level == 0 and node.module:  # a relative import is internal
                 names.add(node.module.split(".")[0])
+        elif isinstance(node, ast.Call) and _dynamic_import(node.func, aliases):
+            name = _dynamic_target(node)
+            if name:
+                names.add(name.split(".")[0])
     return names
+
+
+def _dynamic_import(func, aliases):
+    if isinstance(func, ast.Name):
+        return func.id in aliases
+    return isinstance(func, ast.Attribute) and func.attr in ("__import__", "import_module")
+
+
+def _constant_arg(call, index, keyword):
+    """The constant string passed at `index` or as `keyword`, else None."""
+    arg = call.args[index] if len(call.args) > index else None
+    arg = arg or next((k.value for k in call.keywords if k.arg == keyword), None)
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str | int):
+        return arg.value
+    return None
+
+
+def _dynamic_target(call):
+    """The absolute module a dynamic import names, or None if it is internal
+    or not readable statically."""
+    name = _constant_arg(call, 0, "name")
+    if not isinstance(name, str):
+        return None
+    if name.startswith("."):  # import_module's relative form
+        package = _constant_arg(call, 1, "package")
+        return package if isinstance(package, str) else None
+    level = _constant_arg(call, 4, "level")  # __import__'s relative form
+    if isinstance(level, int) and level > 0:
+        return None
+    return name
 
 
 def third_party(root):
@@ -104,6 +155,57 @@ def test_the_audit_sees_a_from_import_and_ignores_a_relative_one(tmp_path):
         "from openpyxl.workbook import Workbook\nfrom . import export_file\n"
     )
     assert imported_names(str(tmp_path / "a.py")) == {"openpyxl"}
+
+
+def test_the_audit_sees_a_dynamic_import_with_a_constant_name(tmp_path):
+    """`__import__` and `importlib.import_module` take a dependency as surely as
+    `import` does. A non-constant name cannot be read statically and is not
+    attempted."""
+    (tmp_path / "d.py").write_text(
+        "import importlib\n"
+        "from importlib import import_module\n"
+        "a = __import__('openpyxl')\n"
+        "b = importlib.import_module('lxml.etree')\n"
+        "c = import_module('yaml')\n"
+        "d = importlib.import_module(name)\n"
+    )
+    assert imported_names(str(tmp_path / "d.py")) == {"importlib", "openpyxl", "lxml", "yaml"}
+
+
+def test_the_audit_sees_every_constant_spelling_of_a_dynamic_import(tmp_path):
+    (tmp_path / "e.py").write_text(
+        "import builtins, importlib\n"
+        "from importlib import import_module as im\n"
+        "from builtins import __import__ as bi\n"
+        "a = builtins.__import__('openpyxl')\n"
+        "b = importlib.__import__('lxml')\n"
+        "c = importlib.import_module(name='yaml')\n"
+        "d = im('numpy')\n"
+        "e = bi('pandas')\n"
+    )
+    assert imported_names(str(tmp_path / "e.py")) == {
+        "builtins",
+        "importlib",
+        "openpyxl",
+        "lxml",
+        "yaml",
+        "numpy",
+        "pandas",
+    }
+
+
+def test_a_relative_dynamic_import_resolves_against_its_package(tmp_path):
+    """`import_module(".table", "rowspec")` is `rowspec.table`, not a module
+    named ''. With no constant package it is relative to the caller's own
+    package, which is internal by definition."""
+    (tmp_path / "r.py").write_text(
+        "import importlib\n"
+        "a = importlib.import_module('.table', 'rowspec')\n"
+        "b = importlib.import_module('.x', package='openpyxl')\n"
+        "c = importlib.import_module('.sibling', __package__)\n"
+        "d = __import__('helpers', globals(), None, (), 1)\n"
+    )
+    assert imported_names(str(tmp_path / "r.py")) == {"importlib", "rowspec", "openpyxl"}
 
 
 # ---------------------------------------------------------------------------
