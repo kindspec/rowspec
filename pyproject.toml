@@ -1,6 +1,6 @@
 [project]
 name = "rowspec"
-version = "0.2.0"
+version = "0.3.0"
 description = "A specification and conformance suite for tabular data that must survive version control"
 readme = "README.md"
 requires-python = ">=3.11"

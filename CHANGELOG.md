@@ -7,7 +7,17 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-08
+
+Everything since `v0.2.0`; documentation-only commits are not listed
+separately.
+
 ### Added
+
+- **An `eval-outcome` output on the action** (#72): `success`, `failure`,
+  or `skipped` when `eval` is false or the action stopped before `eval` ran.
+  A caller asserting that `eval` refused something should read it rather
+  than the action's overall outcome, which is `failure` either way.
 
 - **The action's default install path is exercised after every release**
   (#52). `release.yml` now calls `action-published.yml` once `publish`
@@ -26,6 +36,30 @@ prose, and where the two disagree the suite wins.
   green step that measures nothing is a check that cannot fail.
 
 ### Changed
+
+- **The conformance runner exits 2 when the implementation will not import**
+  (#62). `conformance/run_cases.py` printed a traceback and exited 1, which
+  its own docstring defines as "at least one case failed". It now prints a
+  `HARD FAILURE:` line and exits 2, no verdict. `--help` names the `IMPL`
+  argument.
+
+- **The action pins `actions/setup-python` to a commit** (#71), as every
+  workflow in this repository now pins its actions. The commit is the one
+  the `v7` tag named, so what runs is unchanged. `tests/test_pins.py` fails
+  if a floating `uses:` comes back.
+
+- **The release gate runs `just test` and `just test-xlsx`, and the build
+  checks `rowspec.__version__` against the wheel's metadata** (#69, #70).
+  The 0.1.0 wheel shipped `__version__ = "0.0.0"`, and the tagged commit was
+  held to the pytest suite only by the PR checks before it.
+
+- **Source files carry SPDX headers**, and `tests/` and `conformance/reserved/`
+  have their own `LICENSE` (#74). The licence split is unchanged.
+  `tests/test_licensing.py` checks both.
+
+- **The `reference/` standard-library-only check sees dynamic imports**
+  (#65): `__import__("x")` and `importlib.import_module("x")` with a
+  constant name.
 
 - **CI runs the suite, the second implementation and the mutation gate
   through kindkit's reusable workflow.** A new `kind` job in `check.yml`
@@ -297,6 +331,7 @@ actually ran. The two grammars diverged invisibly until differential evaluation
 against 55,681 real spreadsheet cells found it — not a check that could not
 fail, but a check that was never against the specification at all.
 
-[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kindspec/rowspec/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kindspec/rowspec/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kindspec/rowspec/releases/tag/v0.1.0

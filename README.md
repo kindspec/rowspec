@@ -64,7 +64,7 @@ rest. See [docs/csv.md](docs/csv.md), and copy
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: kindspec/rowspec@v0.2.0
+- uses: kindspec/rowspec@v0.3.0
   with:
     paths: data
 ```
