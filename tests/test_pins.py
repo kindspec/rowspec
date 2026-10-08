@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """Every action this repository's CI and its own Action run is pinned to a commit.
 
 A tag can be re-pointed under us, and the release workflow carries the artifact
