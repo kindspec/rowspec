@@ -11,8 +11,8 @@ path.
 
 ## Where it is
 
-**Draft 0**, released as `v0.1.0` and `v0.2.0` (latest), on PyPI, with a
-GitHub Action.
+**Draft 0**, released as `v0.1.0`, `v0.2.0` and `v0.3.0` (latest), on PyPI,
+with a GitHub Action.
 
     410 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
@@ -20,13 +20,24 @@ GitHub Action.
     73 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
-    75 distinct mutations     the gate refuses two that mutate identically
-    52 passed, 1 skipped      just test
+    75 distinct mutations     just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
+                              (the gate exits 2 if two mutate identically)
+    73 passed, 1 skipped      just test
+    9 passed                  just test-xlsx
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
+
+## Shipped in 0.3.0
+
+CSV mode now warns on a lone `CR`, as SPEC.md §13 requires, and `--strict`
+refuses it. The action gained an `eval-outcome` output, pins `setup-python` to
+a commit, and its default install path is exercised against PyPI after every
+release (#52). CI runs the suite, the second implementation and the mutation
+gate through kindkit's reusable workflow, and the gate refuses two mutants that
+mutate identically. See the CHANGELOG for the full list.
 
 ## Shipped in 0.2.0
 
