@@ -39,8 +39,9 @@ prose, and where the two disagree the suite wins.
   the `conformance` job. That job keeps its name and everything else: lint,
   `just test` with the extra absent, and the example recipe. `just test` still
   runs the suite and the gate too, through `tests/test_conformance.py`, as it
-  did before. The `kind` job is not a replacement for those tests. `tests/test_pins.py` fails if the workflow's kindkit commit and
-  the package pin differ.
+  did before. The `kind` job is not a replacement for those tests.
+  `tests/test_pins.py` fails if the workflow's kindkit commit and the
+  package pin differ.
 
 - **kindkit pin moved to `8e21b55`** (from `bf716e3`), kindkit's main after
   its reusable workflow landed (kindkit#24). kindkit has no tag past
