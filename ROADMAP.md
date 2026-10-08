@@ -20,7 +20,7 @@ with a GitHub Action.
     73 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
-    75 distinct mutations     just mutants | grep -cE '^  (killed|equiv|survived|stale|broken) '
+    75 distinct mutations     just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
     73 passed, 1 skipped      just test
     9 passed                  just test-xlsx

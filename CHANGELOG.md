@@ -9,8 +9,9 @@ prose, and where the two disagree the suite wins.
 
 ## [0.3.0] — 2026-10-08
 
-Everything since `v0.2.0`; documentation-only commits are not listed
-separately.
+Everything since `v0.2.0`. Documentation-only commits, and development and CI
+changes with no effect outside this repository (#66, #67, #73), are not
+listed separately.
 
 ### Added
 
@@ -54,8 +55,16 @@ separately.
   held to the pytest suite only by the PR checks before it.
 
 - **Source files carry SPDX headers**, and `tests/` and `conformance/reserved/`
-  have their own `LICENSE` (#74). The licence split is unchanged.
-  `tests/test_licensing.py` checks both.
+  have their own `LICENSE` (#74). Two paths are relicensed, both to more
+  permissive terms, and three that named no licence now name one:
+  - `conformance/reserved/` is CC0-1.0, like `conformance/cases/`. It had no
+    `LICENSE` of its own, so it was MIT, from `conformance/LICENSE`.
+  - `docs/ci/rowspec-check.yml`, the CI template users are told to copy, is
+    CC0-1.0. It was CC-BY-4.0 with the rest of `docs/`.
+  - The root `LICENSE` now lists `action.yml`, `.github/workflows/` and the
+    `justfile` under Apache-2.0 OR MIT.
+
+  `tests/test_licensing.py` checks the headers and the `LICENSE` files.
 
 - **The `reference/` standard-library-only check sees dynamic imports**
   (#65): `__import__("x")` and `importlib.import_module("x")` with a
