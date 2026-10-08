@@ -30,6 +30,7 @@ is the same for every kind. What is left here is the part that knows what
 probe that runs THIS suite against a given file.
 """
 
+import fcntl
 import hashlib
 import os
 import sys
@@ -516,6 +517,14 @@ RUNNER = os.path.join(HERE, "run_cases.py")
 #: is overwritten and then deleted.
 SCRATCH = os.path.join(HERE, "mutant_impl.py")
 
+#: Held for the whole run, so two gates in one tree take turns at `SCRATCH`
+#: instead of writing over each other's mutants. `just test` runs the gate
+#: too, so `just test` beside `just mutants` was two gates on one file, and
+#: each aborted the other (#81). An flock dies with its process, so a killed
+#: run never leaves the tree locked -- and while it is held, a `SCRATCH` on
+#: disk can only be what a killed run left behind.
+LOCK = os.path.join(HERE, ".mutants.lock")
+
 #: Seconds a single probe may take. The whole tree runs in about two, so this
 #: is two orders of magnitude of headroom and only a mutant that made the suite
 #: LOOP could reach it -- `drop-every-third-row` is one line away from being
@@ -585,7 +594,28 @@ def main():
     suite that reaches no verdict on the UNMUTATED source all mean every
     number this run could print would be meaningless.
     """
+    with open(LOCK, "a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(
+                f"waiting for another mutation gate run in this tree to finish ({LOCK})",
+                file=sys.stderr,
+                flush=True,
+            )
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        return _run()
+
+
+def _run():
     try:
+        if os.path.lexists(SCRATCH):
+            # Possibly a mutant, and gitignored, so nothing else shows it.
+            # Writing over it would also erase the evidence that a run died.
+            raise GateError(
+                f"{SCRATCH} is left over from a gate run that was interrupted or killed, and may "
+                "hold a mutant: inspect it, delete it, and run the gate again"
+            )
         dups = duplicate_mutations()
         if dups:
             raise GateError(f"mutants produce the same mutated source: {dups}")

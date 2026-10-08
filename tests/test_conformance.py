@@ -5,9 +5,13 @@ The suite is the deliverable; running it under pytest is a convenience, not the
 definition. `just conform` runs the same cases directly.
 """
 
+import fcntl
 import os
+import selectors
+import shutil
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -51,6 +55,130 @@ def test_mutation_gate_is_sound():
     """
     r = _run("mutants.py")
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def _gate_tree(tmp_path):
+    """A copy of the gate and what it measures, so a test can plant files in
+    it without touching the scratch file of a gate running in this tree."""
+    skip = shutil.ignore_patterns("__pycache__", "mutant_impl.py", ".mutants.lock")
+    for name in ("conformance", "reference"):
+        shutil.copytree(os.path.join(ROOT, name), tmp_path / name, ignore=skip)
+    return tmp_path / "conformance"
+
+
+def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path):
+    """A run killed mid-probe leaves a MUTATED `mutant_impl.py` behind, and the
+    file is gitignored, so nothing else shows it. The next run used to write
+    over it and delete it, so the evidence of the kill went with it (#81)."""
+    conf = _gate_tree(tmp_path)
+    stale = conf / "mutant_impl.py"
+    stale.write_text("# left behind by a killed run\n")
+    r = subprocess.run(
+        [sys.executable, "mutants.py"], cwd=conf, capture_output=True, text=True, timeout=600
+    )
+    assert r.returncode == 2, f"expected 2, got {r.returncode}\n" + r.stdout[-500:] + r.stderr
+    assert str(stale) in r.stderr, r.stderr
+    assert stale.read_text() == "# left behind by a killed run\n"
+
+
+def _start_gate(conf):
+    return subprocess.Popen(
+        [sys.executable, "mutants.py"],
+        cwd=conf,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def _first_line(p, timeout=30):
+    with selectors.DefaultSelector() as sel:
+        sel.register(p.stderr, selectors.EVENT_READ)
+        return p.stderr.readline() if sel.select(timeout=timeout) else ""
+
+
+def _await(cond, timeout=60):
+    deadline = time.monotonic() + timeout
+    while not cond() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    return cond()
+
+
+#: How long a gate that should be waiting is watched for NOT proceeding. A
+#: gate that does not wait writes its scratch file in well under a second.
+WATCH = 3
+
+
+def test_a_second_run_waits_for_the_one_holding_the_tree(tmp_path):
+    """`just test` runs the gate, so `just test` beside `just mutants` is two
+    gates writing one scratch file, and each aborted the other (#81).
+
+    Waiting means both halves: it does not touch the scratch file while the
+    lock is held, and it does once the lock is released. Saying "waiting" and
+    then going ahead anyway passed the first version of this test."""
+    conf = _gate_tree(tmp_path)
+    scratch = conf / "mutant_impl.py"
+    held = open(conf / ".mutants.lock", "a")
+    fcntl.flock(held, fcntl.LOCK_EX)
+    p = _start_gate(conf)
+    try:
+        said = _first_line(p)
+        assert "waiting for another mutation gate run" in said, said
+        time.sleep(WATCH)
+        assert p.poll() is None, "exited instead of waiting"
+        assert not scratch.exists(), "wrote the scratch file while another run held the tree"
+        held.close()
+        assert _await(scratch.exists), "never proceeded once the lock was released"
+    finally:
+        held.close()
+        if p.poll() is None:
+            p.kill()
+            p.communicate()
+
+
+def test_a_second_run_is_shut_out_while_a_gate_is_measuring(tmp_path):
+    """The lock is EXCLUSIVE and held for the whole run, not just taken.
+
+    A shared lock, or one released before the mutants are probed, lets a
+    second gate in beside the first, and the second then reads the first
+    one's scratch file as a killed run's leftover and refuses (#81)."""
+    conf = _gate_tree(tmp_path)
+    p = _start_gate(conf)
+    try:
+        assert _await((conf / "mutant_impl.py").exists), "the gate never started measuring"
+        with open(conf / ".mutants.lock", "a") as other:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(other, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    finally:
+        p.kill()
+        p.communicate()
+
+
+def test_a_leftover_is_not_judged_while_another_run_holds_the_tree(tmp_path):
+    """While another run holds the lock, the scratch file on disk is ITS
+    scratch file, not a leftover. The check must come after the lock, or a
+    second gate refuses a run that is alive and well."""
+    conf = _gate_tree(tmp_path)
+    scratch = conf / "mutant_impl.py"
+    scratch.write_text("# the live run's mutant\n")
+    held = open(conf / ".mutants.lock", "a")
+    fcntl.flock(held, fcntl.LOCK_EX)
+    p = _start_gate(conf)
+    try:
+        said = _first_line(p)
+        assert "waiting for another mutation gate run" in said, said
+        time.sleep(WATCH)
+        assert p.poll() is None, "refused instead of waiting"
+        held.close()
+        # Released with the file still there: now it IS a leftover.
+        _, err = p.communicate(timeout=60)
+        assert p.returncode == 2, err
+        assert str(scratch) in err, err
+    finally:
+        held.close()
+        if p.poll() is None:
+            p.kill()
+            p.communicate()
 
 
 def test_suite_rejects_a_vacuous_implementation():
