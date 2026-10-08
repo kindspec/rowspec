@@ -32,7 +32,8 @@ inputs:
       Treat CRLF line endings and a UTF-8 byte-order mark as refusals rather
       than warnings. Both are legal in CSV -- RFC 4180 makes CRLF the default
       and Excel writes the BOM -- so turn this on only once a repository is
-      already clean, or every pull request goes red at once.
+      already clean, or every pull request goes red at once. A lone CR, also
+      a warning by default, is refused too.
     required: false
     default: "false"
   python-version:

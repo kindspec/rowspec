@@ -27,6 +27,12 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **CSV mode warns on a lone CR** (#59). SPEC.md §13 makes refusal 15 (a
+  lone `CR`) a warning in CSV mode; `rowspec check` passed one silently. Under
+  `--strict` it is refused, like the BOM and `CRLF` warnings. The `CRLF`
+  warning is unchanged and now says it is rowspec's advisory: SPEC.md §3
+  accepts `CRLF`, and `docs/csv.md` no longer says §3 requires `LF`.
+
 - **kindkit pin moved to `bf716e3`, the commit kindkit's `v0.1.0` tag names.**
   From `a26f8f8` the only package change is one docstring. The pin stays a
   commit rather than the tag, because a tag can be re-pointed. Measured: 0
