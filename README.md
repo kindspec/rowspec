@@ -134,7 +134,7 @@ been measured and found wanting.
 ```sh
 just setup      # uv sync
 just check      # fmt-check + lint
-just test       # everything under tests/: suite, gate, CSV, CLI, boundary (corpus checks: CI only)
+just test       # everything under tests/: suite, gate, CSV, CLI, boundary
 just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
 just conform-alt # the SECOND implementation, against the same fixture tree
@@ -145,6 +145,16 @@ just eval FILE  # print computed values and FAIL on any #REF!
 
 A real `git` binary is required. The suite's central claim is about what stock
 git does, so it uses stock git.
+
+**From the source archive (sdist), run the suite through uv, not pip.** The
+sdist ships the fixture tree and the runner, but the runner needs
+[kindkit](https://github.com/kindspec/kindkit), which is in the `dev`
+dependency group. Dependency groups are not package metadata, so
+`pip install rowspec-X.tar.gz` cannot install it, and
+`python conformance/run_cases.py` then fails with `No module named 'kindkit'`.
+Unpack the archive and run `uv sync` (or `just setup`) in it, then
+`just conform`. kindkit is not on PyPI yet. Once it is, a `conformance` extra
+can make pip enough (#47).
 
 ## Export to xlsx, only if you ask for it
 

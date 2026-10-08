@@ -7,6 +7,14 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Removed
+
+- **`conformance/corpus_check.py` and its CI step.** It looked for duplicate
+  `id:` lines in `.md`, `.tbl` and `.canvas` files, and never opened a
+  `.mdtbl` file, so it could not fail on anything this repository specifies.
+  On this tree it printed `0 identified artifact(s), 0 duplicate id(s)`. A
+  green step that measures nothing is a check that cannot fail.
+
 ### Changed
 
 - **The mutation gate has 75 mutants, all distinct, and refuses duplicates**
@@ -20,6 +28,13 @@ prose, and where the two disagree the suite wins.
   stale, 0 broken. Every other mutant's verdict and killing cases are
   unchanged. The gate exits 2 if two mutants produce the same mutated source,
   however their patterns are spelled.
+
+- **kindkit pin moved to `bf716e3`, the commit kindkit's `v0.1.0` tag names.**
+  From `a26f8f8` the only package change is one docstring. The pin stays a
+  commit rather than the tag, because a tag can be re-pointed. Measured: 0
+  failures across 410 cases on both implementations, and `just mutants` output
+  identical line for line to the previous pin's (74 killed, 0 survived, 2
+  equivalent, 0 stale, 0 broken).
 
 - **The mutation gate's probe reads a JSON verdict, not the runner's prose.**
   kindkit pin moved to `a26f8f8` (kindkit#16). `conformance/mutants.py` now
