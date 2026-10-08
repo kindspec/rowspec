@@ -33,21 +33,14 @@ jobs:
       - name: just is actually on PATH
         run: just --version
 
-      # Each gate reports independently. A failing `check` must not hide
-      # whether `conform` and `mutants` ran, which is the whole complaint
-      # above -- and this project's own thesis applied to its own CI.
+      # Each step reports independently. A failing `check` must not hide
+      # whether the tests ran, which is the whole complaint above -- and
+      # this project's own thesis applied to its own CI. The suite, the
+      # second implementation and the mutation gate are not here: they are
+      # kindkit's gates, run by the `kind` job below.
       - name: lint and format
         if: always()
         run: just check
-      - name: conformance suite (stock git)
-        if: always()
-        run: just conform
-      - name: the suite must be able to fail
-        if: always()
-        run: just mutants
-      - name: a second implementation, from the spec alone
-        if: always()
-        run: just conform-alt
 
       # `just test` had never run in CI. The suite ran here through `just
       # conform` and `just mutants`, so the gap was invisible -- but tests/
@@ -98,3 +91,27 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: the exporter, with its optional extra installed
         run: just test-xlsx
+
+  # kindkit's reusable workflow: the case tree against the convention, the
+  # suite on the reference implementation, the same tree on the second
+  # implementation, and the mutation gate. It reports as `kind /
+  # conformance`, and that name is the interface a ruleset matches on --
+  # renaming this job id renames the check (kindspec/.github AGENTS.md §3.2).
+  #
+  # The commit in `uses:` must be the commit the `dev` group pins kindkit to
+  # in pyproject.toml: the workflow fetches kindkit's tools at this commit,
+  # and the runner and gate it drives are the pinned package. Two kits would
+  # mean the gates check a contract the code under them does not keep.
+  # tests/test_pins.py fails when the two differ, so move them together.
+  kind:
+    # The workflow reads its own run to find the commit it was called at, and
+    # a called workflow can hold no more than its caller grants.
+    permissions:
+      contents: read
+      actions: read
+    uses: kindspec/kindkit/.github/workflows/kind.yml@8e21b558c85d5612009f3a1d69a3a68bc0191637
+    with:
+      fixture-root: conformance/cases
+      suite: cd conformance && uv run python run_cases.py
+      second-implementation: cd conformance && uv run python run_cases.py rowspec_alt.table
+      mutants: cd conformance && uv run python mutants.py

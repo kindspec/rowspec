@@ -85,6 +85,8 @@ include = [
 # no tag newer than `v0.1.0`, which lacks the report `root` key and the
 # KINDKIT_REPORT_JSON / KINDKIT_GATE_REPORT variables that workflow reads.
 # Move the pin deliberately, and re-measure the suite and the gate when you do.
+# The `kind` job in .github/workflows/check.yml calls kindkit's workflow at a
+# commit as well; move it with this pin -- tests/test_pins.py fails otherwise.
 [dependency-groups]
 dev = [
   "pytest>=8",

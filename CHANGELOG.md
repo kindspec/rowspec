@@ -27,6 +27,22 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **CI runs the suite, the second implementation and the mutation gate
+  through kindkit's reusable workflow.** A new `kind` job in `check.yml`
+  calls `kindspec/kindkit/.github/workflows/kind.yml` at `8e21b55`, the same
+  commit the `dev` group pins. It reports as `kind / conformance` and does
+  more than the steps it replaces. It checks the case tree against kindkit's
+  convention. The suite and the second implementation pass only if they ran
+  every case directory under `conformance/cases`, read from that root. The
+  mutation gate is judged by the gate's own report, not by its exit code.
+  `just conform`, `just conform-alt` and `just mutants` are no longer steps of
+  the `conformance` job. That job keeps its name and everything else: lint,
+  `just test` with the extra absent, and the example recipe. `just test` still
+  runs the suite and the gate too, through `tests/test_conformance.py`, as it
+  did before. The `kind` job is not a replacement for those tests.
+  `tests/test_pins.py` fails if the workflow's kindkit commit and the
+  package pin differ.
+
 - **kindkit pin moved to `8e21b55`** (from `bf716e3`), kindkit's main after
   its reusable workflow landed (kindkit#24). kindkit has no tag past
   `v0.1.0`, so the pin is a commit. The new kit adds what that workflow

@@ -28,7 +28,10 @@ implementation exists so the suite has something to check.
   dependency pinned to a commit, used only under `conformance/`; nothing in
   `reference/` may reach for it, which is what `tests/test_boundary.py`
   enforces. Move the pin deliberately and re-measure the suite and the gate
-  when you do.
+  when you do. CI runs the suite, the second implementation and the gate
+  through kindkit's reusable workflow, the `kind` job in
+  `.github/workflows/check.yml`, whose `uses:` names a kindkit commit too.
+  Move both in one change: `tests/test_pins.py` fails when they differ.
 
 ## Layout
 

@@ -16,6 +16,7 @@ owner rather than a fork.
 
 import os
 import re
+import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__"}
@@ -95,3 +96,45 @@ def test_the_scan_sees_every_shape_a_tag_pin_can_take(tmp_path):
         ".github/actions/foo/action.yml: actions/setup-python@v5",
         "action.yaml: actions/setup-node@v4",
     ]
+
+
+# GitHub owner and repository names are case-insensitive, so `KindSpec/KindKit`
+# calls the same workflow; matched case-insensitively, or a stale ref spelled
+# that way is never compared. The commit stays lowercase hex, as `PINNED` wants.
+KINDKIT = re.compile(r"(?i:kindspec/kindkit)(?:\.git)?[@/]")
+KINDKIT_SHA = re.compile(r"(?i:kindspec/kindkit)(?:\.git)?(?:/[^\s@]*)?@([0-9a-f]{40})\b")
+
+
+def kindkit_pin(root=ROOT):
+    """The commit the `dev` dependency group pins kindkit to."""
+    with open(os.path.join(root, "pyproject.toml"), "rb") as fh:
+        dev = tomllib.load(fh)["dependency-groups"]["dev"]
+    pins = [m.group(1) for d in dev if (m := KINDKIT_SHA.search(d))]
+    assert len(pins) == 1, f"expected one kindkit pin in the dev group, found {dev}"
+    return pins[0]
+
+
+def kindkit_workflow_refs(root=ROOT):
+    """`(file, ref)` for every `uses:` of a kindkit workflow, and any that names no commit."""
+    out = []
+    for path in scanned(root)[0]:
+        with open(os.path.join(root, path), encoding="utf-8") as fh:
+            text = COMMENT.sub(r"\1", fh.read())
+        for ref in USES.findall(text):
+            if KINDKIT.search(ref):
+                m = KINDKIT_SHA.search(ref)
+                out.append((path, m.group(1) if m else ref))
+    return out
+
+
+def test_the_kindkit_workflow_runs_at_the_commit_the_package_is_pinned_to():
+    """CI's kindkit gates and the kindkit they drive are the same commit.
+
+    `kind.yml` fetches kindkit's tools at the commit in `uses:`; the runner and
+    the gate those tools drive are the package pinned in `pyproject.toml`. Moved
+    apart, the workflow checks a report contract the installed kit may not keep.
+    """
+    refs = kindkit_workflow_refs()
+    assert refs, "no workflow calls kindkit's kind.yml; the scan sees nothing to compare"
+    pin = kindkit_pin()
+    assert [r for r in refs if r[1] != pin] == [], f"the dev group pins kindkit to {pin}"
