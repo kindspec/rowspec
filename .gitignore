@@ -44,3 +44,4 @@ htmlcov/
 .cache/
 mutant_impl.py
 .venv/
+.mutants.lock

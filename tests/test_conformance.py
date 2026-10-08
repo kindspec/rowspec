@@ -5,7 +5,10 @@ The suite is the deliverable; running it under pytest is a convenience, not the
 definition. `just conform` runs the same cases directly.
 """
 
+import fcntl
 import os
+import selectors
+import shutil
 import subprocess
 import sys
 
@@ -51,6 +54,56 @@ def test_mutation_gate_is_sound():
     """
     r = _run("mutants.py")
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def _gate_tree(tmp_path):
+    """A copy of the gate and what it measures, so a test can plant files in
+    it without touching the scratch file of a gate running in this tree."""
+    skip = shutil.ignore_patterns("__pycache__", "mutant_impl.py", ".mutants.lock")
+    for name in ("conformance", "reference"):
+        shutil.copytree(os.path.join(ROOT, name), tmp_path / name, ignore=skip)
+    return tmp_path / "conformance"
+
+
+def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path):
+    """A run killed mid-probe leaves a MUTATED `mutant_impl.py` behind, and the
+    file is gitignored, so nothing else shows it. The next run used to write
+    over it and delete it, so the evidence of the kill went with it (#81)."""
+    conf = _gate_tree(tmp_path)
+    stale = conf / "mutant_impl.py"
+    stale.write_text("# left behind by a killed run\n")
+    r = subprocess.run(
+        [sys.executable, "mutants.py"], cwd=conf, capture_output=True, text=True, timeout=600
+    )
+    assert r.returncode == 2, f"expected 2, got {r.returncode}\n" + r.stdout[-500:] + r.stderr
+    assert str(stale) in r.stderr, r.stderr
+    assert stale.read_text() == "# left behind by a killed run\n"
+
+
+def test_a_second_run_waits_for_the_one_holding_the_tree(tmp_path):
+    """`just test` runs the gate, so `just test` beside `just mutants` is two
+    gates writing one scratch file, and each aborted the other (#81)."""
+    conf = _gate_tree(tmp_path)
+    scratch = conf / "mutant_impl.py"
+    with open(conf / ".mutants.lock", "a") as held:
+        fcntl.flock(held, fcntl.LOCK_EX)
+        p = subprocess.Popen(
+            [sys.executable, "mutants.py"],
+            cwd=conf,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            with selectors.DefaultSelector() as sel:
+                sel.register(p.stderr, selectors.EVENT_READ)
+                said = p.stderr.readline() if sel.select(timeout=30) else ""
+            assert "waiting for another mutation gate run" in said, said
+            assert p.poll() is None, "exited instead of waiting"
+            assert not scratch.exists(), "wrote the scratch file while another run held the tree"
+        finally:
+            p.kill()
+            p.communicate()
 
 
 def test_suite_rejects_a_vacuous_implementation():
