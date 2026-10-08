@@ -9,6 +9,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONF = os.path.join(ROOT, "conformance")
 
@@ -78,3 +80,46 @@ def test_suite_rejects_a_vacuous_implementation():
         )
     finally:
         os.path.exists(vac) and os.remove(vac)
+
+
+def test_an_unimportable_implementation_is_no_verdict():
+    """An implementation that will not import means no case ran: exit 2, the
+    runner's no-verdict code, and never 1, which claims a case failed."""
+    r = _run("run_cases.py", "no.such.module")
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "HARD FAILURE:" in r.stderr, r.stderr
+    assert "Traceback" not in r.stderr, r.stderr
+
+
+@pytest.mark.parametrize("code", [0, 1])
+def test_an_implementation_that_exits_on_import_is_no_verdict(code):
+    """`sys.exit(0)` during import would otherwise exit 0 -- a pass with no
+    case run -- and `sys.exit(1)` would claim a case failed."""
+    name = f"_exits_{code}"
+    path = os.path.join(CONF, name + ".py")
+    with open(path, "w") as fh:
+        fh.write(f"import sys\nsys.exit({code})\n")
+    try:
+        r = _run("run_cases.py", name)
+    finally:
+        os.remove(path)
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "HARD FAILURE:" in r.stderr, r.stderr
+
+
+def test_help_explains_the_implementation_argument():
+    """Every caller passes IMPL first; `--help` must say what it is, and that
+    a fixture root given alone would be read as IMPL."""
+    r = _run("run_cases.py", "--help")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "IMPL" in r.stdout, r.stdout
+    assert "importable module" in r.stdout, r.stdout
+    assert "first positional" in r.stdout, r.stdout
+
+
+def test_a_fixture_root_given_alone_is_refused_not_run_as_impl():
+    """`run_cases.py cases` imports the directory as a namespace package and
+    fails every case against it -- exit 1, a verdict about nothing."""
+    r = _run("run_cases.py", "cases")
+    assert r.returncode == 2, r.stdout[-500:] + r.stderr
+    assert "is a path, not a module" in r.stderr, r.stderr
