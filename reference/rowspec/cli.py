@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """rowspec check — the specification's refusals, runnable on real files.
 
 `.mdtbl` files go through the full parser and evaluator. `.csv` and `.tsv`

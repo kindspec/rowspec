@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """Export a `.mdtbl` to `.xlsx` — deliberately OUTSIDE `reference/`.
 
 `reference/` is standard-library-only because a dependency there is a

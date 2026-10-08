@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """The exporter, exercised only where its optional extra is installed.
 
 `just test` runs with the extra ABSENT, because that is what `pip install

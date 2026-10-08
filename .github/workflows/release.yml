@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 # Publishes to PyPI via a Trusted Publisher (OIDC). No API token is stored
 # anywhere: PyPI is configured to trust this repository, this workflow file by
 # name, and the `pypi` environment below. Changing any of those three breaks

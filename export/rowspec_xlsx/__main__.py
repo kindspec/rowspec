@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """`python -m rowspec_xlsx SRC.mdtbl DST.xlsx`.
 
 Not a console script. An entry point declared in `[project.scripts]` is

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """The packaging boundary: `reference/` imports the standard library and nothing else.
 
 `AGENTS.md` states the rule in prose. Prose is not enforcement — a lazy
