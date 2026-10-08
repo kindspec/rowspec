@@ -80,14 +80,16 @@ include = [
 #
 # Pinned to a COMMIT, not a branch or a tag: kindkit is pre-release and not on
 # PyPI, a tag can be re-pointed, and a gate that moves under the suite it gates
-# is the failure this project keeps finding in itself. The commit below is the
-# one kindkit's `v0.1.0` tag names. Move the pin deliberately, and re-measure
-# the suite and the gate when you do.
+# is the failure this project keeps finding in itself. The commit below is
+# kindkit's main after its reusable workflow landed (kindkit#24); kindkit has
+# no tag newer than `v0.1.0`, which lacks the report `root` key and the
+# KINDKIT_REPORT_JSON / KINDKIT_GATE_REPORT variables that workflow reads.
+# Move the pin deliberately, and re-measure the suite and the gate when you do.
 [dependency-groups]
 dev = [
   "pytest>=8",
   "ruff>=0.6",
-  "kindkit @ git+https://github.com/kindspec/kindkit@bf716e3c3bad25da7076e8a37aa5f46e76871eca",
+  "kindkit @ git+https://github.com/kindspec/kindkit@8e21b558c85d5612009f3a1d69a3a68bc0191637",
 ]
 
 [tool.ruff]
