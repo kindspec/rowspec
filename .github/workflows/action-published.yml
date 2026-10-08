@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 # Runs the action the way a consumer does: `install` left at its default, so
 # pip installs the release that action.yml pins from PyPI. `action-selftest.yml`
 # sets `install: .` on purpose and so never exercises this path (#52).
