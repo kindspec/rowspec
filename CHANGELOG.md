@@ -7,6 +7,16 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Added
+
+- **The action's default install path is exercised after every release**
+  (#52). `release.yml` now calls `action-published.yml` once `publish`
+  finishes. It runs the action exactly as a consumer does, with `install`
+  left at its default, so it pip-installs the pinned release from PyPI. It
+  asserts in both directions with the `eval: "false"` control. It can also be
+  dispatched by hand. It does not run on pull requests, because a
+  release-prep PR pins a version PyPI does not have yet.
+
 ### Removed
 
 - **`conformance/corpus_check.py` and its CI step.** It looked for duplicate
@@ -28,6 +38,12 @@ prose, and where the two disagree the suite wins.
   stale, 0 broken. Every other mutant's verdict and killing cases are
   unchanged. The gate exits 2 if two mutants produce the same mutated source,
   however their patterns are spelled.
+
+- **CSV mode warns on a lone CR** (#59). SPEC.md §13 makes refusal 15 (a
+  lone `CR`) a warning in CSV mode; `rowspec check` passed one silently. Under
+  `--strict` it is refused, like the BOM and `CRLF` warnings. The `CRLF`
+  warning is unchanged and now says it is rowspec's advisory: SPEC.md §3
+  accepts `CRLF`, and `docs/csv.md` no longer says §3 requires `LF`.
 
 - **kindkit pin moved to `bf716e3`, the commit kindkit's `v0.1.0` tag names.**
   From `a26f8f8` the only package change is one docstring. The pin stays a

@@ -1,13 +1,24 @@
 rowspec is licensed per directory. This is deliberate, not an oversight.
 
   SPEC.md, docs/            CC-BY-4.0
-  conformance/cases/        CC0-1.0
+  docs/ci/rowspec-check.yml CC0-1.0
+  conformance/cases/,
+  conformance/reserved/     CC0-1.0
   conformance/*.py          MIT
   reference/, export/,
-  tests/                    Apache-2.0 OR MIT
+  tests/, action.yml,
+  .github/workflows/,
+  justfile                  Apache-2.0 OR MIT
+
+docs/ci/rowspec-check.yml is the CI workflow users are told to copy into their
+own repositories, so it is CC0 like the fixtures: copyable without an
+attribution obligation. The rest of docs/ stays CC-BY-4.0.
 
 Full texts are in LICENSES/. Each directory carries its own LICENSE file, and
-source files carry SPDX headers.
+source files carry SPDX headers. The fixtures under conformance/cases/ and
+conformance/reserved/ do not: they are exact bytes, a .json file cannot hold a
+comment, and their directory's LICENSE covers them. tests/test_licensing.py
+checks both halves of this paragraph.
 
 WHY THE SPLIT
 

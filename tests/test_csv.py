@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """CSV mode: the refusals, on files nobody migrated.
 
 Fixtures are byte literals rather than checked-in files on purpose. A CRLF
@@ -137,11 +138,33 @@ def test_invalid_utf8_is_refused(tmp_path):
 # --------------------------------------------------------------------------
 
 
-def test_crlf_and_bom_warn_but_do_not_refuse(tmp_path):
-    f = write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\r\nr_01,Ada\r\n")
+def test_bom_and_lone_cr_warn_but_do_not_refuse(tmp_path):
+    """SPEC.md §13: refusals 14 (BOM) and 15 (lone CR) are warnings in CSV
+    mode. A lone CR ends a record for a CSV reader but not a line for git, so
+    two rows share one line in every diff and merge."""
+    f = write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\rr_01,Ada\n")
     found = check_file(f)
-    assert rules(found) == ["bom", "crlf"]
+    assert rules(found) == ["bom", "lone-cr"]
     assert all(x.level == "warn" for x in found)
+
+
+def test_crlf_is_an_advisory_warning_not_a_refusal(tmp_path):
+    """SPEC.md §3 accepts LF and CRLF alike. The CRLF warning is rowspec's
+    advisory, not a spec requirement, and `--strict` refusing it is part of
+    the action's documented `strict` input."""
+    found = check_file(write(tmp_path, "crlf.csv", b"id,name\r\nr_01,Ada\r\n"))
+    assert rules(found) == ["crlf"]
+    assert all(x.level == "warn" for x in found)
+
+
+def test_a_cr_that_is_part_of_crlf_is_not_a_lone_cr(tmp_path):
+    f = write(tmp_path, "mixed.csv", b"id,name\r\nr_01,Ada\nr_02,Grace\r\n")
+    assert rules(check_file(f)) == ["crlf"]
+
+
+def test_crlf_and_a_lone_cr_are_reported_separately(tmp_path):
+    f = write(tmp_path, "both.csv", b"id,name\r\nr_01,Ada\rr_02,Grace\r\n")
+    assert rules(check_file(f)) == ["crlf", "lone-cr"]
 
 
 def test_bom_does_not_break_the_declared_key(tmp_path):
@@ -341,6 +364,21 @@ def test_check_verb_and_exit_codes(tmp_path, capsys):
 def test_warnings_alone_do_not_fail_unless_strict(tmp_path, capsys):
     write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\r\nr_01,Ada\r\n")
     assert cli.main(["check", str(tmp_path)]) == 0
+    assert cli.main(["check", "--strict", str(tmp_path)]) == 1
+
+
+def test_a_lone_cr_is_a_warning_on_the_cli(tmp_path, capsys):
+    write(tmp_path, "lonecr.csv", b"a,b\r1,2\n")
+    assert cli.main(["check", str(tmp_path)]) == 0
+    out = capsys.readouterr()
+    assert "warning: " in out.err and "1 with warnings" in out.out
+    assert cli.main(["check", "--strict", str(tmp_path)]) == 1
+
+
+def test_crlf_warns_and_strict_still_refuses_it(tmp_path, capsys):
+    write(tmp_path, "crlf.csv", b"a,b\r\n1,2\r\n")
+    assert cli.main(["check", str(tmp_path)]) == 0
+    assert "CRLF" in capsys.readouterr().err
     assert cli.main(["check", "--strict", str(tmp_path)]) == 1
 
 

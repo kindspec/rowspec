@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: Apache-2.0 OR MIT -->
 # rowspec_alt — the conformance witness
 
 A second, independent implementation of the specification. It exists so the

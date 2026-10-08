@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: CC0-1.0
 # Copy this file to .github/workflows/rowspec-check.yml in your repository.
 #
 # Why a workflow, and not a hook or a merge driver: a workflow file is the only
@@ -66,8 +67,9 @@ jobs:
 
       # Optional: also fail on CRLF line endings and a UTF-8 byte-order mark.
       # Both are legal in CSV (RFC 4180 makes CRLF the default and Excel writes
-      # the BOM), so they are warnings by default. Turn this on only once the
-      # repository is already clean, or every pull request will be red.
+      # the BOM), so they are warnings by default. A lone CR is a warning too
+      # and is also refused here. Turn this on only once the repository is
+      # already clean, or every pull request will be red.
       #
       # - name: no CRLF, no BOM
       #   run: rowspec check --strict --format github data

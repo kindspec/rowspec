@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """Row-relative computation WITHOUT coordinates.
 
 The insight: `prev.` failed not because row-relative computation is wrong, but
