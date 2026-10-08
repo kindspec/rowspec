@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 # Publishes to PyPI via a Trusted Publisher (OIDC). No API token is stored
 # anywhere: PyPI is configured to trust this repository, this workflow file by
 # name, and the `pypi` environment below. Changing any of those three breaks
@@ -116,3 +117,10 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  # The action as a consumer runs it, with the default `install`, against the
+  # release just published (#52). Red here comes AFTER an irreversible upload;
+  # the header of action-published.yml says what to do about that.
+  published-action:
+    needs: publish
+    uses: ./.github/workflows/action-published.yml

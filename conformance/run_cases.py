@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Conformance runner driven ENTIRELY by the fixture tree.
 
 It never imports the case definitions. Any implementation exposing the same

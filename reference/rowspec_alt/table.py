@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """rowspec — a second, independent implementation, written from SPEC.md.
 
 Entry points: parse, structure, evaluate, render, canon, set_cell, Malformed.

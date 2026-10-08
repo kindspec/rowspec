@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+# Runs the action the way a consumer does: `install` left at its default, so
+# pip installs the release that action.yml pins from PyPI. `action-selftest.yml`
+# sets `install: .` on purpose and so never exercises this path (#52).
+#
+# It cannot run on pull requests. A release-prep PR pins a version that is not
+# on PyPI until its tag publishes, so a PR-time job here would be red on
+# exactly those PRs. `release.yml` calls it after `publish` instead, and it can
+# be dispatched by hand against any ref whose pin is already published.
+#
+# IF THIS IS RED AFTER A RELEASE: the version is already on PyPI and the tag is
+# already pushed, and `uses: kindspec/rowspec@vX` with the default `install` is
+# broken for every consumer, and nothing can unbreak `@vX` itself. Fix the
+# action and cut a new patch release; consumers move to it. Yank the broken
+# version on PyPI if its package is also bad: that stops a bare
+# `pip install rowspec` from choosing it, but an exact `==` pin -- which is
+# what the action installs -- still gets it. Do not move the tag: consumers
+# pin it, and a tag that changes under them is the failure SHA-pinning exists
+# to prevent.
+name: action published
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  default-install:
+    runs-on: ubuntu-latest
+    # Bounds a PyPI outage: the wait below gives up after about five minutes,
+    # and nothing else here should take more than two.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # PyPI can take a minute to serve a version it has just accepted. Without
+      # this wait, the first run after `publish` could go red on a release that
+      # is fine. A pin that never appears goes red here and names itself.
+      - name: the pinned release is installable from PyPI
+        run: |
+          pin=$(grep -oE 'rowspec==[0-9]+\.[0-9]+\.[0-9]+' action.yml | head -1)
+          for i in $(seq 20); do
+            if python3 -m pip download --quiet --no-deps --dest "$RUNNER_TEMP/probe" "$pin"; then
+              echo "$pin is installable"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::could not reach PyPI or install $pin from it after 20 tries: either PyPI does not serve that version, or PyPI or the network is down"
+          exit 1
+
+      # Well formed, and its total is wrong: `z` is 0, so `t` is #REF!(/0).
+      - name: a table whose total is quietly wrong
+        run: |
+          mkdir -p "$RUNNER_TEMP/broken"
+          printf '| id | a | z | t = a / z |\n| -- | -: | -: | -: |\n| r_1 | 5 | 0 |  |\n' \
+            > "$RUNNER_TEMP/broken/quietly-wrong.mdtbl"
+
+      - uses: ./
+        id: good
+        continue-on-error: true
+        with:
+          paths: docs/example
+
+      - uses: ./
+        id: broken
+        continue-on-error: true
+        with:
+          paths: ${{ runner.temp }}/broken
+
+      # The control. It makes the previous step's failure about `eval`: with
+      # eval off the same file must pass, so an install that broke, or any
+      # other failure that has nothing to do with the table, is red here
+      # rather than read as a correct refusal.
+      - uses: ./
+        id: check_only
+        continue-on-error: true
+        with:
+          paths: ${{ runner.temp }}/broken
+          eval: "false"
+
+      # The broken total must be refused BY EVAL. The step's overall outcome
+      # is not enough: an install that failed in that step alone also reads
+      # as `failure`, with eval never having run. So assert the eval step's
+      # own outcome too, and that the control skipped it.
+      - name: the published action passes, refuses and passes, in that order
+        env:
+          GOOD: ${{ steps.good.outcome }}
+          BROKEN: ${{ steps.broken.outcome }}
+          BROKEN_EVAL: ${{ steps.broken.outputs.eval-outcome }}
+          CHECK_ONLY: ${{ steps.check_only.outcome }}
+          CHECK_ONLY_EVAL: ${{ steps.check_only.outputs.eval-outcome }}
+        run: |
+          got="$GOOD / $BROKEN (eval: $BROKEN_EVAL) / $CHECK_ONLY (eval: $CHECK_ONLY_EVAL)"
+          want="success / failure (eval: failure) / success (eval: skipped)"
+          echo "good tree / broken total / broken total, eval off: $got"
+          if [ "$got" != "$want" ]; then
+            echo "::error::wanted $want"
+            exit 1
+          fi

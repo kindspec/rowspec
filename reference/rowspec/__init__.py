@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """rowspec — the reference implementation.
 
 Deliberately boring. The specification and the conformance suite are the

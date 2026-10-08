@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
 """The conformance suite and the mutation gate, as tests.
 
 The suite is the deliverable; running it under pytest is a convenience, not the
