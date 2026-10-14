@@ -107,7 +107,10 @@ differently from `.mdtbl`, as SPEC.md §13 states:
   rows is a record of one empty field, so it is refused against a wider
   header; one empty line at the very end of the file is accepted. A quoted
   field that the file ends inside is refused outright: a CSV reader would
-  otherwise fold every later row into that one cell.
+  otherwise fold every later row into that one cell. So is a stray quote: a
+  `"` inside a field that does not start with one, like `5" pipe`, or text
+  after a closing quote, like `"a"b`. RFC 4180 §2 allows neither, and readers
+  disagree about what such a field holds.
 - **5, duplicate row id**: with a key declared, a key value is also refused
   when it is empty or holds whitespace or a `Cf` character, since any of those
   lets two ids render alike without being equal (§9.16). Only ASCII space and

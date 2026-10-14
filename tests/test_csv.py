@@ -229,9 +229,29 @@ def test_a_quote_left_open_is_refused_rather_than_swallowing_rows(tmp_path):
     assert "abc" in messages(found)
 
 
-def test_quotes_that_close_or_sit_mid_field_are_not_open(tmp_path):
-    f = write(tmp_path, "q.csv", b'id,note\nr_01,"say ""hi"""\nr_02,5" pipe\n')
-    assert check_file(f) == []
+@pytest.mark.parametrize(
+    "data",
+    [
+        b'id,note\nr_01,"say ""hi"""\nr_02,b\n',
+        b'id,note\nr_01,""\nr_02,"a,b"\n',
+        b'id,note\r\nr_01,"a"\r\nr_02,"b"',
+    ],
+)
+def test_well_formed_quoting_is_accepted(tmp_path, data):
+    """RFC 4180 §2: a quoted field, with `""` for a quote inside it, closed
+    by a lone `"` that the delimiter, a line break or the end of the file
+    follows."""
+    found = check_file(write(tmp_path, "q.csv", data))
+    assert [f for f in found if f.level == "refuse"] == []
+
+
+@pytest.mark.parametrize("field", [b'5" pipe', b'a"', b'"a"b', b'"a" ', b'"a""b"c'])
+def test_a_stray_quote_is_refused(tmp_path, field):
+    """SPEC.md §13 and RFC 4180 §2: a `"` inside an unquoted field (rule 5),
+    or anything but the delimiter or a line break after a closing quote,
+    is refused. A reader otherwise guesses what the field holds."""
+    f = write(tmp_path, "s.csv", b"id,note\nr_01," + field + b"\nr_02,b\n")
+    assert rules(check_file(f)) == ["stray-quote"]
 
 
 def test_a_clean_csv_produces_nothing(tmp_path):

@@ -536,8 +536,8 @@ CSV_MUTANTS = {
         "    if False:",
     ),
     "csv-quote-scan-ignores-the-delimiter": (
-        '            at_start = ch == delimiter or ch in "\\r\\n"',
-        '            at_start = ch in "\\r\\n"',
+        '        elif ch == delimiter or ch in "\\r\\n":',
+        '        elif ch in "\\r\\n":',
     ),
     "csv-blank-line-between-rows-is-skipped": (
         '    body = [r if r else [""] for r in rest]',
@@ -603,6 +603,13 @@ CSV_MUTANTS = {
         '            if ch.isspace() or unicodedata.category(ch) == "Cf":',
         "            if ch.isspace():",
     ),
+    # Moved from CSV_PENDING when stray quotes became a refusal: closing a field
+    # at a doubled quote now leaves a stray quote behind it, which the
+    # doubled-quote cases see.
+    "csv-doubled-quote-closes-the-field": (
+        "                if text[i + 1 : i + 2] == '\"':",
+        "                if False:",
+    ),
     # --- refused either way: see CSV_EQUIVALENT ------------------------------
     "csv-empty-file-check-removed": (
         "    if not raw.strip():",
@@ -642,13 +649,9 @@ CSV_PENDING = {
         "        elif at_start and ch == '\"':",
         "        elif ch == '\"':",
     ),
-    "csv-doubled-quote-closes-the-field": (
-        "                if text[i + 1 : i + 2] == '\"':",
-        "                if False:",
-    ),
     "csv-quote-scan-ignores-a-lone-cr": (
-        '            at_start = ch == delimiter or ch in "\\r\\n"',
-        '            at_start = ch == delimiter or ch == "\\n"',
+        '        elif ch == delimiter or ch in "\\r\\n":',
+        '        elif ch == delimiter or ch == "\\n":',
     ),
     "csv-trailing-empty-line-refused": (
         "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
@@ -657,6 +660,18 @@ CSV_PENDING = {
     "csv-every-trailing-empty-line-dropped": (
         "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
         "    rest = records[1:]\n    while rest and rest[-1] == []:\n        rest = rest[:-1]",
+    ),
+    "csv-stray-quotes-unchecked": (
+        "    if stray:",
+        "    if False:",
+    ),
+    "csv-quote-inside-an-unquoted-field-allowed": (
+        "            if (closed or ch == '\"') and (not stray or stray[-1] != start):",
+        "            if closed and (not stray or stray[-1] != start):",
+    ),
+    "csv-text-after-a-closing-quote-allowed": (
+        "            if (closed or ch == '\"') and (not stray or stray[-1] != start):",
+        "            if ch == '\"' and (not stray or stray[-1] != start):",
     ),
     "csv-marker-after-leading-space": (
         "        if not _MARKER.match(line):\n            continue",

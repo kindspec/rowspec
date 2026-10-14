@@ -140,19 +140,23 @@ def _conflict_markers(text):
     return out
 
 
-def _unterminated_quote(text, delimiter):
-    """RFC 4180: a field that opens with `"` runs to the next `"` that is not
-    doubled. If the file ends first, the grammar generates no records at all
-    from that point on.
+def _quote_faults(text, delimiter):
+    """RFC 4180 §2's quoting, as SPEC.md §13 reads it. Returns `(opened,
+    stray)`: the start of a quoted field still open at the end of the file, or
+    None; and the start of each field holding a stray quote.
 
-    Python's csv module does not refuse this. It folds the rest of the file
-    into one cell, so every row after the quote vanishes into a value and
-    nothing reports it. Returns the start of the open field, or None.
+    A field that opens with `"` runs to the next `"` that is not doubled. If
+    the file ends first, the grammar generates no records from there on, and
+    Python's csv module folds the rest of the file into one cell, so every
+    later row vanishes into a value.
 
-    A quote opens a field only at its start, the way the csv module reads it;
-    anywhere else it is data, so `5" pipe` is not an open field.
+    A stray quote is a `"` inside a field that did not open with one (rule
+    5), or anything but the delimiter or a line break after a closing quote.
+    The csv module reads both without complaint, and what the field then
+    holds is that module's guess.
     """
-    quoted, at_start, opened, i = False, True, 0, 0
+    quoted, at_start, closed, opened, start, i = False, True, False, 0, 0, 0
+    stray = []
     while i < len(text):
         ch = text[i]
         if quoted:
@@ -160,13 +164,19 @@ def _unterminated_quote(text, delimiter):
                 if text[i + 1 : i + 2] == '"':
                     i += 2
                     continue
-                quoted = False
+                quoted, closed = False, True
+        elif ch == delimiter or ch in "\r\n":
+            at_start, closed = True, False
         elif at_start and ch == '"':
-            quoted, at_start, opened = True, False, i
+            quoted, at_start, opened, start = True, False, i, i
         else:
-            at_start = ch == delimiter or ch in "\r\n"
+            if at_start:
+                start = i
+            if (closed or ch == '"') and (not stray or stray[-1] != start):
+                stray.append(start)
+            at_start = False
         i += 1
-    return text[opened : opened + 20] if quoted else None
+    return (text[opened : opened + 20] if quoted else None), stray
 
 
 def _grouped_header(names, second):
@@ -287,9 +297,9 @@ def check_text(text, name="<input>", side=None, delimiter=","):
         return findings
 
     # SPEC.md §13 and RFC 4180 -- a quoted field still open at the end of the
-    # file. Refused alone, for the conflict marker's reason: every finding
-    # after it would be about rows the open quote swallowed.
-    opened = _unterminated_quote(text, delimiter)
+    # file, or a stray quote. Refused alone, for the conflict marker's reason:
+    # every finding after it would be about rows the csv module had to guess.
+    opened, stray = _quote_faults(text, delimiter)
     if opened is not None:
         return [
             Finding(
@@ -300,6 +310,19 @@ def check_text(text, name="<input>", side=None, delimiter=","):
                 "so those rows silently disappear.",
             )
         ]
+    if stray:
+        shown = [text[s : s + 40].splitlines()[0] for s in stray]
+        stray_findings = []
+        _cap(
+            stray_findings,
+            "stray-quote",
+            shown,
+            lambda field: f"the field {_show(field)} holds a stray quote",
+            "RFC 4180 allows a quote only to open a field, to close it, or doubled "
+            "inside a quoted field. Anywhere else a CSV reader has to guess what the "
+            "field holds, and readers guess differently.",
+        )
+        return stray_findings
 
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     records = [r for r in reader]

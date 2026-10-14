@@ -9,6 +9,13 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **CSV mode refuses a stray quote** (#94). A `"` inside a field that does
+  not open with one (`5" pipe`), or text after a closing quote (`"a"b`), is
+  refused, as SPEC.md §13's reading of §9.6 and RFC 4180 §2. The csv module
+  read both without complaint and guessed what the field held. Measured across
+  2,063 files in three public data repositories: the first occurs nowhere, the
+  second in one file.
+
 - **xlsx export writes live formulas** (#35). The sheet holds a spreadsheet
   table named `rowspec`; computed columns are formulas over structured
   references, and declared aggregates are `SUBTOTAL` forms. Every operand and
