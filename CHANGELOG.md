@@ -24,7 +24,8 @@ prose, and where the two disagree the suite wins.
   binding is the `refusal` attribute of the raised exception;
   `rowspec.Malformed` takes it as the keyword `refusal=`, so existing
   one-argument calls still construct. CSV mode does not report identifiers
-  yet, because no conformance case runs it (#63).
+  yet, and the CSV-profile cases in `conformance/cases-csv/` still assert
+  `refusal_contains`.
 
 - **§9 lists `order-without-key`**, as entry 25. §6 has always required a
   `key` beside `order := by(c)`, and both implementations refused a table
@@ -33,6 +34,78 @@ prose, and where the two disagree the suite wins.
 - **§9.14: a leading BOM is `bad-encoding` and nothing else.** It is decided
   on the bytes before any line is classified. The reference implementation
   previously refused such a file as an unclassifiable first line.
+
+- **CSV mode refuses a stray quote** (#94). A `"` inside a field that does
+  not open with one (`5" pipe`), or text after a closing quote (`"a"b`), is
+  refused, as SPEC.md §13's reading of §9.6 and RFC 4180 §2. The csv module
+  read both without complaint and guessed what the field held. Measured across
+  2,063 files in three public data repositories: the first occurs nowhere, the
+  second in one file.
+
+- **xlsx export writes live formulas** (#35). The sheet holds a spreadsheet
+  table named `rowspec`; computed columns are formulas over structured
+  references, and declared aggregates are `SUBTOTAL` forms. Every operand and
+  aggregate is guarded, so a blank operand, text in a summed column, or the
+  minimum of nothing is a spreadsheet error rather than a `0`. What a
+  spreadsheet cannot express is refused with `NotExpressible` and nothing is
+  written: `cumulative`, `prior`, `delta`, any `where` predicate, an `if`
+  comparing a number column against non-empty text, column names that differ
+  only by case, a literal of more than 15 significant digits, and a table with
+  no rows. `python -m rowspec_xlsx` reports a refusal on stderr and exits 1.
+  The workbook recalculates under spreadsheet arithmetic. Tolerant
+  comparison and subtraction can flip an `if` (#88), and left-to-right
+  addition can cancel a `sum` or `avg` (#83). So it can disagree with
+  `rowspec eval` beyond the last digit.
+
+- **SPEC.md §13 states how the CSV profile reads four rules, and CSV mode
+  now follows it** (#63). Each is a file that used to pass:
+  - a quoted field still open at the end of the file is refused, where a CSV
+    reader folds every later row into that one cell;
+  - an empty line between rows is a record of one empty field (RFC 4180), so
+    it is refused against a wider header instead of being skipped; a single
+    empty line at the end of the file is still accepted;
+  - a line whose first seven characters are a conflict-marker run is refused
+    wherever it appears, as §4.1.12 says, a bare `=======` included;
+  - with a key declared, an empty key value, or one holding whitespace or a
+    `Cf` character, is refused. Only ASCII space and tab are trimmed first.
+
+  §13 also records that column names, and key values apart from those three,
+  are exempt from §4.1.9's allowlist in CSV mode, because the allowlist exists
+  for formulas. That was already CSV mode's behaviour. Only a `Cf` character
+  is still refused in a column name, so other look-alikes, such as an NBSP
+  for a space, are not.
+
+### Added
+
+- **The mutation gate covers CSV mode** (#63, #94). `just mutants-csv` breaks
+  `csvmode.py` and requires `conformance/cases-csv/` to notice: 33 mutants
+  are killed and 2 are claimed equivalent, with the reason, and none survive.
+  It runs in CI and in the release gate. Ten of the 33 first survived and
+  waited, ungated, until cases written from the spec for #94 killed them.
+
+- **77 CSV-profile conformance cases** (#63, #94) in `conformance/cases-csv/`,
+  written from SPEC.md by two authors who did not write CSV mode: 57 first,
+  then 20 for the behaviours #94 listed. They run in CI as
+  `just conform-csv`, in the `conformance` job and in the release gate, with
+  a floor of 77 cases. `conformance/cases-csv/README.md` records what each
+  author was given and the questions the first left open.
+
+- **The exported workbook is checked against LibreOffice** (#36).
+  `just test-libreoffice` recalculates every exportable `.mdtbl` in the
+  conformance tree in headless LibreOffice. It asserts that each computed cell
+  and aggregate matches `rowspec eval`, with a `#REF!` coming back as a
+  spreadsheet error. The `xlsx-extra` CI job installs LibreOffice and runs it.
+  The test pins each disagreement to the value LibreOffice gives:
+  - four aggregates from the tree, where §7's exact sum is not a
+    spreadsheet's sequential one (#83);
+  - two tables written for the test, a branch flip under tolerant
+    comparison (#88) and an ordinary-magnitude cancellation (#83).
+
+- **The runner takes `--profile mdtbl|csv`** (#63). `csv` runs
+  `conformance/cases-csv/`, a tree of its own for SPEC.md §13's CSV profile,
+  against `rowspec.csvmode`; its one case kind, `check`, is described in that
+  tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
+  `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
 
 ## [0.3.0] — 2026-10-08
 

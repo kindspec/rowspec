@@ -139,6 +139,7 @@ just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
 just conform-alt # the SECOND implementation, against the same fixture tree
 just test-xlsx  # the exporter, WITH its optional extra installed
+just test-libreoffice # exported workbooks recalculated by LibreOffice
 just run FILE   # validate an artifact (rowspec check)
 just eval FILE  # print computed values and FAIL on any #REF!
 ```
@@ -171,13 +172,40 @@ independent implementation of a table format must not be required to read xlsx.
 A test fails if anything under `reference/` ever imports outside the standard
 library, so the boundary is a check rather than a convention.
 
-What it writes today is deliberately minimal: one sheet, literal values, the
-declared aggregates below the grid. Structured references and `SUBTOTAL`
-([#35](https://github.com/kindspec/rowspec/issues/35)) and a test that asserts
-on what LibreOffice recalculates
-([#36](https://github.com/kindspec/rowspec/issues/36)) are what make the
-round-trip claim worth stating, and neither has landed — so the claim is not
-made here.
+It writes one sheet holding a spreadsheet table named `rowspec`. Computed
+columns are live formulas over structured references, such as
+`rowspec[[#This Row],[qty]]`, and the declared aggregates sit below the grid as
+`SUBTOTAL` forms. No formula holds a coordinate. The formulas are written to
+carry this format's rules rather than the spreadsheet's: a blank operand, text
+in a summed column, or the minimum of nothing is an error, not a `0`. A `#REF!`
+arrives as a spreadsheet error value, though without the name in its
+parentheses.
+
+The workbook computes with spreadsheet arithmetic, which is not this format's.
+Tolerant comparison and subtraction can make an `if` take the other branch
+([#88](https://github.com/kindspec/rowspec/issues/88)), and left-to-right
+addition can cancel a total that §7's exact sum keeps
+([#83](https://github.com/kindspec/rowspec/issues/83)). The key column is text,
+so a formula using it as a number is an error in the workbook. Hidden or
+filtered rows drop out of the `SUBTOTAL` aggregates but not out of `count`.
+
+What a spreadsheet cannot say, the exporter refuses rather than approximates,
+and writes nothing: `cumulative`, `prior` and `delta`; any `where` predicate;
+and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`.
+
+**What is checked is agreement on the conformance tree, not in general.**
+`just test-libreoffice` exports every `.mdtbl` in the conformance tree that
+rowspec accepts and the exporter can express. It recalculates each one in
+headless LibreOffice and compares every computed cell and aggregate with
+`rowspec eval`. Numbers are compared at 15 significant digits, which is all
+LibreOffice saves. CI runs it. Where they disagree, the test pins the value
+LibreOffice gives, so a change in either direction fails it. That covers four
+`sum` and `avg` cases from the tree near `1e308`, plus two tables written for
+the test: `if(c = 0.3, …)` over `0.1 + 0.2` (#88), and `1e16 + 1 - 1e16` (#83).
+Both kinds of disagreement occur at ordinary magnitudes, so a table outside
+the tree can disagree in ways nothing here checks. For numbers that are
+exactly `rowspec eval`'s, see the static-values proposal
+([#89](https://github.com/kindspec/rowspec/issues/89)).
 
 ## Two commands, and you need both
 

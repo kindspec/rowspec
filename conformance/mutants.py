@@ -508,6 +508,187 @@ for r in seq:
 }
 
 
+# The CSV profile's own table: deliberate defects in `csvmode.py`, each of which
+# SPEC.md §13's case tree (conformance/cases-csv/) must catch. Run with
+# `--profile csv`; see TARGETS below.
+#
+# A mutant the CSV tree does not kill is a hole, as for the table above. The
+# ones that survived when this table was first written waited, ungated, until
+# a second author wrote cases from the spec for them (kindspec/rowspec#94); they
+# are the section below marked as such. A new survivor goes the same way: an
+# issue in spec terms, a case from someone who has not read csvmode.py, then
+# the mutant joins this table.
+CSV_EQUIVALENT = {
+    "csv-empty-file-check-removed": (
+        "an empty or whitespace-only file then reaches the header check, which "
+        "refuses it as 'no table' too -- a different message for the same refusal, "
+        "and §9 makes which diagnostic is reported unobservable"
+    ),
+    "csv-grouped-header-disabled": (
+        "a grouped header has repeated names, so with the shape check off it is "
+        "refused as duplicate columns instead -- the same file refused, under §9's "
+        "unobservable choice of diagnostic. Not quite true today: where the only "
+        "repeated name is empty (`,,,,,a`) the original crashes and the mutant "
+        "refuses, which is kindspec/rowspec#92. Re-check this claim when #92 is fixed"
+    ),
+}
+
+CSV_MUTANTS = {
+    # --- §9.1 / §4.1.12: conflict markers --------------------------------------
+    "csv-conflict-markers-ignored": (
+        "        if not _MARKER.match(line):\n            continue",
+        "        if True:\n            continue",
+    ),
+    "csv-bare-equals-run-is-not-a-marker": (
+        r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")',
+        r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7})")',
+    ),
+    # --- §13 / RFC 4180: record boundaries -----------------------------------
+    "csv-open-quote-at-eof-accepted": (
+        "    if opened is not None:",
+        "    if False:",
+    ),
+    "csv-quote-scan-ignores-the-delimiter": (
+        '        elif ch == delimiter or ch in "\\r\\n":',
+        '        elif ch in "\\r\\n":',
+    ),
+    "csv-blank-line-between-rows-is-skipped": (
+        '    body = [r if r else [""] for r in rest]',
+        "    body = [r for r in rest if r]",
+    ),
+    # --- §9.6: field count -----------------------------------------------------
+    "csv-field-count-unchecked": (
+        "    ragged = [(i, r) for i, r in enumerate(body, 1) if len(r) != len(header)]",
+        "    ragged = []",
+    ),
+    # --- §3 / §9.14 / §13: encoding ------------------------------------------
+    "csv-invalid-utf8-is-replaced": (
+        '        text = raw.decode("utf-8")',
+        '        text = raw.decode("utf-8", "replace")',
+    ),
+    "csv-bom-is-not-stripped": (
+        "        raw = raw[3:]",
+        "        raw = raw",
+    ),
+    "csv-bom-is-not-a-warning": (
+        '    if raw.startswith(b"\\xef\\xbb\\xbf"):',
+        "    if False:",
+    ),
+    "csv-lone-cr-is-not-a-warning": (
+        '    if "\\r" in text.replace("\\r\\n", ""):',
+        "    if False:",
+    ),
+    # --- §9.2 / §3 / §13: column names ---------------------------------------
+    "csv-column-names-not-nfc": (
+        '    names = [unicodedata.normalize("NFC", h.strip()) for h in header]',
+        "    names = [h.strip() for h in header]",
+    ),
+    "csv-duplicate-columns-allowed": (
+        "        if len(idxs) == 1:\n            continue",
+        "        if True:\n            continue",
+    ),
+    "csv-cf-in-a-column-name-allowed": (
+        '        for ch in name:\n            if unicodedata.category(ch) == "Cf":',
+        "        for ch in name:\n            if False:",
+    ),
+    # --- §9.5 / §9.16 / §13: the declared key ----------------------------------
+    "csv-key-on-the-first-column-whatever-is-declared": (
+        "        key_idx = names.index(side.key)",
+        "        key_idx = 0",
+    ),
+    "csv-duplicate-keys-unchecked": (
+        "        findings += _duplicate_keys(body, names, key_idx)",
+        "        pass",
+    ),
+    "csv-duplicate-keys-not-nfc": (
+        '        groups.setdefault(unicodedata.normalize("NFC", raw), []).append((n, raw))',
+        "        groups.setdefault(raw, []).append((n, raw))",
+    ),
+    "csv-empty-key-allowed": (
+        '        if raw == "":\n            bad.append(',
+        "        if False:\n            bad.append(",
+    ),
+    "csv-whitespace-in-a-key-allowed": (
+        '            if ch.isspace() or unicodedata.category(ch) == "Cf":',
+        '            if unicodedata.category(ch) == "Cf":',
+    ),
+    "csv-cf-in-a-key-allowed": (
+        '            if ch.isspace() or unicodedata.category(ch) == "Cf":',
+        "            if ch.isspace():",
+    ),
+    # Gated once stray quotes became a refusal (#96): closing a field
+    # at a doubled quote now leaves a stray quote behind it, which the
+    # doubled-quote cases see.
+    "csv-doubled-quote-closes-the-field": (
+        "                if text[i + 1 : i + 2] == '\"':",
+        "                if False:",
+    ),
+    # --- refused either way: see CSV_EQUIVALENT ------------------------------
+    "csv-empty-file-check-removed": (
+        "    if not raw.strip():",
+        "    if False:",
+    ),
+    "csv-grouped-header-disabled": (
+        "        grouped = _grouped_header(names, second)",
+        "        grouped = None",
+    ),
+    "csv-header-only-file-is-no-table": (
+        "    if not records or not any(any(c.strip() for c in r) for r in records[:1]):",
+        "    if len(records) < 2 or not any(any(c.strip() for c in r) for r in records[:1]):",
+    ),
+    "csv-sidecar-key-naming-no-column-is-ignored": (
+        "        if side.key not in names:",
+        "        if False:",
+    ),
+    # --- killed by the cases written for #94 ---------------------------------
+    "csv-key-trim-strips-all-whitespace": (
+        '        raw = unicodedata.normalize("NFC", rec[key_idx].strip(" \\t"))',
+        '        raw = unicodedata.normalize("NFC", rec[key_idx].strip())',
+    ),
+    "csv-quote-opens-mid-field": (
+        "        elif at_start and ch == '\"':",
+        "        elif ch == '\"':",
+    ),
+    "csv-quote-scan-ignores-a-lone-cr": (
+        '        elif ch == delimiter or ch in "\\r\\n":',
+        '        elif ch == delimiter or ch == "\\n":',
+    ),
+    "csv-trailing-empty-line-refused": (
+        "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
+        "    rest = records[1:]",
+    ),
+    "csv-every-trailing-empty-line-dropped": (
+        "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
+        "    rest = records[1:]\n    while rest and rest[-1] == []:\n        rest = rest[:-1]",
+    ),
+    "csv-stray-quotes-unchecked": (
+        "    if stray:",
+        "    if False:",
+    ),
+    "csv-quote-inside-an-unquoted-field-allowed": (
+        "            if (closed or ch == '\"') and (not stray or stray[-1] != start):",
+        "            if closed and (not stray or stray[-1] != start):",
+    ),
+    "csv-text-after-a-closing-quote-allowed": (
+        "            if (closed or ch == '\"') and (not stray or stray[-1] != start):",
+        "            if ch == '\"' and (not stray or stray[-1] != start):",
+    ),
+    "csv-marker-after-leading-space": (
+        "        if not _MARKER.match(line):\n            continue",
+        "        if not _MARKER.match(line.lstrip()):\n            continue",
+    ),
+    "csv-marker-needs-space-or-end-of-line": (
+        r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")',
+        r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})(?: |$)")',
+    ),
+    # --- CONTROL: must be killed, or the CSV harness is broken ----------------
+    "CONTROL-csv-reports-nothing": (
+        "    return findings + warnings",
+        "    return []",
+    ),
+}
+
+
 # ---------------------------------------------------------------------------
 # The probe: run THIS suite against a given file and say what it found.
 #
@@ -528,6 +709,22 @@ RUNNER = os.path.join(HERE, "run_cases.py")
 #: is overwritten and then deleted.
 SCRATCH = os.path.join(HERE, "mutant_impl.py")
 
+#: The CSV profile's target: `csvmode.py`, probed through `run_cases.py
+#: --profile csv`. Its scratch name is its own, for SCRATCH's reason, and
+#: `csvmode.py` imports `rowspec.table` and `rowspec.sidecar` absolutely so a
+#: copy of it outside the package still loads.
+CSV_IMPL = os.path.normpath(os.path.join(HERE, "..", "reference", "rowspec", "csvmode.py"))
+CSV_SCRATCH = os.path.join(HERE, "mutant_csvmode.py")
+
+#: `--profile` -> (source, mutants, equivalence claims, scratch file, the
+#: runner's profile arguments). Each profile is its own gate run with its own
+#: report, because kindkit's `check_gate.py` requires a gate report's baseline
+#: to have run exactly the tree it names, and the two profiles are two trees.
+TARGETS = {
+    "mdtbl": (IMPL, MUTANTS, EQUIVALENT, SCRATCH, ()),
+    "csv": (CSV_IMPL, CSV_MUTANTS, CSV_EQUIVALENT, CSV_SCRATCH, ("--profile", "csv")),
+}
+
 #: Held for the whole run, so two gates in one tree take turns at `SCRATCH`
 #: instead of writing over each other's mutants. `just test` runs the gate
 #: too, so `just test` beside `just mutants` was two gates on one file, and
@@ -545,7 +742,7 @@ LOCK = os.path.join(HERE, ".mutants.lock")
 PROBE_TIMEOUT = 300
 
 
-def probe(path):
+def probe(path, profile_args=()):
     """What the fixture tree ran, and which of those cases failed, for `path`.
 
     A SET of failing ids, not a count. The reference itself need not pass every
@@ -570,10 +767,12 @@ def probe(path):
     # `../reference/...` relative to wherever the gate was started, and
     # `run_cases.py` had the same shape once and printed "0 failure(s)" over
     # 226 cases it had never opened, four of them failing.
-    return probe_command([sys.executable, RUNNER, module], cwd=HERE, timeout=PROBE_TIMEOUT)
+    return probe_command(
+        [sys.executable, RUNNER, module, *profile_args], cwd=HERE, timeout=PROBE_TIMEOUT
+    )
 
 
-def duplicate_mutations():
+def duplicate_mutations(source=IMPL, mutants=MUTANTS):
     """Pairs of mutants whose mutated source is identical.
 
     Two names for one mutation count it twice, and a CONTROL that is a copy of
@@ -583,10 +782,10 @@ def duplicate_mutations():
     are one mutation spelled two ways. A mutant that no longer applies is left
     to the gate, which reports it as stale.
     """
-    with open(IMPL, encoding="utf-8") as fh:
+    with open(source, encoding="utf-8") as fh:
         src = fh.read()
     seen, dups = {}, []
-    for name, spec in MUTANTS.items():
+    for name, spec in mutants.items():
         try:
             out = apply_mutant(src, *spec)
         except MutantError:
@@ -597,8 +796,10 @@ def duplicate_mutations():
     return dups
 
 
-def main():
-    """Three exit codes, the same three the runner uses and for the same reason.
+def main(argv=()):
+    """`mutants.py [--profile mdtbl|csv]`, the profile defaulting to mdtbl.
+
+    Three exit codes, the same three the runner uses and for the same reason.
 
     A gate that could not run is not a gate that found nothing: an orphaned
     equivalence claim, a scratch path pointing at the implementation, or a
@@ -615,26 +816,39 @@ def main():
                 flush=True,
             )
             fcntl.flock(lock, fcntl.LOCK_EX)
-        return _run()
+        return _run(argv)
 
 
-def _run():
+def _profile(argv):
+    """The `--profile` named in `argv`, refused unless it is exactly one known
+    name: which implementation the gate measured must never be a guess."""
+    args = list(argv)
+    if not args:
+        return "mdtbl"
+    if len(args) == 2 and args[0] == "--profile" and args[1] in TARGETS:
+        return args[1]
+    raise GateError(f"usage: mutants.py [--profile {'|'.join(TARGETS)}]; got {args}")
+
+
+def _run(argv=()):
     try:
-        if os.path.lexists(SCRATCH):
-            # Possibly a mutant, and gitignored, so nothing else shows it.
-            # Writing over it would also erase the evidence that a run died.
-            raise GateError(
-                f"{SCRATCH} is left over from a gate run that was interrupted or killed, and may "
-                "hold a mutant: inspect it, delete it, and run the gate again"
-            )
-        dups = duplicate_mutations()
+        source, mutants, equivalent, scratch, profile_args = TARGETS[_profile(argv)]
+        for leftover in sorted({t[3] for t in TARGETS.values()}):
+            if os.path.lexists(leftover):
+                # Possibly a mutant, and gitignored, so nothing else shows it.
+                # Writing over it would also erase the evidence that a run died.
+                raise GateError(
+                    f"{leftover} is left over from a gate run that was interrupted or killed, "
+                    "and may hold a mutant: inspect it, delete it, and run the gate again"
+                )
+        dups = duplicate_mutations(source, mutants)
         if dups:
             raise GateError(f"mutants produce the same mutated source: {dups}")
         report = gate(
-            source=IMPL,
-            mutants=from_table(MUTANTS, EQUIVALENT),
-            probe=probe,
-            scratch=SCRATCH,
+            source=source,
+            mutants=from_table(mutants, equivalent),
+            probe=lambda path: probe(path, profile_args),
+            scratch=scratch,
         )
     except GateError as exc:
         print(f"\nHARD FAILURE: {exc}", file=sys.stderr)
@@ -643,4 +857,4 @@ def _run():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

@@ -50,6 +50,13 @@ test:
 test-xlsx:
     ROWSPEC_REQUIRE_XLSX=1 uv run --exact --extra xlsx pytest tests/test_xlsx_export.py -q
 
+# The exported workbook recalculated by LibreOffice, against `rowspec eval`
+# (#36). Needs the extra AND `soffice` on PATH. `ROWSPEC_REQUIRE_LIBREOFFICE=1`
+# turns a missing one into a failure: under `just test` this file skips, and a
+# test that only ever skips is a check that cannot fail.
+test-libreoffice:
+    ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx pytest tests/test_xlsx_libreoffice.py -q
+
 # The conformance suite alone, driven by the fixture tree
 conform:
     cd conformance && uv run python run_cases.py
@@ -59,12 +66,27 @@ conform:
 # describes reference/rowspec/. It was met once and then rotted 117 cases
 # because nothing ran it while the spec grew -- a check nobody runs is a check
 # that cannot fail. If a spec change breaks this, that IS the finding.
+#
+# `--profile mdtbl` is the whole of what rowspec_alt claims. It does not
+# implement SPEC.md §13's CSV mode and is not required to (#63), so it never
+# runs cases-csv/ -- and asked to, it exits 2, never 0.
 conform-alt:
-    cd conformance && uv run python run_cases.py rowspec_alt.table
+    cd conformance && uv run python run_cases.py rowspec_alt.table --profile mdtbl
+
+# SPEC.md §13's CSV profile: cases-csv/ against rowspec.csvmode. A tree below
+# its floor exits 2, which is no verdict, not a pass.
+conform-csv:
+    cd conformance && uv run python run_cases.py --profile csv
 
 # The mutation gate: the suite must be able to FAIL a broken implementation
 mutants:
     cd conformance && uv run python mutants.py
+
+# The same gate over SPEC.md §13's CSV profile: csvmode.py, measured by
+# cases-csv/. A separate run with its own report, because the two profiles are
+# two trees and kindkit's check_gate.py ties a report to exactly one.
+mutants-csv:
+    cd conformance && uv run python mutants.py --profile csv
 
 # Validate a file or a directory
 run *ARGS:

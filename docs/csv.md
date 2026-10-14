@@ -62,6 +62,9 @@ fifty CSVs keyed the same way should not need fifty sidecars, so a single
 A per-file `<file>.rowspec.json` wins over the directory file. The two forms
 are told apart by filename, never by inspecting content.
 
+The directory form is rowspec's convenience and outside SPEC.md §13's CSV
+profile, which uses the per-file sidecar only.
+
 **A duplicate declaration is refused, not resolved.** JSON's own rule for a
 repeated object key is last-one-wins, which is exactly the silent overwrite
 SPEC.md §9.4 exists to prevent, so `{"key": "id", "key": "name"}` is an error.
@@ -69,11 +72,11 @@ SPEC.md §9.4 exists to prevent, so `{"key": "id", "key": "name"}` is an error.
 ## Which refusals apply
 
 This table classifies refusals 1 to 13 of SPEC.md §9, and §9's list goes on
-past them. Of the later entries this page covers only parts of §9.14 and
-§9.16: invalid UTF-8 and a `Cf` character in a column name, which are refused
-(below the table), and a BOM, which in CSV mode is a warning (*Two warnings,
-not refusals*). The rest are not classified here. SPEC.md §9 is the complete
-list, and §13 says which kinds of refusal the CSV profile cannot apply.
+past them. Of the later entries this page covers parts of §9.14 and §9.16
+(below the table), and a BOM and a lone `CR`, which in CSV mode are warnings
+(*Two warnings, not refusals*). The rest are not classified here. SPEC.md §9
+is the complete list, and §13 states the CSV profile: what it cannot apply,
+and how it reads §9.16, RFC 4180's records and §4.1.12's conflict markers.
 
 | SPEC.md §9 | | bare CSV | with sidecar | `.mdtbl` only |
 | --- | --- | :-: | :-: | :-: |
@@ -93,7 +96,33 @@ list, and §13 says which kinds of refusal the CSV profile cannot apply.
 
 Four, four and five. §3's encoding rules add two more to the bare-CSV column —
 invalid UTF-8, and a `Cf` format character inside a column name — for six
-checks on a file with no declarations at all.
+checks on a file with no declarations at all. Three rows read the CSV
+differently from `.mdtbl`, as SPEC.md §13 states:
+
+- **1, conflict markers**: §4.1.12 unchanged. A line whose first seven
+  characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
+  a bare `=======` included. A cell that merely holds such a run, after the
+  first field, is data.
+- **6, field count**: record boundaries are RFC 4180's. An empty line between
+  rows is a record of one empty field, so it is refused against a wider
+  header; one empty line at the very end of the file is accepted. A quoted
+  field that the file ends inside is refused outright: a CSV reader would
+  otherwise fold every later row into that one cell. So is a stray quote: a
+  `"` inside a field that does not start with one, like `5" pipe`, or text
+  after a closing quote, like `"a"b`. RFC 4180 §2 allows neither, and readers
+  disagree about what such a field holds.
+- **5, duplicate row id**: with a key declared, a key value is also refused
+  when it is empty or holds whitespace or a `Cf` character, since any of those
+  lets two ids render alike without being equal (§9.16). Only ASCII space and
+  tab are trimmed first, so a leading or trailing NBSP is refused too.
+
+**Column names are exempt from the rest of §9.16.** Its allowlist exists so a
+name can be written in a formula, and a CSV has none, so `first name` and
+`total (USD)` are fine. Only a `Cf` character is still refused in one, so two
+CSV column names *can* look identical: `first name` with an NBSP is not the
+same column as `first name` with a space, and nothing refuses it. Key values
+are exempt from the allowlist for the same reason: `002RadioTV.do` is a real
+registry id.
 
 The five `.mdtbl`-only refusals are not a gap in CSV mode. Three of them are
 about an alignment row and formulas, neither of which CSV has; two are about

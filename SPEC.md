@@ -1462,6 +1462,42 @@ relaxation**, and the difference must be stated rather than discovered:
   that costs a file to obtain. Key inference was tried and rejected: a
   legitimately non-unique first column produces confident wrong refusals on
   valid data.
+- **column names are exempt from §4.1.9's allowlist.** The allowlist exists so
+  that a name can be written inside a formula, and a CSV has no formulas, so
+  `first name`, `total (USD)` and `a-b` are column names, and so is an empty
+  header cell. Only a `Cf` format character in a column name is still refused,
+  and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  **§3's guarantee that two identifiers cannot render identically does not
+  hold for CSV column names**: other look-alikes, such as a non-ASCII space in
+  place of an ASCII one, are not refused.
+- **the values of a declared key are refused when empty, or when they hold
+  whitespace or a `Cf` format character** (§4.1.9, §9.16), after trimming
+  ASCII space and tab only (§4.1.4), so a leading or trailing non-ASCII space
+  is part of the value and is refused. Any of those lets two ids render alike
+  without being equal, and then refusal 5 never fires. The rest of the
+  allowlist is exempt for the column-name reason: real registry keys include
+  `002RadioTV.do` and `Africa/Abidjan`. That exemption has a cost: punctuation
+  look-alikes such as `∕` (U+2215) for `/` or `‐` (U+2010) for `-` are not
+  refused, so §3's guarantee that two identifiers cannot render identically
+  does not hold for CSV key values either.
+- **record boundaries are RFC 4180's.** A quoted field runs to its closing
+  quote, so a file that ends inside one is refused. This is the profile's
+  reading of §9.6, and it applies whatever the field count: the grammar
+  generates no record from the open quote on, so there is no row whose count
+  could match, and a lenient reader folds every later row into one cell. A
+  stray quote is refused in the same way, also as the profile's reading of
+  §9.6: a `"` inside a field that does not open with one (RFC 4180 §2 rule
+  5), or anything but the delimiter or a line break after a closing quote.
+  The grammar generates no field from either, so what the field holds would
+  be one reader's guess. An empty line between rows is a record of one empty
+  field, not a gap, so §9.6 refuses it against a header of more than one
+  column. A single empty line at the end of the file is not between
+  rows and is accepted; a second one is between rows. A trailing line that
+  holds only spaces or tabs is not empty, and is a record like any other.
+- **conflict markers are §4.1.12's, unchanged.** A line whose first seven
+  characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
+  inside a quoted field included. A shorter run, or one that does not start
+  the line, is data.
 
 An implementation claiming CSV-mode conformance states which profile it means.
 

@@ -63,6 +63,17 @@ jobs:
         if: always()
         run: just test
 
+      # SPEC.md §13's CSV profile: conformance/cases-csv/ against
+      # rowspec.csvmode. Not in the `kind` job: kindkit's workflow requires a
+      # second implementation to run the whole fixture root, and rowspec_alt
+      # claims the .mdtbl profile only (#63).
+      - name: the CSV-profile suite
+        if: always()
+        run: just conform-csv
+      - name: the CSV-profile suite must be able to fail
+        if: always()
+        run: just mutants-csv
+
       # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
       # meant to be malformed. This is the recipe a USER should copy: `check`
       # answers "will this survive being edited", `eval` answers "does it
@@ -92,6 +103,20 @@ jobs:
       - name: the exporter, with its optional extra installed
         run: just test-xlsx
 
+      # #36: the exported workbook recalculated by a real spreadsheet engine,
+      # against `rowspec eval`. LibreOffice is not on the runner image, and
+      # `just test-libreoffice` fails rather than skips without it, so a
+      # failed install shows up as a red test, not as a pass over nothing.
+      - name: install LibreOffice
+        if: always()
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-calc-nogui
+          soffice --version
+      - name: the exported workbook, recalculated by LibreOffice
+        if: always()
+        run: just test-libreoffice
+
   # kindkit's reusable workflow: the case tree against the convention, the
   # suite on the reference implementation, the same tree on the second
   # implementation, and the mutation gate. It reports as `kind /
@@ -113,5 +138,7 @@ jobs:
     with:
       fixture-root: conformance/cases
       suite: cd conformance && uv run python run_cases.py
-      second-implementation: cd conformance && uv run python run_cases.py rowspec_alt.table
+      # rowspec_alt claims the .mdtbl profile only, not SPEC.md §13's CSV
+      # profile (#63); see `conform-alt` in the justfile.
+      second-implementation: cd conformance && uv run python run_cases.py rowspec_alt.table --profile mdtbl
       mutants: cd conformance && uv run python mutants.py

@@ -14,6 +14,7 @@ import fnmatch
 import os
 import re
 import subprocess
+import sys
 
 import pytest
 
@@ -24,6 +25,8 @@ SPDX = re.compile(r"SPDX-License-Identifier: (.+?)(?: -->)?$")
 DIRECTORIES = {
     "docs": "CC-BY-4.0",
     "conformance/cases": "CC0-1.0",
+    # SPEC.md §13's CSV profile, a tree of its own (#63).
+    "conformance/cases-csv": "CC0-1.0",
     # Fixtures for features this edition reserves; fixtures are CC0 so they can
     # be vendored, wherever in the tree they sit.
     "conformance/reserved": "CC0-1.0",
@@ -66,6 +69,11 @@ def headed_files():
             want[p] = "MIT"
         elif fnmatch.fnmatch(p, "conformance/reserved/*.md"):
             want[p] = "CC0-1.0"
+        elif fnmatch.fnmatch(p, "conformance/cases-csv/*.md") and p.count("/") == 2:
+            # The tree's own prose only. fnmatch's `*` crosses `/`, so without
+            # the depth guard a case's WHY.md -- a fixture, headerless like
+            # every file in a case -- would be required to carry a header.
+            want[p] = "CC0-1.0"
         elif top in ("docs", "reference", "export", "tests") and p.endswith((".py", ".md", ".yml")):
             want[p] = DIRECTORIES[top]
     return want
@@ -90,6 +98,7 @@ def test_the_scan_reads_the_files_it_claims_to():
         ".github/workflows/check.yml",
         "docs/ci/rowspec-check.yml",
         "conformance/reserved/README.md",
+        "conformance/cases-csv/README.md",
         "reference/rowspec/table.py",
         "tests/test_licensing.py",
     ):
@@ -111,3 +120,14 @@ def test_every_licensed_directory_carries_a_license_file():
             assert re.match(re.escape(spdx) + r"(?=$|\s|\.\s)", text), (
                 f"{d}/LICENSE does not name {spdx}: {text.splitlines()[0]!r}"
             )
+
+
+def test_a_case_s_prose_is_not_held_to_a_header(monkeypatch):
+    """fnmatch's `*` crosses `/`, so `conformance/cases-csv/*.md` once matched
+    a WHY.md inside a case, which is a fixture and carries no header. The
+    tree's own README still must."""
+    files = ["conformance/cases-csv/README.md", "conformance/cases-csv/g/c/WHY.md"]
+    monkeypatch.setattr(sys.modules[__name__], "tracked", lambda: files)
+    found = headed_files()
+    assert found.get("conformance/cases-csv/README.md") == "CC0-1.0"
+    assert "conformance/cases-csv/g/c/WHY.md" not in found

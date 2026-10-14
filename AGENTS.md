@@ -41,6 +41,7 @@ implementation exists so the suite has something to check.
 ```
 SPEC.md               the normative specification (CC-BY-4.0)
 conformance/cases/    fixtures: directories of real files + expect.json (CC0)
+conformance/cases-csv/  the same, for SPEC.md §13's CSV profile (CC0)
 conformance/          the tree-driven runner and the mutation gate (MIT)
 reference/rowspec/    the reference implementation (Apache-2.0 OR MIT)
 export/rowspec_xlsx/  xlsx export, outside reference/ on purpose (Apache-2.0 OR MIT)
@@ -52,7 +53,10 @@ tests/                pytest wrappers around the suite
 ```sh
 just setup    just check    just test    just conform    just mutants
 just conform-alt          # the SECOND implementation, same fixture tree
+just conform-csv          # SPEC.md §13's CSV profile, cases-csv/
+just mutants-csv          # the mutation gate over csvmode.py, by cases-csv/
 just test-xlsx            # the exporter, WITH its optional extra installed
+just test-libreoffice     # the exported workbook, recalculated by LibreOffice
 ```
 
 [ROADMAP.md](ROADMAP.md) is what is next and what is deliberately not.

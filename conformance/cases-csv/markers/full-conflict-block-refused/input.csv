@@ -1,0 +1,9 @@
+name
+alpha
+<<<<<<< ours
+beta
+||||||| base
+base
+=======
+gamma
+>>>>>>> theirs
