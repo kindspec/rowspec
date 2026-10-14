@@ -50,6 +50,13 @@ test:
 test-xlsx:
     ROWSPEC_REQUIRE_XLSX=1 uv run --exact --extra xlsx pytest tests/test_xlsx_export.py -q
 
+# The exported workbook recalculated by LibreOffice, against `rowspec eval`
+# (#36). Needs the extra AND `soffice` on PATH. `ROWSPEC_REQUIRE_LIBREOFFICE=1`
+# turns a missing one into a failure: under `just test` this file skips, and a
+# test that only ever skips is a check that cannot fail.
+test-libreoffice:
+    ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx pytest tests/test_xlsx_libreoffice.py -q
+
 # The conformance suite alone, driven by the fixture tree
 conform:
     cd conformance && uv run python run_cases.py

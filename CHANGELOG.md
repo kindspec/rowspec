@@ -20,6 +20,16 @@ prose, and where the two disagree the suite wins.
   only by case, a literal of more than 15 significant digits, and a table with
   no rows. `python -m rowspec_xlsx` reports a refusal on stderr and exits 1.
 
+### Added
+
+- **The exported workbook is checked against LibreOffice** (#36).
+  `just test-libreoffice` recalculates every exportable `.mdtbl` in the
+  conformance tree in headless LibreOffice. It asserts that each computed cell
+  and aggregate matches `rowspec eval`, with a `#REF!` coming back as a
+  spreadsheet error. The `xlsx-extra` CI job installs LibreOffice and runs it.
+  Four aggregates disagree, because §7's exact sum is not a spreadsheet's
+  sequential one. They are pinned in the test and tracked in #83.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

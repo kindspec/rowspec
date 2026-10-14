@@ -22,8 +22,11 @@ with a GitHub Action.
     0 broken                  just mutants
     75 distinct mutations     just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
-    77 passed, 1 skipped      just test
+    77 passed, 2 skipped      just test
     20 passed                 just test-xlsx
+    1 passed                  just test-libreoffice
+    246 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
+                                pytest tests/test_xlsx_libreoffice.py -q -s
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
@@ -88,7 +91,12 @@ Literal-value export ships as the `rowspec[xlsx]` extra.
 
 The strongest downstream story. Verified in design as essentially lossless
 with real structured references and `SUBTOTAL` aggregates recalculating in
-LibreOffice; neither is built yet.
+LibreOffice. Both are now built, in two parts. #35 writes the formulas, and
+refuses what a spreadsheet cannot say: `cumulative`, `prior`, `delta` and any
+`where` predicate. #36 recalculates the export in LibreOffice and compares it
+with `rowspec eval`. What is left open is #83: `sum` and `avg` near `1e308`,
+where §7's exact sum and a spreadsheet's sequential one disagree. A `where`
+predicate with an exact-text spreadsheet form is not designed yet.
 
 **It lives outside `reference/`, as an optional extra.** `AGENTS.md` makes
 `reference/` standard-library-only because *a dependency there is a dependency
@@ -98,7 +106,8 @@ of a table format must not be required to read xlsx. Export ships as
 
 The round-trip claim is only worth stating if it is checked against a real
 spreadsheet application, so the test (#36) must assert on values recalculated
-by LibreOffice, not on bytes we wrote. Until it exists, the claim is not made.
+by LibreOffice, not on bytes we wrote. `just test-libreoffice` is that test,
+and CI runs it.
 
 ## Open, and deliberately not rushed
 

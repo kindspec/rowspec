@@ -139,6 +139,7 @@ just conform    # the suite alone, against a stock git binary
 just mutants    # deliberately break the implementation; the suite must notice
 just conform-alt # the SECOND implementation, against the same fixture tree
 just test-xlsx  # the exporter, WITH its optional extra installed
+just test-libreoffice # exported workbooks recalculated by LibreOffice
 just run FILE   # validate an artifact (rowspec check)
 just eval FILE  # print computed values and FAIL on any #REF!
 ```
@@ -182,11 +183,19 @@ parentheses.
 
 What a spreadsheet cannot say, the exporter refuses rather than approximates,
 and writes nothing: `cumulative`, `prior` and `delta`; any `where` predicate;
-and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`. A test
-that asserts on what LibreOffice recalculates
-([#36](https://github.com/kindspec/rowspec/issues/36)) has not landed, so the
-claim that the workbook recalculates to `rowspec eval`'s values is not made
-here.
+and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`.
+
+**The workbook recalculates to `rowspec eval`'s values, with known
+exceptions.** `just test-libreoffice` exports every `.mdtbl` in the
+conformance tree that rowspec accepts and the exporter can express. It
+recalculates each one in headless LibreOffice and compares every computed cell
+and aggregate with `rowspec eval`. Numbers are compared at 15 significant
+digits, which is all LibreOffice saves. CI runs it. The exceptions are `sum`
+and `avg` near `1e308`: SPEC.md §7 takes the exact sum and a spreadsheet adds
+left to right, so a spreadsheet can answer an error, or once a different
+number, where `rowspec eval` has a number
+([#83](https://github.com/kindspec/rowspec/issues/83)). The test pins each
+one.
 
 ## Two commands, and you need both
 
