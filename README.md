@@ -171,13 +171,22 @@ independent implementation of a table format must not be required to read xlsx.
 A test fails if anything under `reference/` ever imports outside the standard
 library, so the boundary is a check rather than a convention.
 
-What it writes today is deliberately minimal: one sheet, literal values, the
-declared aggregates below the grid. Structured references and `SUBTOTAL`
-([#35](https://github.com/kindspec/rowspec/issues/35)) and a test that asserts
-on what LibreOffice recalculates
-([#36](https://github.com/kindspec/rowspec/issues/36)) are what make the
-round-trip claim worth stating, and neither has landed — so the claim is not
-made here.
+It writes one sheet holding a spreadsheet table named `rowspec`. Computed
+columns are live formulas over structured references, such as
+`rowspec[[#This Row],[qty]]`, and the declared aggregates sit below the grid as
+`SUBTOTAL` forms. No formula holds a coordinate. The formulas are written to
+carry this format's rules rather than the spreadsheet's: a blank operand, text
+in a summed column, or the minimum of nothing is an error, not a `0`. A `#REF!`
+arrives as a spreadsheet error value, though without the name in its
+parentheses.
+
+What a spreadsheet cannot say, the exporter refuses rather than approximates,
+and writes nothing: `cumulative`, `prior` and `delta`; any `where` predicate;
+and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`. A test
+that asserts on what LibreOffice recalculates
+([#36](https://github.com/kindspec/rowspec/issues/36)) has not landed, so the
+claim that the workbook recalculates to `rowspec eval`'s values is not made
+here.
 
 ## Two commands, and you need both
 

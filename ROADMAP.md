@@ -22,8 +22,8 @@ with a GitHub Action.
     0 broken                  just mutants
     75 distinct mutations     just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
-    73 passed, 1 skipped      just test
-    9 passed                  just test-xlsx
+    77 passed, 1 skipped      just test
+    20 passed                 just test-xlsx
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
