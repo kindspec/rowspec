@@ -1488,7 +1488,7 @@ relaxation**, and the difference must be stated rather than discovered:
   stray quote is refused in the same way, also as the profile's reading of
   §9.6: a `"` inside a field that does not open with one (RFC 4180 §2 rule
   5), or anything but the delimiter or a line break after a closing quote.
-  The grammar generates no field from either, so what the field holds would
+  The grammar generates no record from either, so what the field holds would
   be one reader's guess. An empty line between rows is a record of one empty
   field, not a gap, so §9.6 refuses it against a header of more than one
   column. A single empty line at the end of the file is not between

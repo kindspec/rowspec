@@ -254,6 +254,65 @@ def test_a_stray_quote_is_refused(tmp_path, field):
     assert rules(check_file(f)) == ["stray-quote"]
 
 
+def test_two_stray_quote_findings_with_the_same_opening_are_told_apart(tmp_path):
+    """The shape of owid's scripts/input/yougov/mapping.csv: unescaped quotes
+    inside two quoted fields whose first 40 characters are the same. Shown
+    as 40 characters from the field's start with no row, the two findings
+    read identically; each now names its row, as every other CSV-mode
+    finding does."""
+    data = (
+        b"id,question,scale\r\n"
+        b'q1,"On a scale from "Not at all" to "Fully" rate people",5\r\n'
+        b'q2,"On a scale from "Not at all" to "Fully" rate the state",5\r\n'
+    )
+    found = [f for f in check_file(write(tmp_path, "m.csv", data)) if f.level == "refuse"]
+    assert [str(f).split(":")[0] for f in found] == ["row id='q1'", "row id='q2'"]
+    assert len({str(f) for f in found}) == 2
+
+
+def test_a_stray_quote_in_a_short_field_is_quoted_up_to_its_end(tmp_path):
+    f = write(tmp_path, "s.csv", b'id,a,b\nr_01,x"y,next\n')
+    assert messages(check_file(f)) == "row id='r_01': the field 'x\"y' holds a stray quote"
+
+
+def test_a_stray_quote_names_its_row_by_the_declared_key(tmp_path):
+    f = write(tmp_path, "k.csv", b'note,sku\nx"y,s_1\n', {"key": "sku"})
+    assert messages(check_file(f)).startswith("row sku='s_1':")
+
+
+@pytest.mark.parametrize("eol", [b"\r\n", b"\r"], ids=["crlf", "lone-cr"])
+def test_a_stray_quote_with_no_first_field_names_the_record(tmp_path, eol):
+    """With the first field empty and no key, the row is named by its record
+    number, counted over data records. CRLF ends one record, not two, and a
+    lone CR ends one too (RFC 4180 record boundaries, SPEC.md §13)."""
+    data = eol.join([b"id,note", b"r_01,a", b',x"y', b""])
+    found = [f for f in check_file(write(tmp_path, "r.csv", data)) if f.level == "refuse"]
+    assert messages(found) == "record 2: the field 'x\"y' holds a stray quote"
+
+
+def test_a_doubled_quote_inside_a_shown_field_is_kept(tmp_path):
+    """`""` inside a quoted field is one quote, not its end, so a delimiter
+    after it is still inside the field and the field is shown whole."""
+    f = write(tmp_path, "d.csv", b'id,a,b\nr_01,"x"",y"z,next\n')
+    assert messages(check_file(f)) == "row id='r_01': the field '\"x\"\",y\"z' holds a stray quote"
+
+
+def test_a_stray_quote_names_its_row_by_the_first_column_with_the_key_name(tmp_path):
+    f = write(tmp_path, "k.csv", b'sku,sku\ns_1,x"y\n', {"key": "sku"})
+    assert messages(check_file(f)).startswith("row sku='s_1':")
+
+
+def test_a_stray_quote_in_the_header_names_the_header(tmp_path):
+    f = write(tmp_path, "h.csv", b'id,na"me\nr_01,a\n')
+    assert messages(check_file(f)).startswith("the header row:")
+
+
+def test_the_cap_on_stray_quotes_counts_fields(tmp_path):
+    rows = b"".join(b'r_%d,x"y,z"w\n' % i for i in range(3))
+    found = check_file(write(tmp_path, "c.csv", b"id,a,b\n" + rows))
+    assert str(found[-1]) == "\u2026 and 3 more field(s) with the same problem"
+
+
 def test_a_clean_csv_produces_nothing(tmp_path):
     assert check_file(write(tmp_path, "ok.csv", CLEAN)) == []
 

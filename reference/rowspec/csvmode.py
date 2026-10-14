@@ -142,8 +142,10 @@ def _conflict_markers(text):
 
 def _quote_faults(text, delimiter):
     """RFC 4180 §2's quoting, as SPEC.md §13 reads it. Returns `(opened,
-    stray)`: the start of a quoted field still open at the end of the file, or
-    None; and the start of each field holding a stray quote.
+    stray, where)`: the start of a quoted field still open at the end of the
+    file, or None; the start of each field holding a stray quote; and, for
+    each of those starts, `(record number, start of that record)`, so the
+    finding can name the row rather than an offset.
 
     A field that opens with `"` runs to the next `"` that is not doubled. If
     the file ends first, the grammar generates no records from there on, and
@@ -156,9 +158,13 @@ def _quote_faults(text, delimiter):
     holds is that module's guess.
     """
     quoted, at_start, closed, opened, start, i = False, True, False, 0, 0, 0
-    stray = []
+    stray, where, rec, rec_start = [], {}, 1, 0
     while i < len(text):
         ch = text[i]
+        if not quoted and ch in "\r\n":
+            if ch == "\n" or text[i + 1 : i + 2] != "\n":
+                rec += 1
+            rec_start = i + 1
         if quoted:
             if ch == '"':
                 if text[i + 1 : i + 2] == '"':
@@ -174,9 +180,29 @@ def _quote_faults(text, delimiter):
                 start = i
             if (closed or ch == '"') and (not stray or stray[-1] != start):
                 stray.append(start)
+                where[start] = (rec, rec_start)
             at_start = False
         i += 1
-    return (text[opened : opened + 20] if quoted else None), stray
+    return (text[opened : opened + 20] if quoted else None), stray, where
+
+
+def _field_text(text, start, delimiter):
+    """The raw text of the field that starts at `start`, up to the delimiter
+    or line break that ends it -- quoted part, stray text and all."""
+    i, quoted = start, False
+    while i < len(text):
+        ch = text[i]
+        if quoted and ch == '"':
+            if text.startswith('""', i):
+                i += 2
+                continue
+            quoted = False
+        elif ch == '"' and i == start:
+            quoted = True
+        elif not quoted and (ch == delimiter or ch in "\r\n"):
+            break
+        i += 1
+    return text[start:i]
 
 
 def _grouped_header(names, second):
@@ -271,7 +297,7 @@ def _name_row(rec, names, key_idx, n):
     return f"record {n}"
 
 
-def _cap(findings, rule, items, render, detail):
+def _cap(findings, rule, items, render, detail, unit="row(s)"):
     if not items:
         return
     for item in items[:MAX_EXAMPLES]:
@@ -280,7 +306,7 @@ def _cap(findings, rule, items, render, detail):
         findings.append(
             Finding(
                 rule,
-                f"\u2026 and {len(items) - MAX_EXAMPLES} more row(s) with the same problem",
+                f"\u2026 and {len(items) - MAX_EXAMPLES} more {unit} with the same problem",
                 None,
             )
         )
@@ -299,7 +325,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     # SPEC.md §13 and RFC 4180 -- a quoted field still open at the end of the
     # file, or a stray quote. Refused alone, for the conflict marker's reason:
     # every finding after it would be about rows the csv module had to guess.
-    opened, stray = _quote_faults(text, delimiter)
+    opened, stray, where = _quote_faults(text, delimiter)
     if opened is not None:
         return [
             Finding(
@@ -311,16 +337,34 @@ def check_text(text, name="<input>", side=None, delimiter=","):
             )
         ]
     if stray:
-        shown = [text[s : s + 40].splitlines()[0] for s in stray]
+
+        def first_record(at):
+            reader = csv.reader(io.StringIO(text[at:], newline=""), delimiter=delimiter)
+            return next(reader, [])
+
+        names = [unicodedata.normalize("NFC", h.strip()) for h in first_record(0)]
+        # The first column of that name, as `names.index` gives elsewhere.
+        key_idx = next((i for i, n in enumerate(names) if side and n == side.key), None)
+
+        def locate(start):
+            rec, rec_start = where[start]
+            if rec == 1:
+                return "the header row"
+            return _name_row(first_record(rec_start), names, key_idx, rec - 1)
+
         stray_findings = []
         _cap(
             stray_findings,
             "stray-quote",
-            shown,
-            lambda field: f"the field {_show(field)} holds a stray quote",
+            stray,
+            lambda s: (
+                f"{locate(s)}: the field {_show(_field_text(text, s, delimiter))} "
+                f"holds a stray quote"
+            ),
             "RFC 4180 allows a quote only to open a field, to close it, or doubled "
             "inside a quoted field. Anywhere else a CSV reader has to guess what the "
             "field holds, and readers guess differently.",
+            unit="field(s)",
         )
         return stray_findings
 
