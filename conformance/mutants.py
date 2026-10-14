@@ -502,9 +502,9 @@ for r in seq:
 # `--profile csv`; see TARGETS below.
 #
 # A mutant the CSV tree does not kill is a hole, as for the table above. The
-# defects that survived when this table was written are not in it: they are
-# kindspec/rowspec#94, for cases written from the spec by someone who has
-# not read csvmode.py, and each joins this table once a case kills it.
+# defects that survived when this table was written are in CSV_PENDING below,
+# not here: they are kindspec/rowspec#94, for cases written from the spec by
+# someone who has not read csvmode.py, and each moves here once a case kills it.
 CSV_EQUIVALENT = {
     "csv-empty-file-check-removed": (
         "an empty or whitespace-only file then reaches the header check, which "
@@ -514,7 +514,9 @@ CSV_EQUIVALENT = {
     "csv-grouped-header-disabled": (
         "a grouped header has repeated names, so with the shape check off it is "
         "refused as duplicate columns instead -- the same file refused, under §9's "
-        "unobservable choice of diagnostic"
+        "unobservable choice of diagnostic. Not quite true today: where the only "
+        "repeated name is empty (`,,,,,a`) the original crashes and the mutant "
+        "refuses, which is kindspec/rowspec#92. Re-check this claim when #92 is fixed"
     ),
 }
 
@@ -622,6 +624,47 @@ CSV_MUTANTS = {
     "CONTROL-csv-reports-nothing": (
         "    return findings + warnings",
         "    return []",
+    ),
+}
+
+
+#: Defects in csvmode.py that no case in cases-csv/ catches yet, kept so that
+#: they are not lost: kindspec/rowspec#94. They are NOT gated -- a mutant
+#: nothing kills makes the gate red -- and each moves into CSV_MUTANTS once a
+#: case written from the spec kills it. `tests/test_conformance.py` checks that
+#: every one still applies, so none can go stale while it waits.
+CSV_PENDING = {
+    "csv-key-trim-strips-all-whitespace": (
+        '        raw = unicodedata.normalize("NFC", rec[key_idx].strip(" \\t"))',
+        '        raw = unicodedata.normalize("NFC", rec[key_idx].strip())',
+    ),
+    "csv-quote-opens-mid-field": (
+        "        elif at_start and ch == '\"':",
+        "        elif ch == '\"':",
+    ),
+    "csv-doubled-quote-closes-the-field": (
+        "                if text[i + 1 : i + 2] == '\"':",
+        "                if False:",
+    ),
+    "csv-quote-scan-ignores-a-lone-cr": (
+        '            at_start = ch == delimiter or ch in "\\r\\n"',
+        '            at_start = ch == delimiter or ch == "\\n"',
+    ),
+    "csv-trailing-empty-line-refused": (
+        "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
+        "    rest = records[1:]",
+    ),
+    "csv-every-trailing-empty-line-dropped": (
+        "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
+        "    rest = records[1:]\n    while rest and rest[-1] == []:\n        rest = rest[:-1]",
+    ),
+    "csv-marker-after-leading-space": (
+        "        if not _MARKER.match(line):\n            continue",
+        "        if not _MARKER.match(line.lstrip()):\n            continue",
+    ),
+    "csv-marker-needs-space-or-end-of-line": (
+        r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")',
+        r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})(?: |$)")',
     ),
 }
 

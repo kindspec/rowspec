@@ -58,6 +58,25 @@ def test_mutation_gate_is_sound(profile):
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def test_every_pending_csv_mutant_still_applies():
+    """CSV_PENDING is not gated (#94), so nothing else would notice a pattern
+    that stopped matching csvmode.py -- and a stale mutant is one that can never
+    be promoted into the gate once a case for it lands."""
+    sys.path.insert(0, CONF)
+    try:
+        import mutants
+    finally:
+        sys.path.remove(CONF)
+    from kindkit import apply_mutant
+
+    with open(mutants.CSV_IMPL, encoding="utf-8") as fh:
+        src = fh.read()
+    assert mutants.CSV_PENDING, "CSV_PENDING is empty: move this test's job or delete it"
+    assert not set(mutants.CSV_PENDING) & set(mutants.CSV_MUTANTS)
+    for name, spec in mutants.CSV_PENDING.items():
+        assert apply_mutant(src, *spec) != src, name
+
+
 def test_a_gate_profile_that_is_not_known_is_refused():
     r = _run("mutants.py", "--profile", "xlsx")
     assert r.returncode == 2, r.stdout + r.stderr
@@ -75,8 +94,9 @@ def _gate_tree(tmp_path):
     return tmp_path / "conformance"
 
 
+@pytest.mark.parametrize("profile", [(), ("--profile", "csv")], ids=["mdtbl", "csv"])
 @pytest.mark.parametrize("name", ["mutant_impl.py", "mutant_csvmode.py"])
-def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path, name):
+def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path, name, profile):
     """A run killed mid-probe leaves a MUTATED `mutant_impl.py` behind, and the
     file is gitignored, so nothing else shows it. The next run used to write
     over it and delete it, so the evidence of the kill went with it (#81)."""
@@ -84,7 +104,11 @@ def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path, name):
     stale = conf / name
     stale.write_text("# left behind by a killed run\n")
     r = subprocess.run(
-        [sys.executable, "mutants.py"], cwd=conf, capture_output=True, text=True, timeout=600
+        [sys.executable, "mutants.py", *profile],
+        cwd=conf,
+        capture_output=True,
+        text=True,
+        timeout=600,
     )
     assert r.returncode == 2, f"expected 2, got {r.returncode}\n" + r.stdout[-500:] + r.stderr
     assert str(stale) in r.stderr, r.stderr
