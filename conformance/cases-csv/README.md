@@ -142,6 +142,20 @@ question. Their twelve, as they listed them:
     (`ident/key-value-rules-without-sidecar-accepted`)
 
 SPEC.md §13 has since settled some of these, each in the direction the
-author read it: the unterminated quote in 6, the blank line in 7, 11 (a
-marker line is refused inside a quoted field too), and 12. It also withdrew 3.
-The rest stand as the cases read them.
+author read it or, where they wrote no case, by owner decision: all of 6 (an
+unterminated quote, and since #96 a bare quote inside an unquoted field and
+text after a closing quote, both refused), the blank line in 7, 11 (a marker
+line is refused inside a quoted field too), and 12. It also withdrew 3. The
+rest stand as the cases read them.
+
+The next 20 cases (#94) were written by a second author, also not the author
+of `csvmode.py`, from this export and the text of #94, which lists in spec
+terms the behaviours the first 57 cases left unpinned:
+
+    git archive 6d6fd26 SPEC.md conformance ':(exclude)conformance/mutants.py'
+
+They are byte for byte as written, and none was withdrawn. They cover the
+three quoting faults of 6, the single and double trailing empty line, key
+values trimmed of ASCII space and tab only, a quoted field after a lone CR,
+and marker runs that do or do not start a line. Their `WHY.md` files record
+no new open question.

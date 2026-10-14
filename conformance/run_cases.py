@@ -60,7 +60,7 @@ MIN_CASES = 410
 
 #: The same floor for SPEC.md §13's CSV tree, measured the same way over
 #: `conformance/cases-csv`.
-MIN_CSV_CASES = 57
+MIN_CSV_CASES = 77
 
 CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
 
