@@ -31,7 +31,7 @@ import sys
 import unicodedata
 
 from . import sidecar as sidecar_mod
-from .table import Malformed
+from .table import Malformed, _check_ident
 
 # Git writes exactly seven of its marker character, then a space and a label or
 # end of line. `.mdtbl` refuses any line merely starting with those characters;
@@ -343,6 +343,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     )
 
     if key_idx is not None:
+        findings += _key_identifiers(body, names, key_idx)
         findings += _duplicate_keys(body, names, key_idx)
 
     if side:
@@ -357,6 +358,36 @@ def _near(name, names):
 
     hit = difflib.get_close_matches(name, [n for n in names if n], n=1, cutoff=0.6)
     return f"; did you mean {_show(hit[0])}?" if hit else ""
+
+
+def _key_identifiers(body, names, key_idx):
+    """SPEC.md §4.1.9 and §9.16: a value of the declared key column is an
+    `ident`, so it is not empty and holds no whitespace, no `Cf` character and
+    nothing outside the allowlist -- the same check `.mdtbl` applies to its
+    key. An id that renders like another but is not equal to it is the
+    duplicate-key refusal failing to fire."""
+    key = names[key_idx]
+    bad = []
+    for n, rec in enumerate(body, 1):
+        if key_idx >= len(rec):
+            continue  # a short row is the field-count refusal's to report
+        raw = unicodedata.normalize("NFC", rec[key_idx].strip())
+        try:
+            if raw == "":
+                raise Malformed(f"{key} value is empty, and an id is one or more characters")
+            _check_ident(raw, f"{key} value")
+        except Malformed as e:
+            bad.append((n, rec, str(e)))
+    findings = []
+    _cap(
+        findings,
+        "key-not-identifier",
+        bad,
+        lambda b: f"{_name_row(b[1], names, key_idx, b[0])}: {b[2]}",
+        "A key value names its row, so it follows the identifier rule: letters, marks, "
+        "digits and underscore. Two ids that render identically must not both be possible.",
+    )
+    return findings
 
 
 def _duplicate_keys(body, names, key_idx):
