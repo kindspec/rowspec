@@ -206,6 +206,39 @@ def test_a_csv_tree_below_its_floor_is_no_verdict(tmp_path):
     assert "expected at least" in r.stderr, r.stderr
 
 
+def test_a_case_with_no_input_csv_fails_on_the_guard_not_on_a_crash(tmp_path):
+    """The case fails because the runner says it has nothing to run, not
+    because the implementation was handed a path that does not exist. A stub
+    that crashes on the missing file would fail the case too, so the message
+    is what shows the guard ran."""
+    root = _tree(tmp_path / "tree", [("no-input-csv", None, accept(), FAIL)])
+    report = tmp_path / "report.json"
+    r = _run(
+        "_stub_csvmode",
+        str(root),
+        "--profile",
+        "csv",
+        "--report-json",
+        str(report),
+        *SMALL_TREE,
+        pythonpath=_stub(tmp_path),
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    [failure] = json.loads(report.read_text())["failures"]
+    assert failure["message"] == "no input.csv in the case; nothing would have run", failure
+
+
+def test_the_csv_profile_defaults_to_csvmode_over_the_csv_tree(tmp_path):
+    """`--profile csv` alone reads conformance/cases-csv/, and passes it: an
+    implementation without the CSV entry point exits 2 there, not 0."""
+    report = tmp_path / "report.json"
+    r = _run("--profile", "csv", "--report-json", str(report))
+    assert r.returncode == 0, r.stdout + r.stderr
+    got = json.loads(report.read_text())
+    assert os.path.realpath(got["root"]) == os.path.realpath(os.path.join(CONF, "cases-csv"))
+    assert got["cases"], got
+
+
 def test_an_empty_csv_tree_is_no_verdict(tmp_path):
     (tmp_path / "empty").mkdir()
     r = _run(
