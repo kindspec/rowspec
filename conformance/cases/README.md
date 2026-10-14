@@ -102,27 +102,33 @@ Values in `expect.json` are JSON: a number is a number, an error is the string
 
 ## Provenance of the `refusal` identifiers
 
-The identifiers in this tree's `refusal` fields (#61) were not chosen by
-the author of `reference/rowspec/`. Two separate exports were made from
-commit `ce24fa9`, which was then the head of `main`, with a draft of SPEC.md
-§9 that gave each entry its identifier in place of that commit's `SPEC.md`.
-Neither export held a `.git` directory.
+The identifiers in this tree's `refusal` fields (#61) were not chosen by the
+author of `reference/rowspec/`. Two exports were copied from a working tree
+based on commit `ce24fa9`, which was then the head of `main`. Besides the
+original files, that working tree held a draft of SPEC.md §9 that gave each
+entry its identifier, and the new version of this README; the export for
+`rowspec_alt` also held the new `conformance/run_cases.py`. Neither export
+held a `.git` directory.
 
-- **The cases** were tagged in an export holding only `SPEC.md` (the draft)
-  and `conformance/cases/`. It held no implementation, no runner and no
-  mutation gate. Each refusing `parse` case's `refusal` was assigned from the
-  draft and the fixture bytes.
-- **`reference/rowspec_alt/`** was tagged separately, in an export holding the
-  same draft `SPEC.md`, `conformance/cases/` without identifiers,
-  `conformance/run_cases.py` and `reference/rowspec_alt/`, but not
-  `reference/rowspec/`.
+The case tags and `rowspec_alt`'s identifiers were assigned by two separate
+authors, each confined to their own export.
 
-What is recorded here was checked against the two export directories the
-work left behind. Every file they hold that the tagging did not edit is byte
-for byte the file at `ce24fa9`. Both hold the same draft `SPEC.md`, which is
-in no commit of this repository. The exact commands that made the exports,
-and whether one author or two did the tagging, were not recorded and cannot be
-checked now.
+- **The cases** were tagged in an export holding only the draft `SPEC.md` and
+  `conformance/cases/`: no implementation, no runner and no mutation gate.
+  Each refusing `parse` case's `refusal` was assigned from the draft, the
+  fixture bytes and the case's `WHY.md`.
+- **`reference/rowspec_alt/`** was tagged in an export holding the draft
+  `SPEC.md`, `conformance/cases/` without identifiers,
+  `conformance/run_cases.py`, `reference/rowspec_alt/` and build caches, but
+  not `reference/rowspec/`.
+
+`SPEC.md`, and the alt export's runner, were refreshed once during the
+tagging, when entry 25 (`order-without-key`) was added to the draft.
+
+The two export directories still exist outside this repository. Every file
+in them that the tagging did not edit is byte for byte the file at
+`ce24fa9`, and the draft `SPEC.md` they hold is in no commit. The exact
+commands that made the exports are not recorded in this repository.
 
 Since then, two identifier assignments have changed with SPEC.md rather than
 with an implementation. `parse/bom-refused` became `leading-bom` when §9.14
