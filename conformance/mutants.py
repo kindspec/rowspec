@@ -502,9 +502,11 @@ for r in seq:
 # `--profile csv`; see TARGETS below.
 #
 # A mutant the CSV tree does not kill is a hole, as for the table above. The
-# defects that survived when this table was written are in CSV_PENDING below,
-# not here: they are kindspec/rowspec#94, for cases written from the spec by
-# someone who has not read csvmode.py, and each moves here once a case kills it.
+# ones that survived when this table was first written waited, ungated, until
+# a second author wrote cases from the spec for them (kindspec/rowspec#94); they
+# are the section below marked as such. A new survivor goes the same way: an
+# issue in spec terms, a case from someone who has not read csvmode.py, then
+# the mutant joins this table.
 CSV_EQUIVALENT = {
     "csv-empty-file-check-removed": (
         "an empty or whitespace-only file then reaches the header check, which "
@@ -603,7 +605,7 @@ CSV_MUTANTS = {
         '            if ch.isspace() or unicodedata.category(ch) == "Cf":',
         "            if ch.isspace():",
     ),
-    # Moved from CSV_PENDING when stray quotes became a refusal: closing a field
+    # Gated once stray quotes became a refusal (#96): closing a field
     # at a doubled quote now leaves a stray quote behind it, which the
     # doubled-quote cases see.
     "csv-doubled-quote-closes-the-field": (
@@ -627,20 +629,7 @@ CSV_MUTANTS = {
         "        if side.key not in names:",
         "        if False:",
     ),
-    # --- CONTROL: must be killed, or the CSV harness is broken ----------------
-    "CONTROL-csv-reports-nothing": (
-        "    return findings + warnings",
-        "    return []",
-    ),
-}
-
-
-#: Defects in csvmode.py that no case in cases-csv/ catches yet, kept so that
-#: they are not lost: kindspec/rowspec#94. They are NOT gated -- a mutant
-#: nothing kills makes the gate red -- and each moves into CSV_MUTANTS once a
-#: case written from the spec kills it. `tests/test_conformance.py` checks that
-#: every one still applies, so none can go stale while it waits.
-CSV_PENDING = {
+    # --- killed by the cases written for #94 ---------------------------------
     "csv-key-trim-strips-all-whitespace": (
         '        raw = unicodedata.normalize("NFC", rec[key_idx].strip(" \\t"))',
         '        raw = unicodedata.normalize("NFC", rec[key_idx].strip())',
@@ -680,6 +669,11 @@ CSV_PENDING = {
     "csv-marker-needs-space-or-end-of-line": (
         r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")',
         r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})(?: |$)")',
+    ),
+    # --- CONTROL: must be killed, or the CSV harness is broken ----------------
+    "CONTROL-csv-reports-nothing": (
+        "    return findings + warnings",
+        "    return []",
     ),
 }
 
