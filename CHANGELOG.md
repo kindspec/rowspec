@@ -15,7 +15,7 @@ prose, and where the two disagree the suite wins.
   identifier with the refusal; the message stays free. Refusing `parse` cases
   replace `refusal_contains` with `refusal`: one identifier where exactly one
   refusal applies, or a list of every identifier that applies where §9 leaves
-  the choice to the implementation. Before this, 99 of the 116 refusing
+  the choice to the implementation. Before this, 98 of the 116 refusing
   `parse` cases asserted `refusal_contains: ""` and passed on a refusal for any
   reason. The runner fails a refusing case that names no identifier, and a
   case still carrying `refusal_contains`.
