@@ -24,8 +24,10 @@ __all__ = [
 class Malformed(Exception):
     """Every refusal in SPEC.md §9.
 
-    `refusal` is the §9 identifier, spelled exactly; None only for API misuse
-    that refuses no file (set_cell addressing a missing row or column)."""
+    `refusal` is the §9 identifier, spelled exactly. It is None where no file
+    is being refused: set_cell addressing a missing column, a missing row, or
+    a table with no key, and the evaluator's guard against an expression node
+    it does not know, which no parse that passed §4.2 can produce."""
 
     def __init__(self, refusal, message):
         super().__init__(message)
