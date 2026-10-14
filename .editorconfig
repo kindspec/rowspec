@@ -23,6 +23,17 @@ trim_trailing_whitespace = false
 [Makefile]
 indent_style = tab
 
+# CSV-profile fixtures are exact bytes, and some must hold a BOM, a CRLF or a
+# lone CR. Unset every rule that can touch content, not only the whitespace
+# ones: `charset = utf-8` lets an editor drop a BOM.
+[conformance/cases-csv/**]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset
+
 [justfile]
 indent_style = space
 indent_size = 4

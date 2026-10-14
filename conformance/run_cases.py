@@ -10,8 +10,23 @@ Everything above that line -- walking the tree, reading fixtures as exact
 bytes, dispatching on `kind`, counting what was opened, and refusing to report
 success over a tree that yielded no verdict -- is
 [kindkit](https://github.com/kindspec/kindkit) and is the same for every kind.
-This file is what is left once that is taken out: the eight handlers that know
-what a rowspec case MEANS, and nothing else.
+This file is what is left once that is taken out: the handlers that know what
+a rowspec case MEANS, and nothing else.
+
+Two profiles, one tree each, because SPEC.md §13 says CSV mode is "a different
+profile, not a relaxation", and an implementation claiming it "states which
+profile it means":
+
+    --profile mdtbl   cases/       the format itself (the default)
+    --profile csv     cases-csv/   an ordinary `.csv`, checked against §13
+
+They are separate roots rather than one tree with a filter so that each root
+is run WHOLE. kindkit's `conform.py` refuses a report that leaves any case
+under its root unrun, which is right: a run that leaves cases unopened and
+reports a pass is how this runner once printed "0 failure(s)" over 226 cases.
+So an implementation that claims only
+the `.mdtbl` profile runs all of `cases/` and none of `cases-csv/`, and the
+skip is the choice of root, stated on its command line.
 
 Three exit codes, not two, because "every case passed" and "no case ran" must
 never look alike from the outside:
@@ -32,6 +47,7 @@ from kindkit import EXIT_NO_VERDICT, Adapter, cli, gitmerge
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CASES = os.path.join(HERE, "cases")
+CSV_CASES = os.path.join(HERE, "cases-csv")
 
 sys.path.insert(0, os.path.join(HERE, "..", "reference"))
 
@@ -223,16 +239,154 @@ def adapter_for(impl):
     )
 
 
+#: The artifact a CSV-profile case checks. Fixed, like `input.mdtbl`: the case
+#: directory is the repository root (cases-csv/README.md), so a sidecar declaring
+#: its key is a file beside it, found by the implementation the way it would
+#: find one in a real repository. Nothing in `expect.json` names either file.
+CSV_INPUT = "input.csv"
+
+#: Every field a CSV-profile `check` case may carry. Anything else is refused
+#: rather than ignored: a misspelt `warns` would otherwise be a field nothing
+#: checks, in a case that still reports a pass.
+CSV_FIELDS = frozenset({"kind", "accept", "refusal_contains", "warns", "warning_contains"})
+
+#: kindkit reads a case's fixtures as UTF-8 text before any handler runs, and a
+#: fixture that does not decode is a fault in the whole TREE, not in the case.
+#: §9.14 is about bytes that are not well-formed UTF-8, so a CSV case has to be
+#: able to hold them, whatever §13 makes of them. The CSV is therefore never registered as a
+#: fixture: the handler reads `input.csv` itself, as bytes, and the adapter
+#: names a suffix no case file carries.
+CSV_NOT_A_FIXTURE = ".kindkit-does-not-read-csv"
+
+
+def csv_adapter_for(impl):
+    """The adapter for SPEC.md §13's CSV profile, checking `impl`.
+
+    `impl` is the CSV-mode module, not the table module: the profiles are
+    separate claims and an implementation may make either. Its entry point is
+    `check_file(path)`, returning findings whose `level` is `"refuse"` or
+    `"warn"` and whose `str()` is the message, and it may raise `Malformed`
+    for a file it cannot read at all. A module without both is refused here,
+    which `main` turns into exit 2: it does not implement the profile, and
+    running the tree against it would be a verdict about nothing.
+    """
+    mod = importlib.import_module(impl)
+    importlib.reload(mod)
+    missing = [name for name in ("check_file", "Malformed") if not hasattr(mod, name)]
+    if missing:
+        raise LookupError(
+            f"{impl} has no {' or '.join(missing)}, so it does not implement the CSV "
+            "profile (SPEC.md §13)"
+        )
+
+    def check(case):
+        e = case.expect
+        unknown = sorted(set(e) - CSV_FIELDS)
+        if unknown:
+            yield f"unknown field(s) {unknown}; nothing would check them"
+            return
+        if not isinstance(e.get("accept"), bool):
+            yield "'accept' must be true or false"
+            return
+        if "warns" in e and e["warns"] is not True:
+            # An implementation may emit advisory warnings the spec does not
+            # require, so the absence of a warning is not something the spec
+            # lets a case assert. `warns: false` would fail a conforming
+            # implementation for saying more than §13 asks.
+            yield "'warns' may only be true: no warning is not something SPEC.md lets a case check"
+            return
+        if e["accept"]:
+            if "refusal_contains" in e:
+                yield "'refusal_contains' on an accepted file; nothing would check it"
+                return
+            if "warning_contains" in e and e.get("warns") is not True:
+                yield "'warning_contains' needs 'warns': true; nothing would check it"
+                return
+        elif "warns" in e or "warning_contains" in e or "refusal_contains" not in e:
+            yield "a refused file asserts 'refusal_contains' and nothing about warnings"
+            return
+        for name in ("refusal_contains", "warning_contains"):
+            if name in e and not isinstance(e[name], str):
+                yield f"{name!r} must be a string"
+                return
+
+        path = os.path.join(case.dir, CSV_INPUT)
+        if not os.path.isfile(path):
+            yield f"no {CSV_INPUT} in the case; nothing would have run"
+            return
+        try:
+            findings = list(mod.check_file(path))
+        except mod.Malformed as ex:
+            refusals, warnings = [str(ex)], []
+        else:
+            levels = sorted({f.level for f in findings} - {"refuse", "warn"})
+            if levels:
+                yield f"finding level(s) {levels} are neither 'refuse' nor 'warn'"
+                return
+            refusals = [str(f) for f in findings if f.level == "refuse"]
+            warnings = [str(f) for f in findings if f.level == "warn"]
+
+        if not e["accept"]:
+            want = e["refusal_contains"]
+            if not any(want in r for r in refusals):
+                yield f"expected refusal ~{want!r}, got {refusals or 'no refusal'!r}"
+            return
+        if refusals:
+            yield f"expected accept, got {refusals!r}"
+        if e.get("warns") is True:
+            want = e.get("warning_contains", "")
+            if not any(want in w for w in warnings):
+                yield f"expected a warning ~{want!r}, got {warnings or 'no warning'!r}"
+
+    return Adapter(fixture_suffixes=(CSV_NOT_A_FIXTURE,), handlers={"check": check})
+
+
+#: SPEC.md §13's profiles: the adapter, the implementation checked when none is
+#: named, the tree, and its floor. The CSV tree has no floor yet because it has
+#: no cases yet (#63); kindkit already refuses an EMPTY root, so until it has
+#: some, `--profile csv` exits 2 rather than reporting a pass over nothing.
+PROFILES = {
+    "mdtbl": (adapter_for, "rowspec.table", CASES, MIN_CASES),
+    "csv": (csv_adapter_for, "rowspec.csvmode", CSV_CASES, None),
+}
+
+
 IMPL_HELP = """\
 IMPL is an importable module exposing the entry points the handlers call
-(default: rowspec.table). It is always the first positional argument, so
-`run_cases.py ROOT` alone reads ROOT as IMPL: give a fixture root as
-`run_cases.py rowspec.table ROOT`.
+(default: rowspec.table, or rowspec.csvmode under `--profile csv`). It is
+always the first positional argument, so `run_cases.py ROOT` alone reads ROOT
+as IMPL: give a fixture root as `run_cases.py rowspec.table ROOT`.
+
+--profile mdtbl|csv selects SPEC.md §13's profile, and with it the default
+tree: cases/ for mdtbl (the default), cases-csv/ for csv.
 """
 
 
+def take_profile(argv):
+    """Split `--profile P` / `--profile=P` out of `argv`: (profile, the rest).
+
+    Taken out BEFORE IMPL is read, so `run_cases.py --profile csv IMPL` still
+    reads IMPL as the first positional. Given twice, the run is refused rather
+    than resolved: which tree ran must never depend on argument order.
+    """
+    found, rest, it = [], [], iter(argv)
+    for arg in it:
+        if arg == "--profile":
+            found.append(next(it, ""))
+        elif arg.startswith("--profile="):
+            found.append(arg.split("=", 1)[1])
+        else:
+            rest.append(arg)
+    if len(found) > 1:
+        raise ValueError(f"--profile given {len(found)} times")
+    profile = found[0] if found else "mdtbl"
+    if profile not in PROFILES:
+        raise ValueError(f"unknown profile {profile!r}; expected one of {sorted(PROFILES)}")
+    return profile, rest
+
+
 def main(argv):
-    """`run_cases.py [IMPL] [ROOT] [--min-cases N]`.
+    """`run_cases.py [IMPL] [ROOT] [--profile mdtbl|csv] [--min-cases N]`.
 
     `IMPL` is an importable module, so the gate can point this at a file it
     has just broken. The fixture root defaults to `cases/` ANCHORED to this
@@ -240,7 +394,12 @@ def main(argv):
     runner once walked an empty path and printed "0 failure(s)" over 226
     unopened cases, four of which were failing.
     """
-    impl, rest = "rowspec.table", list(argv)
+    try:
+        profile, rest = take_profile(argv)
+    except ValueError as exc:
+        print(f"\nHARD FAILURE: {exc}", file=sys.stderr)
+        return EXIT_NO_VERDICT
+    build, impl, root, min_cases = PROFILES[profile]
     if rest and not rest[0].startswith("-"):
         impl, rest = rest[0], rest[1:]
     if "-h" in rest or "--help" in rest:
@@ -251,20 +410,19 @@ def main(argv):
         # "implementation" that is really a fixture root.
         print(
             f"\nHARD FAILURE: IMPL {impl!r} is a path, not a module. IMPL is the first "
-            f"positional argument; pass `run_cases.py rowspec.table {impl}`.",
+            f"positional argument; pass `run_cases.py {PROFILES[profile][1]} {impl}`.",
             file=sys.stderr,
         )
         return EXIT_NO_VERDICT
     try:
-        adapter = adapter_for(impl)
+        adapter = build(impl)
     except (Exception, SystemExit) as exc:
         # An implementation that will not import means no case ran, which is
         # exit 2. Left uncaught it was Python's default 1: "a case failed" --
         # and a module calling `sys.exit(0)` while importing exited 0, a pass
         # over a suite that never ran. KeyboardInterrupt still propagates.
         print(
-            f"\nHARD FAILURE: cannot import the implementation {impl!r}: "
-            f"{type(exc).__name__}: {exc}",
+            f"\nHARD FAILURE: cannot load the implementation {impl!r}: {type(exc).__name__}: {exc}",
             file=sys.stderr,
         )
         return EXIT_NO_VERDICT
@@ -273,9 +431,9 @@ def main(argv):
         rest,
         # IMPL is consumed above, before kindkit builds the parser, so the
         # usage line is the only place `--help` can name it.
-        prog="run_cases.py [IMPL]",
-        default_root=CASES,
-        default_min_cases=MIN_CASES,
+        prog="run_cases.py [IMPL] [--profile mdtbl|csv]",
+        default_root=root,
+        default_min_cases=min_cases,
     )
 
 

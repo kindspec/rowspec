@@ -36,7 +36,7 @@ def test_second_implementation_passes():
     sufficient -- and it silently drifted 117 cases behind because no test and
     no CI job ran it while §4.1, §4.2 and §9 were being written.
     """
-    r = _run("run_cases.py", "rowspec_alt.table")
+    r = _run("run_cases.py", "rowspec_alt.table", "--profile", "mdtbl")
     assert r.returncode == 0, r.stdout + r.stderr
 
 
