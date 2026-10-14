@@ -1364,8 +1364,10 @@ reason the format has no coordinates: a position changes meaning when
 something is inserted before it.
 
 The same rules govern an entry that changes shape. **Split:** the original
-identifier stays with the part it already named, unless that part's meaning
-would change, and each part split off gets a new identifier. **Merge:** the
+identifier stays with the part whose meaning its name describes, and each
+other part gets a new identifier; if the name describes no single part, it is
+retired and every part gets a new one. §9.14's split kept `bad-encoding` for
+malformed UTF-8 and gave the BOM `leading-bom`. **Merge:** the
 merged entry keeps one of the identifiers, and the others are retired.
 **Rename:** there is none; a new name is a new identifier, and the old one is
 retired. A retired identifier is listed below so it is never reused.

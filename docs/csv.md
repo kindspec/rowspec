@@ -75,9 +75,10 @@ This table classifies refusals 1 to 13 and 25 of SPEC.md §9, each by its
 number and the identifier §9 gives it, and §9's list goes on past them. Of
 the later entries this page covers §9.14 (`bad-encoding`) and part of §9.16
 (below the table), and §9.26 (`leading-bom`) and §9.15 (`lone-cr`), which in
-CSV mode are warnings (*Two warnings, not refusals*). The rest are not classified here. SPEC.md §9
-is the complete list, and §13 states the CSV profile: what it cannot apply,
-and how it reads §9.16, RFC 4180's records and §4.1.12's conflict markers.
+CSV mode are warnings (*Two warnings, not refusals*). The rest are not
+classified here. SPEC.md §9 is the complete list, and §13 states the CSV
+profile: what it cannot apply, and how it reads §9.16, RFC 4180's records and
+§4.1.12's conflict markers.
 
 | SPEC.md §9 | | bare CSV | with sidecar | `.mdtbl` only |
 | --- | --- | :-: | :-: | :-: |
@@ -134,8 +135,7 @@ with no computed column cannot violate them.
 ## Two warnings, not refusals
 
 SPEC.md §9 refuses a UTF-8 BOM (§9.26, `leading-bom`) and a lone `CR` (§9.15,
-`lone-cr`). In
-CSV mode both are **warnings**, as SPEC.md §13 states:
+`lone-cr`). In CSV mode both are **warnings**, as SPEC.md §13 states:
 
 - **A UTF-8 BOM** is what Excel writes, and it cannot change a value once it is
   stripped.

@@ -23,8 +23,8 @@ allowlist, apart from `Cf`, because it exists for formulas.
 
 Two deliberate softenings, both stated by SPEC.md §13: refusals 26 (a UTF-8
 BOM, `leading-bom`) and 15 (a lone CR, `lone-cr`) are WARNINGS in CSV mode,
-not refusals. Excel writes
-the BOM, and refusing either would fail files whose values are correct.
+not refusals. Excel writes the BOM, and refusing either would fail files whose
+values are correct.
 
 CRLF is a third warning, and it is rowspec's advisory rather than a spec rule:
 SPEC.md §3 accepts LF and CRLF alike, and RFC 4180 makes CRLF the default for
