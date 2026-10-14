@@ -62,6 +62,9 @@ fifty CSVs keyed the same way should not need fifty sidecars, so a single
 A per-file `<file>.rowspec.json` wins over the directory file. The two forms
 are told apart by filename, never by inspecting content.
 
+The directory form is rowspec's convenience and outside SPEC.md §13's CSV
+profile, which uses the per-file sidecar only.
+
 **A duplicate declaration is refused, not resolved.** JSON's own rule for a
 repeated object key is last-one-wins, which is exactly the silent overwrite
 SPEC.md §9.4 exists to prevent, so `{"key": "id", "key": "name"}` is an error.
