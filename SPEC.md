@@ -1472,7 +1472,7 @@ relaxation**, and the difference must be stated rather than discovered:
   of 20 in another — measured, not estimated.
 - refusals covering alignment rows, formulas and aggregates cannot apply,
   because a CSV has none of those constructs.
-- **refusal 5 (duplicate row id) requires a sidecar** declaring which column is
+- **refusal 5 (`duplicate-row-id`) requires a sidecar** declaring which column is
   the key. It is the refusal the identity argument exists for, and it is the one
   that costs a file to obtain. Key inference was tried and rejected: a
   legitimately non-unique first column produces confident wrong refusals on
@@ -1513,6 +1513,11 @@ relaxation**, and the difference must be stated rather than discovered:
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
   the line, is data.
+
+**The CSV profile does not carry §9's identifiers yet.** A CSV-mode refusal is
+not required to report one, its conformance cases assert only that a file is
+refused, and most of the refusals a sidecar brings, such as invalid JSON or a
+key naming no column, have no §9 entry to name.
 
 An implementation claiming CSV-mode conformance states which profile it means.
 
