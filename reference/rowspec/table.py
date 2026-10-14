@@ -20,7 +20,14 @@ import unicodedata
 
 
 class Malformed(Exception):
-    pass
+    """A refusal. `refusal` is its SPEC §9 identifier. It is None for an error
+    that is not one of §9's refusals -- a sidecar's own, or a misuse of
+    `set_cell` -- and, for now, for CSV mode, whose conformance cases still
+    assert on the message."""
+
+    def __init__(self, message, *, refusal=None):
+        super().__init__(message)
+        self.refusal = refusal
 
 
 CONFLICT = ("<<<<<<<", "=======", ">>>>>>>", "|||||||")
@@ -77,15 +84,20 @@ def _check_ident(name, what):
         ):
             raise Malformed(
                 f"{what} {name!r} contains {ch!r}, which is not permitted in an "
-                f"identifier; §4.1.9 admits letters, marks, digits and underscore"
+                f"identifier; §4.1.9 admits letters, marks, digits and underscore",
+                refusal="bad-identifier",
             )
     for ch in name:
         if unicodedata.category(ch) == "Cf":
-            raise Malformed(f"{what} {name!r} contains a Cf format character U+{ord(ch):04X}")
+            raise Malformed(
+                f"{what} {name!r} contains a Cf format character U+{ord(ch):04X}",
+                refusal="bad-identifier",
+            )
         if ch.isspace():
             raise Malformed(
                 f"{what} {name!r} contains whitespace U+{ord(ch):04X}; two identifiers "
-                f"must not render identically"
+                f"must not render identically",
+                refusal="bad-identifier",
             )
 
 
@@ -109,13 +121,16 @@ def _strip_annotation(line):
 
 
 def parse(text):
+    if text.startswith("\ufeff"):
+        # §9.26: a property of the bytes, decided before any line is classified.
+        raise Malformed("leading BOM", refusal="leading-bom")
     if re.search(r"\r(?!\n)", text):
-        raise Malformed("lone CR: two rows would share one line")
+        raise Malformed("lone CR: two rows would share one line", refusal="lone-cr")
     text = unicodedata.normalize("NFC", text)
     lines = text.splitlines()
     for n, line in enumerate(lines, 1):
         if line.startswith(CONFLICT):
-            raise Malformed(f"line {n}: unresolved conflict marker")
+            raise Malformed(f"line {n}: unresolved conflict marker", refusal="conflict-marker")
     tbl = []
     for line in lines:
         if line.strip().startswith("|"):
@@ -123,13 +138,14 @@ def parse(text):
                 raise Malformed(
                     f"table line lacks its closing pipe: {line.strip()!r}. §4.1.3 "
                     f"requires both, because only the closing pipe reveals a row "
-                    f"truncated inside its final cell"
+                    f"truncated inside its final cell",
+                    refusal="malformed-table-line",
                 )
             tbl.append(line)
         elif tbl:
             break  # the run ended; §4 makes the table contiguous
     if not tbl:
-        raise Malformed("no table found")
+        raise Malformed("no table found", refusal="no-table")
     # Membership only. `tbl` stays a list because §4's contiguous run is
     # ordered -- tbl[0] is the header and tbl[1] the alignment row -- but the
     # scan below asked `line not in tbl` once per line, which is a linear
@@ -150,11 +166,13 @@ def parse(text):
                         f"ended above it. A table is a CONTIGUOUS run of lines beginning "
                         f"with '|' (§4.1.2), and an annotation or blank line between two "
                         f"rows ends it. Move the annotation above the table or below the "
-                        f"declarations."
+                        f"declarations.",
+                        refusal="unclassified-line",
                     )
                 raise Malformed(
                     f"line {n}: not a table line, an annotation, or a declaration: "
-                    f"{stripped.strip()!r}"
+                    f"{stripped.strip()!r}",
+                    refusal="unclassified-line",
                 )
             continue
         line = stripped
@@ -165,11 +183,14 @@ def parse(text):
             if "@" in ptext:
                 raise Malformed(
                     f"line {n}: `@` names THIS ROW's value, and a declaration has no "
-                    f"current row (SPEC §4.2 rule 5); {ptext.strip()!r} is malformed"
+                    f"current row (SPEC §4.2 rule 5); {ptext.strip()!r} is malformed",
+                    refusal="malformed-declaration",
                 )
             _check_ident(nm_, "aggregate name")
             if nm_ in decls:
-                raise Malformed(f"line {n}: duplicate aggregate name {nm_!r}")
+                raise Malformed(
+                    f"line {n}: duplicate aggregate name {nm_!r}", refusal="duplicate-aggregate"
+                )
             decls[nm_] = (fn_, col_.strip(), ptext.strip())
             continue
         m = re.match(r"\s*([^\s:=]+)\s*:=\s*(\w+)\(\s*([^\s()]*)\s*\)\s*$", line)
@@ -178,30 +199,43 @@ def parse(text):
         else:
             m2 = re.match(r"\s*([^\s:=]+)\s*:=\s*([\w.-]+)\s*$", line)
             if not m2:
-                raise Malformed(f"line {n}: malformed declaration: {line.strip()!r}")
+                raise Malformed(
+                    f"line {n}: malformed declaration: {line.strip()!r}",
+                    refusal="malformed-declaration",
+                )
             name, fn, arg = m2.group(1), None, m2.group(2)
             if name not in ("key",):
-                raise Malformed(f"line {n}: {name!r} needs a function, e.g. {name} := sum(col)")
+                raise Malformed(
+                    f"line {n}: {name!r} needs a function, e.g. {name} := sum(col)",
+                    refusal="malformed-declaration",
+                )
         if name == "order":
             # `order := none()` sets order to None, so a `None` test cannot see
             # a second declaration. Track that one was SEEN, not its value.
             if order_seen:
-                raise Malformed(f"line {n}: duplicate order declaration")
+                raise Malformed(
+                    f"line {n}: duplicate order declaration", refusal="duplicate-declaration"
+                )
             order_seen = True
             if fn != "by":
                 raise Malformed(
                     f"line {n}: order must be by(<column>); omit the line entirely "
-                    f"for an unordered table"
+                    f"for an unordered table",
+                    refusal="malformed-declaration",
                 )
             order = arg
         elif name == "key":
             if key is not None:
-                raise Malformed(f"line {n}: duplicate key declaration")
+                raise Malformed(
+                    f"line {n}: duplicate key declaration", refusal="duplicate-declaration"
+                )
             key = arg
         else:
             _check_ident(name, "aggregate name")
             if name in decls:
-                raise Malformed(f"line {n}: duplicate aggregate name {name!r}")
+                raise Malformed(
+                    f"line {n}: duplicate aggregate name {name!r}", refusal="duplicate-aggregate"
+                )
             decls[name] = (fn, arg, None)
     header = split_row(tbl[0])
     cols, formulas, seen = [], {}, set()
@@ -216,7 +250,7 @@ def parse(text):
     for c in cols:
         _check_ident(c, "column name")
         if c in seen:
-            raise Malformed(f"duplicate column name {c!r}")
+            raise Malformed(f"duplicate column name {c!r}", refusal="duplicate-column")
         seen.add(c)
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
@@ -225,37 +259,48 @@ def parse(text):
                 if order is None:
                     raise Malformed(
                         f"column {nm!r} uses row-relative {fn}() but the table "
-                        f"declares no row order. Add `order := by(<column>)`."
+                        f"declares no row order. Add `order := by(<column>)`.",
+                        refusal="rowrel-without-order",
                     )
                 if order not in cols:
-                    raise Malformed(f"order := by({order}) but there is no column {order!r}")
+                    raise Malformed(
+                        f"order := by({order}) but there is no column {order!r}",
+                        refusal="bad-order-column",
+                    )
     if len(tbl) < 2:
-        raise Malformed("table has no alignment row")
+        raise Malformed("table has no alignment row", refusal="bad-alignment-row")
     if not is_align(tbl[1]):
         raise Malformed(
             f"the second table line is not a valid alignment row: {tbl[1].strip()!r}. "
-            f"Cells must be one of ---, :--, --:, :-:"
+            f"Cells must be one of ---, :--, --:, :-:",
+            refusal="bad-alignment-row",
         )
     if len(split_row(tbl[1])) != len(cols):
         raise Malformed(
-            f"alignment row has {len(split_row(tbl[1]))} fields, header has {len(cols)}"
+            f"alignment row has {len(split_row(tbl[1]))} fields, header has {len(cols)}",
+            refusal="alignment-field-count",
         )
     rows = []
     for line in tbl[2:]:
         if is_align(line):
             raise Malformed(
                 f"alignment-style row among the data rows "
-                f"(wrong number of value fields): {line.strip()!r}"
+                f"(wrong number of value fields): {line.strip()!r}",
+                refusal="alignment-row-in-data",
             )
         v = split_row(line)
         if len(v) != len(cols):
-            raise Malformed(f"row has {len(v)} fields, header has {len(cols)}: {line.strip()!r}")
+            raise Malformed(
+                f"row has {len(v)} fields, header has {len(cols)}: {line.strip()!r}",
+                refusal="row-field-count",
+            )
         row = dict(zip(cols, v, strict=False))
         for c in formulas:
             if str(row.get(c, "")).strip() != "":
                 raise Malformed(
                     f"computed column {c!r} has a value {row[c]!r} in a data row; "
-                    f"computed cells must be empty"
+                    f"computed cells must be empty",
+                    refusal="value-in-computed-cell",
                 )
         rows.append(row)
     if key:
@@ -264,7 +309,7 @@ def parse(text):
         ids = [r.get(key) for r in rows]
         if len(set(ids)) != len(ids):
             dup = [i for i in ids if ids.count(i) > 1][0]
-            raise Malformed(f"duplicate key {key}={dup!r}")
+            raise Malformed(f"duplicate key {key}={dup!r}", refusal="duplicate-row-id")
     return cols, formulas, rows, decls, order, key
 
 
@@ -345,7 +390,8 @@ def column_type(col, rows):
         raise Malformed(
             f"order column {col!r} has a blank cell; an ordering column must "
             f"have a single type across every row (§9.10), and blank is none "
-            f"of number, date or text"
+            f"of number, date or text",
+            refusal="bad-order-column",
         )
     if not vals:
         return "text"
@@ -362,7 +408,8 @@ def column_type(col, rows):
     if len(kinds) > 1:
         raise Malformed(
             f"order column {col!r} mixes types {sorted(kinds)}; "
-            f"an ordering column must have a single type"
+            f"an ordering column must have a single type",
+            refusal="bad-order-column",
         )
     return kinds.pop()
 
@@ -371,13 +418,17 @@ _GROUP = re.compile(r"(\w+)\(\s*(\w+)\s+where\s+(.+?)\s*\)\s*$")
 _PRED = re.compile(r'(\w+)\s*=\s*(?:@(\w+)|"([^"]*)")')
 
 
-def _predicate(text, cols, computed=frozenset()):
-    """A conjunction of equality predicates. `@c` is THIS ROW's value of c."""
+def _predicate(text, cols, computed, refusal):
+    """A conjunction of equality predicates. `@c` is THIS ROW's value of c.
+
+    `refusal` is the §9 identifier for a predicate the grammar does not
+    generate, which depends on where it is written: a header cell or a
+    declaration line."""
     preds = []
     for part in [x.strip() for x in re.split(r"\s+and\s+", text)]:
         m = _PRED.fullmatch(part)
         if not m:
-            raise Malformed(f"unsupported predicate {part!r}")
+            raise Malformed(f"unsupported predicate {part!r}", refusal=refusal)
         col, at, lit = m.groups()
         for c in (col, at):
             if c and c not in cols:
@@ -391,7 +442,8 @@ def _predicate(text, cols, computed=frozenset()):
                 raise Malformed(
                     f"predicate names computed column {c!r} (§9.22): comparison is on "
                     f"cell text and a computed column has none, so the predicate would "
-                    f"match nothing and `sum` would report a plausible 0"
+                    f"match nothing and `sum` would report a plausible 0",
+                    refusal="computed-column-compared",
                 )
         preds.append((col, at, lit))
     return preds
@@ -478,7 +530,8 @@ def _ast(expr, where):
     if "#" in expr:
         raise Malformed(
             f"column {where!r}: '#' is not a comment inside a formula (§4.1.10); "
-            f"a whole-line annotation goes outside the table"
+            f"a whole-line annotation goes outside the table",
+            refusal="malformed-formula",
         )
     return _parse_expr(expr, where)
 
@@ -555,11 +608,13 @@ def _lex(expr, where):
                     f"column {where!r}: {ch!r} is not an operator in this format; §4.2 "
                     f"admits + - * / and unary minus. `^` alone means exponent in one "
                     f"spreadsheet lineage and exclusive-or in another, so one file would "
-                    f"total two ways"
+                    f"total two ways",
+                    refusal="malformed-formula",
                 )
             raise Malformed(
                 f"column {where!r}: {ch!r} is not part of an expression; §4.2 admits "
-                f"column names, unsigned decimal literals, + - * / and parentheses"
+                f"column names, unsigned decimal literals, + - * / and parentheses",
+                refusal="malformed-formula",
             )
         if m.group("str") is not None:
             out.append(("str", m.group("str")[1:-1]))
@@ -602,13 +657,16 @@ def _parse_expr(expr, where):
             depth += 1
             if depth > MAX_NESTING:
                 raise Malformed(
-                    f"column {where!r}: parentheses nested deeper than {MAX_NESTING} (§9.23)"
+                    f"column {where!r}: parentheses nested deeper than {MAX_NESTING} (§9.23)",
+                    refusal="nesting-too-deep",
                 )
             eat(v)
             e = sum_()
             depth -= 1
             if peek() != ("op", ")"):
-                raise Malformed(f"column {where!r}: unclosed parenthesis")
+                raise Malformed(
+                    f"column {where!r}: unclosed parenthesis", refusal="malformed-formula"
+                )
             eat(")")
             return e
         if k == "call":
@@ -624,13 +682,18 @@ def _parse_expr(expr, where):
             # both spellings mean different things in different lineages.
             raise Malformed(
                 f"column {where!r}: {v * 2!r} is not an operator in this format; "
-                f"§4.2 admits + - * / and unary minus"
+                f"§4.2 admits + - * / and unary minus",
+                refusal="malformed-formula",
             )
-        raise Malformed(f"column {where!r}: expected a value in {expr!r}")
+        raise Malformed(
+            f"column {where!r}: expected a value in {expr!r}", refusal="malformed-formula"
+        )
 
     def want(tok, what):
         if peek() != tok:
-            raise Malformed(f"column {where!r}: expected {what} in {expr!r}")
+            raise Malformed(
+                f"column {where!r}: expected {what} in {expr!r}", refusal="malformed-formula"
+            )
         eat(tok[1])
 
     def comparison():
@@ -642,7 +705,8 @@ def _parse_expr(expr, where):
         if k not in ("name", "num"):
             raise Malformed(
                 f"column {where!r}: the left of a comparison in if() must be a "
-                f"column name (§4.2 rule 10)"
+                f"column name (§4.2 rule 10)",
+                refusal="malformed-formula",
             )
         eat(v)
         lhs = unicodedata.normalize("NFC", v)
@@ -653,11 +717,13 @@ def _parse_expr(expr, where):
                     f"column {where!r}: {op!r} is not in §4.2; equality is `=` and "
                     f"inequality is `<>`, matching the `where` predicate and every "
                     f"spreadsheet lineage. A second spelling of one comparison is "
-                    f"refused for §4.1.6's reason"
+                    f"refused for §4.1.6's reason",
+                    refusal="malformed-formula",
                 )
             raise Malformed(
                 f"column {where!r}: if() takes a comparison first (§4.2 rule 10); "
-                f"admitted operators are < <= > >= = <>"
+                f"admitted operators are < <= > >= = <>",
+                refusal="malformed-formula",
             )
         eat(op)
         # `signed = [ "-" *WSP ] literal`. Without it `if(a > -1, 1, 0)` -- an
@@ -671,7 +737,8 @@ def _parse_expr(expr, where):
         if sign < 0 and k3 != "num":
             raise Malformed(
                 f"column {where!r}: only a numeric literal may be negated on the "
-                f"right of {op!r} (§4.2 rule 10)"
+                f"right of {op!r} (§4.2 rule 10)",
+                refusal="malformed-formula",
             )
         if op in _ORDER_OP:
             if k3 == "num":
@@ -682,10 +749,13 @@ def _parse_expr(expr, where):
                 raise Malformed(
                     f"column {where!r}: {op!r} compares numbers, never text (§4.2 "
                     f"rule 10). Ordering text means collation, and collation is "
-                    f"locale-dependent, so two conforming readers would disagree"
+                    f"locale-dependent, so two conforming readers would disagree",
+                    refusal="malformed-formula",
                 )
             else:
-                raise Malformed(f"column {where!r}: expected a value after {op!r}")
+                raise Malformed(
+                    f"column {where!r}: expected a value after {op!r}", refusal="malformed-formula"
+                )
         else:
             if k3 == "num":
                 kind, rhs = "num", sign * float(v3)
@@ -697,10 +767,13 @@ def _parse_expr(expr, where):
                     f"refused (§9.24). The spelling of the right-hand side is what "
                     f"chooses text or numeric comparison, and a column has no "
                     f"spelling to read: `1` and `1.0` compare equal as numbers and "
-                    f"unequal as text"
+                    f"unequal as text",
+                    refusal="ident-compared-in-if",
                 )
             else:
-                raise Malformed(f"column {where!r}: expected a value after {op!r}")
+                raise Malformed(
+                    f"column {where!r}: expected a value after {op!r}", refusal="malformed-formula"
+                )
         eat(v3)
         return Cmp(op, lhs, kind, rhs)
 
@@ -711,12 +784,16 @@ def _parse_expr(expr, where):
             raise Malformed(
                 f"column {where!r}: unknown function {name!r}; §4.2 admits if() in an "
                 f"expression, and cumulative/prior/delta/sum/count/min/max/avg as the "
-                f"whole formula"
+                f"whole formula",
+                refusal="malformed-formula",
             )
         eat(name)
         depth += 1
         if depth > MAX_NESTING:
-            raise Malformed(f"column {where!r}: nested deeper than {MAX_NESTING} (§9.23)")
+            raise Malformed(
+                f"column {where!r}: nested deeper than {MAX_NESTING} (§9.23)",
+                refusal="nesting-too-deep",
+            )
         want(("op", "("), "'(' after if")
         c = comparison()
         want(("op", ","), "',' after if's comparison")
@@ -735,7 +812,10 @@ def _parse_expr(expr, where):
             # `-a` is not a `primary`, so `--a` is not generated by the grammar.
             return Neg(primary())
         if peek() == ("op", "+"):
-            raise Malformed(f"column {where!r}: unary + is not in §4.2; write the value without it")
+            raise Malformed(
+                f"column {where!r}: unary + is not in §4.2; write the value without it",
+                refusal="malformed-formula",
+            )
         return primary()
 
     def term():
@@ -763,9 +843,12 @@ def _parse_expr(expr, where):
             raise Malformed(
                 f"column {where!r}: {v!r} is not an operator of an expression "
                 f"(§4.2 rule 1). A comparison exists only inside if(), because the "
-                f"format has numbers and errors and no boolean for {expr!r} to have"
+                f"format has numbers and errors and no boolean for {expr!r} to have",
+                refusal="malformed-formula",
             )
-        raise Malformed(f"column {where!r}: trailing input in {expr!r}")
+        raise Malformed(
+            f"column {where!r}: trailing input in {expr!r}", refusal="malformed-formula"
+        )
     return tree
 
 
@@ -948,7 +1031,8 @@ def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozen
                 f"reading left compares against a rendered number and §2 leaves "
                 f"rendering to the implementation -- one reader matches {c!r} and "
                 f"another does not, and both report a number. Compare it against a "
-                f"numeric literal instead"
+                f"numeric literal instead",
+                refusal="computed-column-compared",
             )
     ordered = {nm: names_of(t) for nm, t in trees.items()}
     deps = {nm: set(v) for nm, v in ordered.items()}
@@ -1011,12 +1095,14 @@ def evaluate(text):
             raise Malformed(
                 "`order := by(...)` requires a `key :=` declaration: "
                 "without one, tied order values fall back to physical "
-                "file position, which is a coordinate"
+                "file position, which is a coordinate",
+                refusal="order-without-key",
             )
         if order in formulas:
             raise Malformed(
                 f"`order := by({order})` names a COMPUTED column; "
-                f"ordering must be derived from stored data"
+                f"ordering must be derived from stored data",
+                refusal="bad-order-column",
             )
         kind = column_type(order, rows)
 
@@ -1025,7 +1111,9 @@ def evaluate(text):
             if kind == "number":
                 f = num(v)
                 if f != f or f in (float("inf"), float("-inf")):
-                    raise Malformed(f"order column {order!r} contains {v!r}")
+                    raise Malformed(
+                        f"order column {order!r} contains {v!r}", refusal="bad-order-column"
+                    )
                 return f
             if kind == "date":
                 y, m, d = (int(x) for x in re.split(r"[-/]", v))
@@ -1104,13 +1192,17 @@ def evaluate(text):
             m = _GROUP.fullmatch(expr.strip())
             fn, col, ptext = m.groups()
             if fn not in ("sum", "count", "min", "max", "avg"):
-                raise Malformed(f"unknown aggregate {fn!r} in column {nm!r}")
+                raise Malformed(
+                    f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
+                )
             if col not in cols:
-                raise Malformed(f"column {nm!r} aggregates unknown column {col!r}")
+                raise Malformed(
+                    f"column {nm!r} aggregates unknown column {col!r}", refusal="malformed-formula"
+                )
             if col in formulas and any(r.get(col) in (None, "") for r in seq):
                 continue  # its source is not computed yet
             try:
-                preds = _predicate(ptext, cols, formulas)
+                preds = _predicate(ptext, cols, formulas, "malformed-formula")
             except KeyError as e:
                 for r in seq:
                     r[nm] = f"#REF!({e.args[0]})"
@@ -1146,7 +1238,7 @@ def evaluate(text):
         rows_ = seq
         if pred:
             try:
-                preds_ = _predicate(pred, cols, formulas)
+                preds_ = _predicate(pred, cols, formulas, "malformed-declaration")
             except KeyError as e:
                 out[nm] = f"#REF!({e.args[0]})"
                 continue
@@ -1160,7 +1252,9 @@ def evaluate(text):
             ]
         vals = [r.get(col) for r in rows_]
         if fn not in ("sum", "count", "min", "max", "avg"):
-            raise Malformed(f"unknown aggregate function {fn!r} in {nm!r}")
+            raise Malformed(
+                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
+            )
         out[nm] = _agg(fn, vals, col)
 
     return seq, out
@@ -1286,7 +1380,7 @@ def set_cell(st, row_key, col, value):
     if col not in st["cols"]:
         raise Malformed(f"no column {col!r}")
     if col in st["formulas"]:
-        raise Malformed(f"{col!r} is a computed column")
+        raise Malformed(f"{col!r} is a computed column", refusal="value-in-computed-cell")
     idx = st["cols"].index(col)
     for i, r in enumerate(st["rows"]):
         if str(r.get(key)) == str(row_key):

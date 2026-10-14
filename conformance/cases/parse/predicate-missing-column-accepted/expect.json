@@ -1,5 +1,4 @@
 {
   "accept": true,
-  "kind": "parse",
-  "refusal_contains": ""
+  "kind": "parse"
 }

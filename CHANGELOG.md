@@ -9,6 +9,39 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **Every §9 refusal has a stable identifier, and the suite asserts it**
+  (#61). Each entry in SPEC.md §9 now opens with a name such as
+  `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
+  identifier with the refusal; the message stays free. Refusing `parse` cases
+  replace `refusal_contains` with `refusal`: one identifier where exactly one
+  refusal applies, or a list of every identifier that applies where §9 leaves
+  the choice to the implementation. Before this, 98 of the 116 refusing
+  `parse` cases asserted `refusal_contains: ""` and passed on a refusal for any
+  reason. The runner fails a refusing case that names no identifier, and a
+  case still carrying `refusal_contains`.
+  **This breaks every implementation that claims conformance and does not
+  report identifiers**: it now fails every refusing `parse` case. The Python
+  binding is the `refusal` attribute of the raised exception;
+  `rowspec.Malformed` takes it as the keyword `refusal=`, so existing
+  one-argument calls still construct. CSV mode does not report identifiers
+  yet, and the CSV-profile cases in `conformance/cases-csv/` still assert
+  `refusal_contains`; SPEC.md §13 says so. `conformance/cases/case-body.schema.json`
+  lists the identifiers, so kindkit's case-tree validator refuses a misspelt
+  one.
+
+- **§9 lists `order-without-key`**, as entry 25. §6 has always required a
+  `key` beside `order := by(c)`, and both implementations refused a table
+  without one, but §9 — which says it is complete — did not carry it.
+
+- **§9 splits encoding into two entries: `bad-encoding` (§9.14) for bytes
+  that are not UTF-8, and `leading-bom` (§9.26) for a leading BOM.** Both are
+  decided on the bytes before any line is classified. Previously a leading
+  BOM could also be read as the first character of line 1, so the reference
+  implementation refused it as an unclassifiable line; the new wording rules
+  that out. §13's CSV profile warns on `leading-bom` and refuses
+  `bad-encoding`, as CSV mode already did. §9 also says how an identifier
+  survives a split, a merge or a rename, and lists retired identifiers: none.
+
 - **CSV mode refuses a stray quote** (#94). A `"` inside a field that does
   not open with one (`5" pipe`), or text after a closing quote (`"a"b`), is
   refused, as SPEC.md §13's reading of §9.6 and RFC 4180 §2. The csv module

@@ -62,7 +62,7 @@ that is `evaluate(text, base=case_dir)`.
 
 | kind | fields | assertion |
 | --- | --- | --- |
-| `parse` | `accept`, `refusal_contains` | the artifact is accepted, or refused with a message containing that substring |
+| `parse` | `accept`, `refusal` | the artifact is accepted, or refused with that SPEC §9 identifier |
 | `roundtrip` | — | `render(structure(bytes)) == bytes` |
 | `eval` | `aggregates` | each named table-level aggregate has that value |
 | `rowrel` | `row_index`, `column`, `value` | that one cell of that one row, in the *derived* order |
@@ -74,9 +74,19 @@ that is `evaluate(text, base=case_dir)`.
 `rowrel` is named for the operators that motivated it, but it is the general
 single-cell assertion and is what the reserved `lookup()` cases use.
 
-`refusal_contains: ""` means *refuse, for any stated reason*. It is used where
-the spec mandates a refusal but names no message — asserting invented wording
-would test the reference implementation's phrasing rather than the format.
+`refusal` is the identifier that opens the refusal's entry in SPEC §9, such as
+`"duplicate-row-id"`. Where a file violates several refusals and §9 leaves
+which one is reported to the implementation, `refusal` is a list of every
+identifier that applies, and reporting any one of them passes. A refusing
+`parse` case with no `refusal` fails rather than accepting a refusal for any
+reason. The message is never asserted on: implementations word it freely, and
+asserting invented wording would test one implementation's phrasing rather
+than the format. A Python implementation reports the identifier as the
+`refusal` attribute of the exception it raises; a runner in another language
+reads it from wherever that language's binding puts it.
+
+`case-body.schema.json` in this directory lists §9's identifiers, so kindkit's
+case-tree validator refuses a `refusal` that is misspelt or names no §9 entry.
 
 Values in `expect.json` are JSON: a number is a number, an error is the string
 `"#REF!(...)"`, a blank cell is `""`.
@@ -89,3 +99,39 @@ Values in `expect.json` are JSON: a number is a number, an error is the string
   any implementation; a failing case is a finding, not a bug in the case. Add,
   do not edit: changing an existing case to match an implementation is how a
   suite stops measuring anything.
+
+## Provenance of the `refusal` identifiers
+
+The identifiers in this tree's `refusal` fields (#61) were not chosen by the
+author of `reference/rowspec/`. Two exports were copied from a working tree
+based on commit `ce24fa9`, which was then the head of `main`. Besides the
+original files, that working tree held a draft of SPEC.md §9 that gave each
+entry its identifier, and the new version of this README; the export for
+`rowspec_alt` also held the new `conformance/run_cases.py`. Neither export
+held a `.git` directory.
+
+The case tags and `rowspec_alt`'s identifiers were assigned by two separate
+authors, each confined to their own export.
+
+- **The cases** were tagged in an export holding only the draft `SPEC.md` and
+  `conformance/cases/`: no implementation, no runner and no mutation gate.
+  Each refusing `parse` case's `refusal` was assigned from the draft, the
+  fixture bytes and the case's `WHY.md`.
+- **`reference/rowspec_alt/`** was tagged in an export holding the draft
+  `SPEC.md`, `conformance/cases/` without identifiers,
+  `conformance/run_cases.py`, `reference/rowspec_alt/` and build caches, but
+  not `reference/rowspec/`.
+
+`SPEC.md`, and the alt export's runner, were refreshed once during the
+tagging, when entry 25 (`order-without-key`) was added to the draft.
+
+The two export directories still exist outside this repository. Every file
+in them that the tagging did not edit is byte for byte the file at
+`ce24fa9`, and the draft `SPEC.md` they hold is in no commit. The exact
+commands that made the exports are not recorded in this repository.
+
+Since then, two identifier assignments have changed with SPEC.md rather than
+with an implementation. `parse/bom-refused` became `leading-bom` when §9.14
+was split. `parse/order-unrecognised-construct-refused` gained
+`rowrel-without-order`: its file also uses `cumulative()`, so with no valid
+`order` declared, §9.9 applies too.

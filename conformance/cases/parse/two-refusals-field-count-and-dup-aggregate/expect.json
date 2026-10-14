@@ -1,5 +1,8 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": ""
+  "refusal": [
+    "duplicate-aggregate",
+    "row-field-count"
+  ]
 }

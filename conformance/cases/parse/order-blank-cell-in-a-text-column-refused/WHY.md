@@ -21,5 +21,5 @@ A blank among dates does not need a sibling case: a blank is not a `date`
 either, so that column is mixed and refused incidentally, exactly as the
 numeric one is. Text is the one shape that separates the readings.
 
-`refusal_contains` is `""` because §9.10 mandates the refusal without
-mandating a message.
+`refusal` is `bad-order-column`: §9.10 mandates the refusal and its
+identifier, not a message.

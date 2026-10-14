@@ -1,5 +1,9 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": "alignment-style row"
+  "refusal": [
+    "alignment-row-in-data",
+    "bad-identifier",
+    "value-in-computed-cell"
+  ]
 }

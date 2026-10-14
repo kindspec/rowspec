@@ -1,5 +1,8 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": "alignment row"
+  "refusal": [
+    "alignment-field-count",
+    "bad-alignment-row"
+  ]
 }

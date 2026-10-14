@@ -266,3 +266,29 @@ def test_a_fixture_root_given_alone_is_refused_not_run_as_impl():
     r = _run("run_cases.py", "cases")
     assert r.returncode == 2, r.stdout[-500:] + r.stderr
     assert "is a path, not a module" in r.stderr, r.stderr
+
+
+def test_the_case_body_schema_names_exactly_the_section_9_identifiers():
+    """conformance/cases/case-body.schema.json lets kindkit's validator refuse
+    a misspelt `refusal`. It is only as good as its list, so the list must be
+    SPEC.md §9's, in §9's order, and nothing else."""
+    import json
+    import re
+
+    with open(os.path.join(ROOT, "SPEC.md"), encoding="utf-8") as fh:
+        spec = fh.read()
+    section = spec[spec.index("## 9. Refusals") : spec.index("## 10. Canonical form")]
+    # Every numbered entry, then the identifier each opens with. An entry whose
+    # identifier is missing or malformed would otherwise drop out of `ids` in
+    # silence, and the schema would agree with a list that is short.
+    entries = re.findall(r"^(\d+)\. (.*)$", section, re.M)
+    ids = []
+    for number, text in entries:
+        m = re.match(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`: ", text)
+        assert m, f"§9.{number} does not open with a well-formed identifier: {text[:60]!r}"
+        ids.append(m.group(1))
+    assert [int(n) for n, _ in entries] == list(range(1, len(entries) + 1)), entries
+    with open(os.path.join(CONF, "cases", "case-body.schema.json"), encoding="utf-8") as fh:
+        schema = json.load(fh)
+    assert len(ids) >= 26, ids
+    assert schema["$defs"]["refusal"]["enum"] == ids

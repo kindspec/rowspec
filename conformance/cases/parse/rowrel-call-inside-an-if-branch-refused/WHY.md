@@ -12,9 +12,8 @@ inside a branch is refused under §9.20, for exactly the reason
 
 `order := by(c)` is declared so the refusal cannot be mistaken for §9.9, "a
 row-relative operator with no declared order". The file is refused for its
-shape, not for a missing declaration, and an implementation that reports the
-wrong one of those still passes — `refusal_contains` is `""` because §9's
-numbering "is not a precedence order".
+shape, not for a missing declaration, so `refusal` is `malformed-formula`
+alone and an implementation that reports `rowrel-without-order` fails.
 
 Rule 3's measured warning applies unchanged: handed a composition it does not
 recognise, the failure mode is not a refusal but "leaves every `x` cell blank,

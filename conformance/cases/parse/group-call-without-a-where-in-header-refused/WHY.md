@@ -13,7 +13,8 @@ reader that shares one parser between declarations and header cells accepts
 This is the corrected sibling of `parse/group-call-without-a-where-refused`
 (issue #7). That case's data rows carry two fields against a three-field
 header, so the file is refused under §9.6 *regardless* of how the header cell
-is parsed, and with `refusal_contains: ""` an implementation that wrongly
+is parsed, and with `row-field-count` among its accepted `refusal`
+identifiers an implementation that wrongly
 accepts a header-cell `sum(a)` passes it anyway. Per this tree's ground rules
 the original is left untouched; its WHY.md records what it does and does not
 pin.

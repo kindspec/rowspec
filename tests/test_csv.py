@@ -180,7 +180,7 @@ def test_invalid_utf8_is_refused(tmp_path):
 
 
 def test_bom_and_lone_cr_warn_but_do_not_refuse(tmp_path):
-    """SPEC.md §13: refusals 14 (BOM) and 15 (lone CR) are warnings in CSV
+    """SPEC.md §13: refusals 26 (BOM) and 15 (lone CR) are warnings in CSV
     mode. A lone CR ends a record for a CSV reader but not a line for git, so
     two rows share one line in every diff and merge."""
     f = write(tmp_path, "w.csv", b"\xef\xbb\xbfid,name\rr_01,Ada\n")
