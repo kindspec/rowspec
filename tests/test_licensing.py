@@ -24,6 +24,8 @@ SPDX = re.compile(r"SPDX-License-Identifier: (.+?)(?: -->)?$")
 DIRECTORIES = {
     "docs": "CC-BY-4.0",
     "conformance/cases": "CC0-1.0",
+    # SPEC.md §13's CSV profile, a tree of its own (#63).
+    "conformance/cases-csv": "CC0-1.0",
     # Fixtures for features this edition reserves; fixtures are CC0 so they can
     # be vendored, wherever in the tree they sit.
     "conformance/reserved": "CC0-1.0",
@@ -64,7 +66,9 @@ def headed_files():
             want[p] = "CC0-1.0"
         elif fnmatch.fnmatch(p, "conformance/*.py") and p.count("/") == 1:
             want[p] = "MIT"
-        elif fnmatch.fnmatch(p, "conformance/reserved/*.md"):
+        elif fnmatch.fnmatch(p, "conformance/reserved/*.md") or fnmatch.fnmatch(
+            p, "conformance/cases-csv/*.md"
+        ):
             want[p] = "CC0-1.0"
         elif top in ("docs", "reference", "export", "tests") and p.endswith((".py", ".md", ".yml")):
             want[p] = DIRECTORIES[top]
@@ -90,6 +94,7 @@ def test_the_scan_reads_the_files_it_claims_to():
         ".github/workflows/check.yml",
         "docs/ci/rowspec-check.yml",
         "conformance/reserved/README.md",
+        "conformance/cases-csv/README.md",
         "reference/rowspec/table.py",
         "tests/test_licensing.py",
     ):

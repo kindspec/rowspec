@@ -13,3 +13,4 @@ go.sum linguist-generated
 # line-ending preservation -- the first commit warned it was about to do this.
 # `-text` disables all normalisation for the tree.
 conformance/cases/** -text
+conformance/cases-csv/** -text

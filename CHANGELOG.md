@@ -7,6 +7,14 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Added
+
+- **The runner takes `--profile mdtbl|csv`** (#63). `csv` runs
+  `conformance/cases-csv/`, a tree of its own for SPEC.md §13's CSV profile,
+  against `rowspec.csvmode`; its one case kind, `check`, is described in that
+  tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
+  `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

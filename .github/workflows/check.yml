@@ -113,5 +113,7 @@ jobs:
     with:
       fixture-root: conformance/cases
       suite: cd conformance && uv run python run_cases.py
-      second-implementation: cd conformance && uv run python run_cases.py rowspec_alt.table
+      # rowspec_alt claims the .mdtbl profile only, not SPEC.md §13's CSV
+      # profile (#63); see `conform-alt` in the justfile.
+      second-implementation: cd conformance && uv run python run_cases.py rowspec_alt.table --profile mdtbl
       mutants: cd conformance && uv run python mutants.py

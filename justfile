@@ -59,8 +59,17 @@ conform:
 # describes reference/rowspec/. It was met once and then rotted 117 cases
 # because nothing ran it while the spec grew -- a check nobody runs is a check
 # that cannot fail. If a spec change breaks this, that IS the finding.
+#
+# `--profile mdtbl` is the whole of what rowspec_alt claims. It does not
+# implement SPEC.md §13's CSV mode and is not required to (#63), so it never
+# runs cases-csv/ -- and asked to, it exits 2, never 0.
 conform-alt:
-    cd conformance && uv run python run_cases.py rowspec_alt.table
+    cd conformance && uv run python run_cases.py rowspec_alt.table --profile mdtbl
+
+# SPEC.md §13's CSV profile: cases-csv/ against rowspec.csvmode. Exits 2 while
+# that tree holds no case (#63), which is no verdict, not a pass.
+conform-csv:
+    cd conformance && uv run python run_cases.py --profile csv
 
 # The mutation gate: the suite must be able to FAIL a broken implementation
 mutants:
