@@ -278,7 +278,16 @@ def test_the_case_body_schema_names_exactly_the_section_9_identifiers():
     with open(os.path.join(ROOT, "SPEC.md"), encoding="utf-8") as fh:
         spec = fh.read()
     section = spec[spec.index("## 9. Refusals") : spec.index("## 10. Canonical form")]
-    ids = re.findall(r"^\d+\. `([a-z][a-z0-9-]*)`:", section, re.M)
+    # Every numbered entry, then the identifier each opens with. An entry whose
+    # identifier is missing or malformed would otherwise drop out of `ids` in
+    # silence, and the schema would agree with a list that is short.
+    entries = re.findall(r"^(\d+)\. (.*)$", section, re.M)
+    ids = []
+    for number, text in entries:
+        m = re.match(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`: ", text)
+        assert m, f"§9.{number} does not open with a well-formed identifier: {text[:60]!r}"
+        ids.append(m.group(1))
+    assert [int(n) for n, _ in entries] == list(range(1, len(entries) + 1)), entries
     with open(os.path.join(CONF, "cases", "case-body.schema.json"), encoding="utf-8") as fh:
         schema = json.load(fh)
     assert len(ids) >= 26, ids
