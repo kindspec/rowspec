@@ -371,7 +371,9 @@ def _key_identifiers(body, names, key_idx):
     for n, rec in enumerate(body, 1):
         if key_idx >= len(rec):
             continue  # a short row is the field-count refusal's to report
-        raw = unicodedata.normalize("NFC", rec[key_idx].strip())
+        # §4.1.4 trims ASCII space and tab only; any other whitespace at
+        # either end is part of the value, and is refused below.
+        raw = unicodedata.normalize("NFC", rec[key_idx].strip(" \t"))
         if raw == "":
             bad.append((n, rec, f"{key} value is empty, and an id is one or more characters"))
             continue

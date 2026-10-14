@@ -239,15 +239,28 @@ def test_keys_that_render_identically_are_one_key(tmp_path):
     assert "U+00E9" in dup[0].detail and "U+0065 U+0301" in dup[0].detail
 
 
-@pytest.mark.parametrize("value", [b"r 1", b"", b"r\xe2\x80\x8b1", b"r\xc2\xa01"])
+@pytest.mark.parametrize(
+    "value",
+    [
+        b"r 1",
+        b"",
+        b"r\xe2\x80\x8b1",
+        b"r\xc2\xa01",
+        b"\xc2\xa0r1",
+        b"r1\xc2\xa0",
+        b"\xe3\x80\x80r1",
+    ],
+)
 def test_a_key_value_that_could_render_like_another_is_refused(tmp_path, value):
     """SPEC.md §13: an empty key value, or one holding whitespace (an NBSP
-    included) or a `Cf` character, is refused when a key is declared."""
+    included) or a `Cf` character, is refused when a key is declared. Only
+    ASCII space and tab are trimmed (§4.1.4), so a leading or trailing NBSP
+    or ideographic space is part of the value, and refused."""
     f = write(tmp_path, "i.csv", b"id,name\n" + value + b",a\nr_2,b\n", {"key": "id"})
     assert rules(check_file(f)) == ["key-not-identifier"]
 
 
-@pytest.mark.parametrize("value", [b"002RadioTV.do", b"Africa/Abidjan", b"r-1"])
+@pytest.mark.parametrize("value", [b"002RadioTV.do", b"Africa/Abidjan", b"r-1", b" r1\t"])
 def test_key_punctuation_outside_the_allowlist_is_accepted(tmp_path, value):
     """The rest of §4.1.9's allowlist is for formulas, and a CSV has none.
     These are real registry ids (iptv-org/database)."""
