@@ -303,7 +303,11 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     names, name_findings = _header_names(header, records[1] if len(records) > 1 else None)
     findings += name_findings
 
-    body = [r for r in records[1:] if r != []]
+    # RFC 4180: an empty line is a record of one empty field, not a gap. The
+    # csv module yields `[]` for it; skipping that made the record count
+    # depend on the reader, so it is read as `[""]` and the field-count rule
+    # decides, as for any other row.
+    body = [r if r else [""] for r in records[1:]]
 
     key_idx = None
     if side and side.key:

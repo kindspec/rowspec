@@ -129,6 +129,18 @@ def test_field_count(tmp_path):
     assert "row id='r_02' has 2 field(s), the header declares 3" in messages(found)
 
 
+@pytest.mark.parametrize("data", [b"id,name\nr_01,a\n\nr_02,b\n", b"id,name\nr_01,a\n\n"])
+def test_a_blank_line_is_a_record_of_one_empty_field(tmp_path, data):
+    """RFC 4180: an empty line is a record with one empty field. Against a
+    two-field header that is a field-count mismatch, between rows or after
+    them; only the single line break that ends the last record is free."""
+    assert rules(check_file(write(tmp_path, "b.csv", data))) == ["field-count"]
+
+
+def test_a_blank_line_fits_a_one_column_file(tmp_path):
+    assert check_file(write(tmp_path, "b.csv", b"name\na\n\nb\n")) == []
+
+
 def test_no_table(tmp_path):
     with pytest.raises(Malformed, match="no table"):
         check_file(write(tmp_path, "empty.csv", b""))
