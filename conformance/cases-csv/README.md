@@ -42,6 +42,15 @@ it as `input.csv.rowspec.json`, a JSON object:
 calls for. Without a sidecar there is no declared key, and refusal 5 cannot
 apply.
 
+**The per-file sidecar is the only form this profile uses.** rowspec's own
+CSV mode also reads a directory-level `.rowspec.json` that maps filename globs
+to declarations (`docs/csv.md`). That is a convenience of one implementation,
+not part of the profile: no case here uses it, and an implementation claiming
+the profile need not read it. It stays out because glob matching is not the
+same across languages, or even across platforms: Python's own `fnmatch` is
+case-insensitive on Windows and case-sensitive elsewhere. Cases about it would
+test one library's matcher rather than SPEC.md.
+
 ## Kinds
 
 | kind | fields | assertion |
