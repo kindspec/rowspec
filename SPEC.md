@@ -1286,9 +1286,9 @@ An implementation MUST refuse:
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
     that does not match `declaration` (§4.1.11)
 13. `no-table`: a file containing no table
-14. `bad-encoding`: a leading BOM, or bytes that are not well-formed UTF-8 (§3).
-    Both are properties of the bytes, decided before any line is classified, so
-    a leading BOM is this entry and is never also a character of line 1
+14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
+    the bytes, decided before any line is classified. A leading BOM is §9.26,
+    not this entry
 15. `lone-cr`: a lone `CR` (§3)
 16. `bad-identifier`: an identifier — column name, aggregate name, `key`/`order`
     argument, or a value of the key column — containing whitespace, a `Cf`
@@ -1343,6 +1343,11 @@ An implementation MUST refuse:
     (§6). §6 has always required one, because without it tied order values
     fall back to physical file position, which is a coordinate; the entry is
     here because this list claims to be complete and did not carry it
+26. `leading-bom`: a leading BOM (§3). Like §9.14 it is a property of the
+    bytes, decided before any line is classified, so it is never also a
+    character of line 1. It is its own entry because a profile can treat it
+    differently from malformed UTF-8: §13's CSV profile warns on a BOM and
+    still refuses bytes that are not UTF-8
 
 **Every refusal is reported with its identifier.** The identifier is the
 code-formatted name that opens each entry above, and an implementation MUST
@@ -1357,6 +1362,15 @@ identifier is never reused for a different refusal, and a withdrawn refusal
 retires its identifier. Identifiers are names rather than numbers for the
 reason the format has no coordinates: a position changes meaning when
 something is inserted before it.
+
+The same rules govern an entry that changes shape. **Split:** the original
+identifier stays with the part it already named, unless that part's meaning
+would change, and each part split off gets a new identifier. **Merge:** the
+merged entry keeps one of the identifiers, and the others are retired.
+**Rename:** there is none; a new name is a new identifier, and the old one is
+retired. A retired identifier is listed below so it is never reused.
+
+Retired: none.
 
 **The numbering is not a precedence order.** When one file violates several
 refusals, *which* is reported is deliberately unspecified: the implementation
@@ -1452,9 +1466,10 @@ An implementation may check an ordinary `.csv` against the subset of §9 that a
 delimiter-separated file can violate. **That is a different profile, not a
 relaxation**, and the difference must be stated rather than discovered:
 
-- refusals 14 (BOM) and 15 (lone CR) are **warnings** in CSV mode. Enforcing
-  them would reject 70 of 72 files in one well-maintained public registry on
-  first run, and 8 of 20 in another — measured, not estimated.
+- refusals 26 (`leading-bom`) and 15 (`lone-cr`) are **warnings** in CSV
+  mode; 14 (`bad-encoding`) is still refused. Enforcing the two would reject
+  70 of 72 files in one well-maintained public registry on first run, and 8
+  of 20 in another — measured, not estimated.
 - refusals covering alignment rows, formulas and aggregates cannot apply,
   because a CSV has none of those constructs.
 - **refusal 5 (duplicate row id) requires a sidecar** declaring which column is

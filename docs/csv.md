@@ -71,30 +71,32 @@ SPEC.md §9.4 exists to prevent, so `{"key": "id", "key": "name"}` is an error.
 
 ## Which refusals apply
 
-This table classifies refusals 1 to 13 of SPEC.md §9, and §9's list goes on
-past them. Of the later entries this page covers parts of §9.14 and §9.16
-(below the table), and a BOM and a lone `CR`, which in CSV mode are warnings
-(*Two warnings, not refusals*). The rest are not classified here. SPEC.md §9
+This table classifies refusals 1 to 13 and 25 of SPEC.md §9, each by its
+number and the identifier §9 gives it, and §9's list goes on past them. Of
+the later entries this page covers §9.14 (`bad-encoding`) and part of §9.16
+(below the table), and §9.26 (`leading-bom`) and §9.15 (`lone-cr`), which in
+CSV mode are warnings (*Two warnings, not refusals*). The rest are not classified here. SPEC.md §9
 is the complete list, and §13 states the CSV profile: what it cannot apply,
 and how it reads §9.16, RFC 4180's records and §4.1.12's conflict markers.
 
 | SPEC.md §9 | | bare CSV | with sidecar | `.mdtbl` only |
 | --- | --- | :-: | :-: | :-: |
-| 1 | conflict markers | ● | | |
-| 2 | duplicate column name | ● | | |
-| 3 | duplicate aggregate name | | | ● |
-| 4 | duplicate `key`/`order` declaration | | ● | |
-| 5 | duplicate row id | | ● | |
-| 6 | row field count ≠ header | ● | | |
-| 7 | alignment row field count | | | ● |
-| 8 | alignment-style row among data | | | ● |
-| 9 | row-relative operator, no order | | | ● |
-| 10 | `order` column absent or mixed-type | | ● | |
-| 11 | unknown aggregate function | | | ● |
-| 12 | malformed declaration | | ● | |
-| 13 | no table | ● | | |
+| 1 | `conflict-marker`: conflict markers | ● | | |
+| 2 | `duplicate-column`: duplicate column name | ● | | |
+| 3 | `duplicate-aggregate`: duplicate aggregate name | | | ● |
+| 4 | `duplicate-declaration`: duplicate `key`/`order` declaration | | ● | |
+| 5 | `duplicate-row-id`: duplicate row id | | ● | |
+| 6 | `row-field-count`: row field count ≠ header | ● | | |
+| 7 | `alignment-field-count`: alignment row field count | | | ● |
+| 8 | `alignment-row-in-data`: alignment-style row among data | | | ● |
+| 9 | `rowrel-without-order`: row-relative operator, no order | | | ● |
+| 10 | `bad-order-column`: `order` column absent or mixed-type | | ● | |
+| 11 | `unknown-aggregate`: unknown aggregate function | | | ● |
+| 12 | `malformed-declaration`: malformed declaration | | ● | |
+| 13 | `no-table`: no table | ● | | |
+| 25 | `order-without-key`: `order` with no `key` | | ● | |
 
-Four, four and five. §3's encoding rules add two more to the bare-CSV column —
+Four, five and five. §3's encoding rules add two more to the bare-CSV column —
 invalid UTF-8, and a `Cf` format character inside a column name — for six
 checks on a file with no declarations at all. Three rows read the CSV
 differently from `.mdtbl`, as SPEC.md §13 states:
@@ -131,7 +133,8 @@ with no computed column cannot violate them.
 
 ## Two warnings, not refusals
 
-SPEC.md §9 refuses a UTF-8 BOM (refusal 14) and a lone `CR` (refusal 15). In
+SPEC.md §9 refuses a UTF-8 BOM (§9.26, `leading-bom`) and a lone `CR` (§9.15,
+`lone-cr`). In
 CSV mode both are **warnings**, as SPEC.md §13 states:
 
 - **A UTF-8 BOM** is what Excel writes, and it cannot change a value once it is

@@ -64,7 +64,8 @@ test one library's matcher rather than SPEC.md.
 - `accept: true` with `warns: true`: the file is not refused and at least one
   warning is reported; `warning_contains` adds that one warning's message
   contains that substring. Assert a warning only where SPEC.md requires one:
-  §13 makes refusals 14 (a BOM) and 15 (a lone CR) warnings in CSV mode.
+  §13 makes refusals 26 (`leading-bom`) and 15 (`lone-cr`) warnings in CSV
+  mode.
 
 **There is no `warns: false`.** An implementation may report advisory warnings
 the spec does not require, so "no warning" is not something the spec lets a

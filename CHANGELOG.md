@@ -31,9 +31,14 @@ prose, and where the two disagree the suite wins.
   `key` beside `order := by(c)`, and both implementations refused a table
   without one, but §9 — which says it is complete — did not carry it.
 
-- **§9.14: a leading BOM is `bad-encoding` and nothing else.** It is decided
-  on the bytes before any line is classified. The reference implementation
-  previously refused such a file as an unclassifiable first line.
+- **§9 splits encoding into two entries: `bad-encoding` (§9.14) for bytes
+  that are not UTF-8, and `leading-bom` (§9.26) for a leading BOM.** Both are
+  decided on the bytes before any line is classified. Previously a leading
+  BOM could also be read as the first character of line 1, so the reference
+  implementation refused it as an unclassifiable line; the new wording rules
+  that out. §13's CSV profile warns on `leading-bom` and refuses
+  `bad-encoding`, as CSV mode already did. §9 also says how an identifier
+  survives a split, a merge or a rename, and lists retired identifiers: none.
 
 - **CSV mode refuses a stray quote** (#94). A `"` inside a field that does
   not open with one (`5" pipe`), or text after a closing quote (`"a"b`), is

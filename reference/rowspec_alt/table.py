@@ -841,7 +841,7 @@ def structure(text):
     # §9.14 -- a leading BOM, or bytes that are not well-formed UTF-8.  The
     # caller decodes, so a BOM survives as U+FEFF.
     if text.startswith("﻿"):
-        raise Malformed("bad-encoding", "leading BOM (§9.14)")
+        raise Malformed("leading-bom", "leading BOM (§9.26)")
 
     st.lines = split_lines(text)
 

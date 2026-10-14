@@ -123,7 +123,7 @@ def _strip_annotation(line):
 def parse(text):
     if text.startswith("\ufeff"):
         # §9.14: a property of the bytes, decided before any line is classified.
-        raise Malformed("leading BOM", refusal="bad-encoding")
+        raise Malformed("leading BOM", refusal="leading-bom")
     if re.search(r"\r(?!\n)", text):
         raise Malformed("lone CR: two rows would share one line", refusal="lone-cr")
     text = unicodedata.normalize("NFC", text)

@@ -21,8 +21,9 @@ conflict marker is §4.1.12's line-start rule; and a declared key's values may
 not be empty or hold whitespace or `Cf`. Column names are exempt from §9.16's
 allowlist, apart from `Cf`, because it exists for formulas.
 
-Two deliberate softenings, both stated by SPEC.md §13: refusals 14 (a UTF-8
-BOM) and 15 (a lone CR) are WARNINGS in CSV mode, not refusals. Excel writes
+Two deliberate softenings, both stated by SPEC.md §13: refusals 26 (a UTF-8
+BOM, `leading-bom`) and 15 (a lone CR, `lone-cr`) are WARNINGS in CSV mode,
+not refusals. Excel writes
 the BOM, and refusing either would fail files whose values are correct.
 
 CRLF is a third warning, and it is rowspec's advisory rather than a spec rule:

@@ -1,5 +1,5 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal": "bad-encoding"
+  "refusal": "leading-bom"
 }
