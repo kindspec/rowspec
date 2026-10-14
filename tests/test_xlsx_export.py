@@ -7,14 +7,19 @@ there. A test that only ever skips is a check that cannot fail, so `just
 test-xlsx` and the `xlsx-extra` CI job set `ROWSPEC_REQUIRE_XLSX=1` and the
 import below stops being forgiving.
 
-What is asserted here is small on purpose: values reach the cells. Whether
-LibreOffice recalculates a live workbook is kindspec/rowspec#36 and is not
-claimed by anything in this file.
+What is asserted here is the workbook's SHAPE: stored values reach the cells,
+computed columns and aggregates arrive as formulas over structured references,
+no formula holds a coordinate, and what a spreadsheet cannot say is refused.
+Nothing here computes a formula, so nothing here claims what one evaluates to;
+whether LibreOffice recalculates them to `rowspec eval`'s values is
+kindspec/rowspec#36.
 """
 
 import os
+import re
 import subprocess
 import sys
+import zipfile
 
 import pytest
 
@@ -32,7 +37,7 @@ else:
     openpyxl = pytest.importorskip("openpyxl")
 
 from rowspec.table import Malformed  # noqa: E402
-from rowspec_xlsx import export_file, to_workbook  # noqa: E402
+from rowspec_xlsx import NotExpressible, export_file, to_workbook  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -66,28 +71,152 @@ def test_the_header_and_the_stored_cells_arrive(tmp_path):
     assert rows[1][:4] == ["r_01", "widget", 10, 12.0]
 
 
-def test_a_computed_column_arrives_as_its_value(tmp_path):
+GUARDED = "IF(ISNUMBER(rowspec[[#This Row],[{0}]]),rowspec[[#This Row],[{0}]],NA())"
+
+
+def test_a_computed_column_arrives_as_a_structured_reference_formula(tmp_path):
+    """Every operand is guarded, because a spreadsheet reads a blank as `0` and
+    §8 reads it as `#REF!` -- the guard is what keeps the formula this format's."""
     src = tmp_path / "t.mdtbl"
     src.write_text(TABLE)
-    rows = grid(export_file(str(src), str(tmp_path / "t.xlsx")))
-    assert [r[4] for r in rows[1:3]] == [120.0, 13.5]
+    path = export_file(str(src), str(tmp_path / "t.xlsx"))
+    ws = sheet(path)
+    want = "(" + GUARDED.format("qty") + "*" + GUARDED.format("unit") + ")"
+    assert [ws.cell(r, 5).value for r in (2, 3)] == ["=" + want] * 2
+    table = ws.tables["rowspec"]
+    assert table.ref == "A1:E3"
+    assert [c.name for c in table.tableColumns] == ["id", "item", "qty", "unit", "total"]
+    assert table.tableColumns[4].calculatedColumnFormula.attr_text == want
 
 
-def test_a_declared_aggregate_arrives_below_the_grid(tmp_path):
+def test_a_declared_aggregate_arrives_below_the_grid_as_subtotal(tmp_path):
     src = tmp_path / "t.mdtbl"
     src.write_text(TABLE)
-    rows = grid(export_file(str(src), str(tmp_path / "t.xlsx")))
-    assert ["grand", 133.5] == rows[-1][:2]
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx")))
+    assert ws.cell(ws.max_row, 1).value == "grand"
+    assert ws.cell(ws.max_row, 2).value == (
+        "=IF(SUBTOTAL(103,rowspec[total])<>SUBTOTAL(102,rowspec[total]),"
+        "NA(),SUBTOTAL(109,rowspec[total]))"
+    )
 
 
-def test_a_broken_total_arrives_visibly_broken(tmp_path):
-    """§8's `#REF!(name)` must not land in a spreadsheet as a number or a blank."""
+def test_a_broken_total_arrives_as_a_formula_not_a_value(tmp_path):
+    """§8's `#REF!` must not land in a spreadsheet as a number or a blank.
+
+    A division by zero is decided by the data, so it arrives as the formula
+    that will divide by zero. A name the header does not have is decided by the
+    header, so that column arrives as an error outright -- a structured
+    reference to an absent column is not a formula a spreadsheet will open.
+    What either one evaluates to is asserted against LibreOffice (#36).
+    """
     src = tmp_path / "t.mdtbl"
     src.write_text(
-        "| id | a | z | t = a / z |\n| -- | -: | -: | -: |\n| r_1 | 5 | 0 |  |\n\nkey := id\n"
+        "| id | a | z | t = a / z | u = nope + a |\n| -- | -: | -: | -: | -: |\n"
+        "| r_1 | 5 | 0 |  |  |\n\nkey := id\n"
     )
-    rows = grid(export_file(str(src), str(tmp_path / "t.xlsx")))
-    assert str(rows[1][3]).startswith("#REF!")
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx")))
+    assert ws.cell(2, 4).value == "=(" + GUARDED.format("a") + "/" + GUARDED.format("z") + ")"
+    assert ws.cell(2, 5).value == "=NA()"
+
+
+# An A1 or R1C1 reference: column letters then a row number, or R<n>C<n>.
+COORDINATE = re.compile(
+    r"(?<![A-Za-z0-9_.])\$?[A-Za-z]{1,3}\$?[0-9]+(?![A-Za-z0-9_(])|\bR[0-9]*C[0-9]*\b"
+)
+
+
+def formulas_in(path):
+    """Every formula in the saved file, read from the XML rather than through
+    openpyxl, so a formula openpyxl would not surface is still checked."""
+    out = []
+    with zipfile.ZipFile(path) as z:
+        for name in z.namelist():
+            if name.startswith(("xl/worksheets/", "xl/tables/")):
+                xml = z.read(name).decode()
+                out += re.findall(r"<f>(.*?)</f>", xml)
+                out += re.findall(r"<calculatedColumnFormula>(.*?)</calculatedColumnFormula>", xml)
+    return out
+
+
+def test_no_formula_holds_a_coordinate(tmp_path):
+    """#35: a coordinate anywhere in a formula is a bug.
+
+    String literals and structured-reference brackets are removed first, so a
+    column named `a1` or a literal `"B2"` is not mistaken for a coordinate.
+    """
+    src = tmp_path / "t.mdtbl"
+    src.write_text(
+        '| id | a1 | b | c = if(b > 1, a1 * 2, -b) | d = if(id <> "B2", c / 3, 0) |\n'
+        "| -- | -: | -: | -: | -: |\n| r_1 | 5 | 2 |  |  |\n\nkey := id\n"
+        "s := sum(c)\nn := count(d)\nlo := min(a1)\nhi := max(b)\nm := avg(c)\n"
+    )
+    found = formulas_in(export_file(str(src), str(tmp_path / "t.xlsx")))
+    assert len(found) == 2 * 2 + 5, found  # two columns, cell and table, and five aggregates
+    for f in found:
+        bare = re.sub(r"\[[^\[\]]*\]", "", re.sub(r"\[[^\[\]]*\]", "", re.sub(r'"[^"]*"', "", f)))
+        assert not COORDINATE.search(bare), f"coordinate in {f!r}"
+
+
+def test_the_coordinate_check_can_fail():
+    assert COORDINATE.search("SUM(A1:B2)")
+    assert COORDINATE.search("$C$3*2")
+    assert COORDINATE.search("R1C1")
+    assert not COORDINATE.search("SUBTOTAL(109,rowspec)")
+
+
+@pytest.mark.parametrize(
+    ("table", "why"),
+    [
+        (
+            "| id | d | a | c = cumulative(a) |\n| - | - | - | - |\n| r_1 | 1 | 2 |  |\n\n"
+            "key := id\norder := by(d)\n",
+            "preceding row",
+        ),
+        (
+            "| id | g | a | t = sum(a where g = @g) |\n| - | - | - | - |\n| r_1 | x | 2 |  |\n\n"
+            "key := id\n",
+            "where",
+        ),
+        (
+            "| id | g | a |\n| - | - | - |\n| r_1 | x | 2 |\n\n"
+            'key := id\ns := sum(a where g = "x")\n',
+            "where",
+        ),
+        (
+            '| id | q | t = if(q = "3", 1, 0) |\n| - | - | - |\n| r_1 | 3.0 |  |\n\nkey := id\n',
+            "spelling",
+        ),
+        ("| id | ab | AB |\n| - | - | - |\n| r_1 | 1 | 2 |\n\nkey := id\n", "case"),
+        ("| id | a |\n| - | - |\n\nkey := id\n", "no rows"),
+        (
+            "| id | a | t = a * 1.23456789012345678 |\n| - | - | - |\n| r_1 | 1 |  |\n\n"
+            "key := id\n",
+            "significant digits",
+        ),
+    ],
+    ids=[
+        "row-relative",
+        "group-where",
+        "declaration-where",
+        "text-vs-number",
+        "case",
+        "empty",
+        "literal",
+    ],
+)
+def test_what_a_spreadsheet_cannot_say_is_refused(table, why):
+    with pytest.raises(NotExpressible, match=why):
+        to_workbook(table)
+
+
+def test_a_blank_test_on_a_number_column_is_exported(tmp_path):
+    """`if(x = "", ...)` reads no spelling, so a number column is fine there:
+    a number is never the empty string, to this format or to a spreadsheet."""
+    wb = to_workbook(
+        '| id | q | t = if(q = "", 0, q) |\n| - | - | - |\n'
+        "| r_1 | 3.0 |  |\n| r_2 |  |  |\n\nkey := id\n"
+    )
+    assert wb.active.cell(2, 3).value.startswith('=IF(EXACT(rowspec[[#This Row],[q]],""),0,')
 
 
 def test_a_stored_cell_beginning_with_equals_is_not_a_live_formula(tmp_path):
@@ -163,3 +292,19 @@ def test_the_module_entry_point_writes_a_file(tmp_path):
     )
     assert r.returncode == 0, r.stdout + r.stderr
     assert grid(str(dst))[0][0] == "id"
+
+
+def test_the_module_entry_point_refuses_what_it_cannot_say(tmp_path):
+    src = tmp_path / "t.mdtbl"
+    src.write_text("| id | ab | AB |\n| - | - | - |\n| r_1 | 1 | 2 |\n\nkey := id\n")
+    dst = tmp_path / "t.xlsx"
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join([f"{ROOT}/export", f"{ROOT}/reference"]))
+    r = subprocess.run(
+        [sys.executable, "-m", "rowspec_xlsx", str(src), str(dst)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "not exported" in r.stderr and "case" in r.stderr
+    assert not dst.exists(), "a refused export wrote a file"

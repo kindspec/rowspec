@@ -7,6 +7,23 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Changed
+
+- **xlsx export writes live formulas** (#35). The sheet holds a spreadsheet
+  table named `rowspec`; computed columns are formulas over structured
+  references, and declared aggregates are `SUBTOTAL` forms. Every operand and
+  aggregate is guarded, so a blank operand, text in a summed column, or the
+  minimum of nothing is a spreadsheet error rather than a `0`. What a
+  spreadsheet cannot express is refused with `NotExpressible` and nothing is
+  written: `cumulative`, `prior`, `delta`, any `where` predicate, an `if`
+  comparing a number column against non-empty text, column names that differ
+  only by case, a literal of more than 15 significant digits, and a table with
+  no rows. `python -m rowspec_xlsx` reports a refusal on stderr and exits 1.
+  The workbook recalculates under spreadsheet arithmetic. Tolerant
+  comparison and subtraction can flip an `if` (#88), and left-to-right
+  addition can cancel a `sum` or `avg` (#83). So it can disagree with
+  `rowspec eval` beyond the last digit.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

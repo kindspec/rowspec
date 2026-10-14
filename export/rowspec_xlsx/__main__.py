@@ -14,9 +14,13 @@ def main(argv=None):
     if len(argv) != 2:
         print("usage: python -m rowspec_xlsx SRC.mdtbl DST.xlsx", file=sys.stderr)
         return 2
-    from . import export_file
+    from . import NotExpressible, export_file
 
-    print(export_file(argv[0], argv[1]))
+    try:
+        print(export_file(argv[0], argv[1]))
+    except NotExpressible as e:
+        print(f"not exported: {e}", file=sys.stderr)
+        return 1
     return 0
 
 
