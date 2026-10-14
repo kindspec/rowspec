@@ -100,18 +100,23 @@ differently from `.mdtbl`, as SPEC.md §13 states:
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   a bare `=======` included. A cell that merely holds such a run, after the
   first field, is data.
-- **6, field count**: records are RFC 4180's. An empty line is a record of one
-  empty field, so it is refused against a wider header, and a quoted field
-  that the file ends inside is refused outright: a CSV reader would otherwise
-  fold every later row into that one cell.
+- **6, field count**: record boundaries are RFC 4180's. An empty line between
+  rows is a record of one empty field, so it is refused against a wider
+  header; one blank line at the very end of the file is accepted. A quoted
+  field that the file ends inside is refused outright: a CSV reader would
+  otherwise fold every later row into that one cell.
 - **5, duplicate row id**: with a key declared, a key value is also refused
   when it is empty or holds whitespace or a `Cf` character, since any of those
-  lets two ids render alike without being equal (§9.16).
+  lets two ids render alike without being equal (§9.16). Only ASCII space and
+  tab are trimmed first, so a leading or trailing NBSP is refused too.
 
 **Column names are exempt from the rest of §9.16.** Its allowlist exists so a
 name can be written in a formula, and a CSV has none, so `first name` and
-`total (USD)` are fine. Key values are exempt from it for the same reason:
-`002RadioTV.do` is a real registry id.
+`total (USD)` are fine. Only a `Cf` character is still refused in one, so two
+CSV column names *can* look identical: `first name` with an NBSP is not the
+same column as `first name` with a space, and nothing refuses it. Key values
+are exempt from the allowlist for the same reason: `002RadioTV.do` is a real
+registry id.
 
 The five `.mdtbl`-only refusals are not a gap in CSV mode. Three of them are
 about an alignment row and formulas, neither of which CSV has; two are about

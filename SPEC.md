@@ -1439,21 +1439,25 @@ relaxation**, and the difference must be stated rather than discovered:
 - **column names are exempt from §4.1.9's allowlist.** The allowlist exists so
   that a name can be written inside a formula, and a CSV has no formulas, so
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
-  header cell. Two rules still apply to them, because neither rests on
-  formulas: a column name holding a `Cf` format character is refused (§3:
-  two names that render identically must not coexist), and names compare
-  after NFC, so §9.2 refuses two that normalise alike.
+  header cell. Only a `Cf` format character in a column name is still refused,
+  and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  **§3's guarantee that two identifiers cannot render identically does not
+  hold for CSV column names**: other look-alikes, such as a non-ASCII space in
+  place of an ASCII one, are not refused.
 - **the values of a declared key are refused when empty, or when they hold
-  whitespace or a `Cf` format character** (§4.1.9, §9.16). Any of those lets
-  two ids render alike without being equal, and then refusal 5 never fires.
-  The rest of the allowlist is exempt for the column-name reason: real
-  registry keys include `002RadioTV.do` and `Africa/Abidjan`.
-- **records are RFC 4180's.** A quoted field runs to its closing quote, so a
-  file that ends inside one is refused: the grammar generates no record from
-  the open quote on, and a lenient reader folds every later row into one
-  cell. An empty line is a record of one empty field, not a gap, so §9.6
-  refuses it against a header of more than one column. Only the line break
-  that ends the last record is optional.
+  whitespace or a `Cf` format character** (§4.1.9, §9.16), after trimming
+  ASCII space and tab only (§4.1.4), so a leading or trailing non-ASCII space
+  is part of the value and is refused. Any of those lets two ids render alike
+  without being equal, and then refusal 5 never fires. The rest of the
+  allowlist is exempt for the column-name reason: real registry keys include
+  `002RadioTV.do` and `Africa/Abidjan`.
+- **record boundaries are RFC 4180's.** A quoted field runs to its closing
+  quote, so a file that ends inside one is refused (§9.6): the grammar
+  generates no record from the open quote on, and a lenient reader folds
+  every later row into one cell. An empty line between rows is a record of
+  one empty field, not a gap, so §9.6 refuses it against a header of more
+  than one column. A single blank line at the end of the file is not between
+  rows and is accepted; a second one is between rows.
 - **conflict markers are §4.1.12's, unchanged.** A line whose first seven
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
