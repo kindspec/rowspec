@@ -14,6 +14,7 @@ import fnmatch
 import os
 import re
 import subprocess
+import sys
 
 import pytest
 
@@ -119,3 +120,14 @@ def test_every_licensed_directory_carries_a_license_file():
             assert re.match(re.escape(spdx) + r"(?=$|\s|\.\s)", text), (
                 f"{d}/LICENSE does not name {spdx}: {text.splitlines()[0]!r}"
             )
+
+
+def test_a_case_s_prose_is_not_held_to_a_header(monkeypatch):
+    """fnmatch's `*` crosses `/`, so `conformance/cases-csv/*.md` once matched
+    a WHY.md inside a case, which is a fixture and carries no header. The
+    tree's own README still must."""
+    files = ["conformance/cases-csv/README.md", "conformance/cases-csv/g/c/WHY.md"]
+    monkeypatch.setattr(sys.modules[__name__], "tracked", lambda: files)
+    found = headed_files()
+    assert found.get("conformance/cases-csv/README.md") == "CC0-1.0"
+    assert "conformance/cases-csv/g/c/WHY.md" not in found

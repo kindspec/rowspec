@@ -37,8 +37,8 @@ import re
 import sys
 import unicodedata
 
-from . import sidecar as sidecar_mod
-from .table import Malformed
+from rowspec import sidecar as sidecar_mod
+from rowspec.table import Malformed
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
