@@ -19,6 +19,10 @@ prose, and where the two disagree the suite wins.
   comparing a number column against non-empty text, column names that differ
   only by case, a literal of more than 15 significant digits, and a table with
   no rows. `python -m rowspec_xlsx` reports a refusal on stderr and exits 1.
+  The workbook recalculates under spreadsheet arithmetic. Tolerant
+  comparison and subtraction can flip an `if` (#88), and left-to-right
+  addition can cancel a `sum` or `avg` (#83). So it can disagree with
+  `rowspec eval` beyond the last digit.
 
 ## [0.3.0] — 2026-10-08
 

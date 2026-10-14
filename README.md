@@ -180,6 +180,14 @@ in a summed column, or the minimum of nothing is an error, not a `0`. A `#REF!`
 arrives as a spreadsheet error value, though without the name in its
 parentheses.
 
+The workbook computes with spreadsheet arithmetic, which is not this format's.
+Tolerant comparison and subtraction can make an `if` take the other branch
+([#88](https://github.com/kindspec/rowspec/issues/88)), and left-to-right
+addition can cancel a total that §7's exact sum keeps
+([#83](https://github.com/kindspec/rowspec/issues/83)). The key column is text,
+so a formula using it as a number is an error in the workbook. Hidden or
+filtered rows drop out of the `SUBTOTAL` aggregates but not out of `count`.
+
 What a spreadsheet cannot say, the exporter refuses rather than approximates,
 and writes nothing: `cumulative`, `prior` and `delta`; any `where` predicate;
 and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`. A test

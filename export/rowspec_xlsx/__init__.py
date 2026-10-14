@@ -46,9 +46,22 @@ approximating** (`NotExpressible`, and nothing is written):
 - a numeric literal with more significant digits than a spreadsheet formula
   keeps, and a table with no rows, which a spreadsheet table cannot be.
 
-Where the spreadsheet's arithmetic and §4.2 rule 2's binary64 differ in the last
-digit, the spreadsheet wins inside the workbook; §4.2 rule 2 says matching a
-spreadsheet's last digit is not a goal.
+**The workbook recalculates under spreadsheet arithmetic, not this format's,
+and it can disagree with `rowspec eval` by more than the last digit.** A
+spreadsheet compares numbers with a tolerance and snaps a near-equal
+subtraction to `0`, so `if(c = 0.3, ...)` over `0.1 + 0.2` takes the other
+branch (#88). It also adds left to right where §7 takes the exact sum, so
+`1e16 + 1 - 1e16` totals `0` where `rowspec eval` says `1` (#83). The formulas
+cannot switch either behaviour off; they belong to the engine.
+
+Two further differences are deliberate and stay:
+
+- the KEY column is written as text, because §9.16 makes a key an identifier,
+  so a formula that uses the key as a number (`x = id * 2`) is `NA()` in the
+  workbook where `rowspec eval` computes it;
+- `sum`, `avg`, `min` and `max` are `SUBTOTAL` forms, which leave out rows a
+  spreadsheet user hides or filters, while `count` is `ROWS` and counts them.
+  With nothing hidden the two agree.
 
 A stored cell is still never a formula: `_append` forces every string cell to
 text, because a stored cell is text under §5 and a spreadsheet application
