@@ -73,8 +73,8 @@ conform:
 conform-alt:
     cd conformance && uv run python run_cases.py rowspec_alt.table --profile mdtbl
 
-# SPEC.md §13's CSV profile: cases-csv/ against rowspec.csvmode. Exits 2 while
-# that tree holds no case (#63), which is no verdict, not a pass.
+# SPEC.md §13's CSV profile: cases-csv/ against rowspec.csvmode. A tree below
+# its floor exits 2, which is no verdict, not a pass.
 conform-csv:
     cd conformance && uv run python run_cases.py --profile csv
 

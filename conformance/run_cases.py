@@ -58,6 +58,10 @@ sys.path.insert(0, os.path.join(HERE, "..", "reference"))
 #: adding cases never touches it and removing them has to be deliberate.
 MIN_CASES = 410
 
+#: The same floor for SPEC.md §13's CSV tree, measured the same way over
+#: `conformance/cases-csv`.
+MIN_CSV_CASES = 57
+
 CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
 
 #: The merge cases file their sides under fixed stems, and the artifact is
@@ -342,12 +346,10 @@ def csv_adapter_for(impl):
 
 
 #: SPEC.md §13's profiles: the adapter, the implementation checked when none is
-#: named, the tree, and its floor. The CSV tree has no floor yet because it has
-#: no cases yet (#63); kindkit already refuses an EMPTY root, so until it has
-#: some, `--profile csv` exits 2 rather than reporting a pass over nothing.
+#: named, the tree, and its floor.
 PROFILES = {
     "mdtbl": (adapter_for, "rowspec.table", CASES, MIN_CASES),
-    "csv": (csv_adapter_for, "rowspec.csvmode", CSV_CASES, None),
+    "csv": (csv_adapter_for, "rowspec.csvmode", CSV_CASES, MIN_CSV_CASES),
 }
 
 

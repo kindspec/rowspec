@@ -44,6 +44,12 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **57 CSV-profile conformance cases** (#63) in `conformance/cases-csv/`,
+  written from SPEC.md by an author who did not write CSV mode. They run in
+  CI as `just conform-csv`, in the `conformance` job and in the release gate,
+  with a floor of 57 cases. `conformance/cases-csv/README.md` records what the
+  author was given and the questions they left open.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
