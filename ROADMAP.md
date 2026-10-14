@@ -25,7 +25,7 @@ with a GitHub Action.
     77 passed, 2 skipped      just test
     20 passed                 just test-xlsx
     1 passed                  just test-libreoffice
-    246 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
+    248 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
                                 pytest tests/test_xlsx_libreoffice.py -q -s
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
@@ -94,9 +94,14 @@ with real structured references and `SUBTOTAL` aggregates recalculating in
 LibreOffice. Both are now built, in two parts. #35 writes the formulas, and
 refuses what a spreadsheet cannot say: `cumulative`, `prior`, `delta` and any
 `where` predicate. #36 recalculates the export in LibreOffice and compares it
-with `rowspec eval`. What is left open is #83: `sum` and `avg` near `1e308`,
-where §7's exact sum and a spreadsheet's sequential one disagree. A `where`
-predicate with an exact-text spreadsheet form is not designed yet.
+with `rowspec eval`. Still open:
+- **Summation (#83).** Left-to-right addition cancels `sum` and `avg` where
+  §7's exact sum does not, at ordinary magnitudes as well as near `1e308`.
+- **Comparison (#88).** Tolerant comparison and subtraction flip `if`
+  branches.
+- **A static-values export (#89),** proposed as the exact option.
+- **Filtered and group aggregates (#35).** A `where` predicate with an
+  exact-text spreadsheet form is not designed yet.
 
 **It lives outside `reference/`, as an optional extra.** `AGENTS.md` makes
 `reference/` standard-library-only because *a dependency there is a dependency

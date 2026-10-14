@@ -31,8 +31,11 @@ prose, and where the two disagree the suite wins.
   conformance tree in headless LibreOffice. It asserts that each computed cell
   and aggregate matches `rowspec eval`, with a `#REF!` coming back as a
   spreadsheet error. The `xlsx-extra` CI job installs LibreOffice and runs it.
-  Four aggregates disagree, because §7's exact sum is not a spreadsheet's
-  sequential one. They are pinned in the test and tracked in #83.
+  The test pins each disagreement to the value LibreOffice gives:
+  - four aggregates from the tree, where §7's exact sum is not a
+    spreadsheet's sequential one (#83);
+  - two tables written for the test, a branch flip under tolerant
+    comparison (#88) and an ordinary-magnitude cancellation (#83).
 
 ## [0.3.0] — 2026-10-08
 

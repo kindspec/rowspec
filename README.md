@@ -193,17 +193,19 @@ What a spreadsheet cannot say, the exporter refuses rather than approximates,
 and writes nothing: `cumulative`, `prior` and `delta`; any `where` predicate;
 and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`.
 
-**The workbook recalculates to `rowspec eval`'s values, with known
-exceptions.** `just test-libreoffice` exports every `.mdtbl` in the
-conformance tree that rowspec accepts and the exporter can express. It
-recalculates each one in headless LibreOffice and compares every computed cell
-and aggregate with `rowspec eval`. Numbers are compared at 15 significant
-digits, which is all LibreOffice saves. CI runs it. The exceptions are `sum`
-and `avg` near `1e308`: SPEC.md §7 takes the exact sum and a spreadsheet adds
-left to right, so a spreadsheet can answer an error, or once a different
-number, where `rowspec eval` has a number
-([#83](https://github.com/kindspec/rowspec/issues/83)). The test pins each
-one.
+**What is checked is agreement on the conformance tree, not in general.**
+`just test-libreoffice` exports every `.mdtbl` in the conformance tree that
+rowspec accepts and the exporter can express. It recalculates each one in
+headless LibreOffice and compares every computed cell and aggregate with
+`rowspec eval`. Numbers are compared at 15 significant digits, which is all
+LibreOffice saves. CI runs it. Where they disagree, the test pins the value
+LibreOffice gives, so a change in either direction fails it. That covers four
+`sum` and `avg` cases from the tree near `1e308`, plus two tables written for
+the test: `if(c = 0.3, …)` over `0.1 + 0.2` (#88), and `1e16 + 1 - 1e16` (#83).
+Both kinds of disagreement occur at ordinary magnitudes, so a table outside
+the tree can disagree in ways nothing here checks. For numbers that are
+exactly `rowspec eval`'s, see the static-values proposal
+([#89](https://github.com/kindspec/rowspec/issues/89)).
 
 ## Two commands, and you need both
 
