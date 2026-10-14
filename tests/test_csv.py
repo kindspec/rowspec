@@ -84,11 +84,19 @@ def test_conflict_marker_is_refused_where_csv_parses_it_as_data(tmp_path):
     assert ">>>>>>> feature/rename" in messages(found)
 
 
-def test_lone_equals_line_is_not_a_conflict_marker(tmp_path):
-    """Git never emits `=======` without opening with `<<<<<<<`, and a CSV cell
-    legitimately can. Flagging it would be a false positive."""
-    f = write(tmp_path, "e.csv", b"id,rule\nr_01,=======\n")
+def test_a_marker_run_that_does_not_start_the_line_is_data(tmp_path):
+    """SPEC.md §4.1.12 is about a line's first seven characters. A cell
+    holding `=======` after the first field does not start the line."""
+    f = write(tmp_path, "e.csv", b"id,rule\nr_01,=======\nr_02,<<<<<<\n")
     assert check_file(f) == []
+
+
+@pytest.mark.parametrize("line", [b"=======", b"<<<<<<<<", b">>>>>>>x", b"|||||||,a"])
+def test_a_line_starting_with_seven_marker_characters_is_refused(tmp_path, line):
+    """SPEC.md §4.1.12, wherever the line appears: no opening `<<<<<<<` is
+    needed, and nothing has to follow the seven characters."""
+    f = write(tmp_path, "m.csv", b"id\nr_01\n" + line + b"\nr_02\n")
+    assert rules(check_file(f)) == ["conflict-marker"]
 
 
 def test_duplicate_column_name(tmp_path):
@@ -119,6 +127,39 @@ def test_field_count(tmp_path):
     found = check_file(f)
     assert rules(found) == ["field-count"]
     assert "row id='r_02' has 2 field(s), the header declares 3" in messages(found)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"id,name\nr_01,a\n\nr_02,b\n",
+        b"id,name\nr_01,a\n\nr_02,b",
+        b"id,name\r\nr_01,a\r\n\r\nr_02,b\r\n",
+        b"id,name\nr_01,a\n\n\n",
+        b"id,name\r\nr_01,a\r\n\r\n\r\n",
+        b"id,name\nr_01,a\n \n",
+    ],
+)
+def test_a_blank_line_between_rows_is_a_record_of_one_empty_field(tmp_path, data):
+    """RFC 4180: an empty line is a record with one empty field, and against
+    a two-field header that is a field-count mismatch. Two blank lines at the
+    end are not "one at the end": the first sits between rows. A trailing line
+    of spaces is not empty at all, so it is a record like any other."""
+    found = check_file(write(tmp_path, "b.csv", data))
+    assert rules([f for f in found if f.level == "refuse"]) == ["field-count"]
+
+
+@pytest.mark.parametrize("data", [b"id,name\nr_01,a\n\n", b"id,name\r\nr_01,a\r\n\r\n"])
+def test_one_blank_line_at_the_end_of_the_file_is_accepted(tmp_path, data):
+    """SPEC.md §13: a single blank line after the last record is not between
+    rows. fivethirtyeight's women-stem.csv, pepecash_prices.csv and
+    xcp_prices.csv each end this way."""
+    found = check_file(write(tmp_path, "b.csv", data))
+    assert [f for f in found if f.level == "refuse"] == []
+
+
+def test_a_blank_line_fits_a_one_column_file(tmp_path):
+    assert check_file(write(tmp_path, "b.csv", b"name\na\n\nb\n")) == []
 
 
 def test_no_table(tmp_path):
@@ -179,6 +220,20 @@ def test_quoted_commas_and_embedded_newlines_are_not_false_positives(tmp_path):
     assert check_file(f) == []
 
 
+def test_a_quote_left_open_is_refused_rather_than_swallowing_rows(tmp_path):
+    """RFC 4180 generates no record from an open quote to the end of the file.
+    Python's reader folds `r_02` into r_01's cell instead, and says nothing."""
+    f = write(tmp_path, "u.csv", b'id,note\nr_01,"abc\nr_02,b\n')
+    found = check_file(f)
+    assert rules(found) == ["unterminated-quote"]
+    assert "abc" in messages(found)
+
+
+def test_quotes_that_close_or_sit_mid_field_are_not_open(tmp_path):
+    f = write(tmp_path, "q.csv", b'id,note\nr_01,"say ""hi"""\nr_02,5" pipe\n')
+    assert check_file(f) == []
+
+
 def test_a_clean_csv_produces_nothing(tmp_path):
     assert check_file(write(tmp_path, "ok.csv", CLEAN)) == []
 
@@ -203,6 +258,40 @@ def test_keys_that_render_identically_are_one_key(tmp_path):
     dup = [x for x in check_file(f) if x.rule == "duplicate-key" and "caf" in str(x)]
     assert len(dup) == 1
     assert "U+00E9" in dup[0].detail and "U+0065 U+0301" in dup[0].detail
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        b"r 1",
+        b"",
+        b"r\xe2\x80\x8b1",
+        b"r\xc2\xa01",
+        b"\xc2\xa0r1",
+        b"r1\xc2\xa0",
+        b"\xe3\x80\x80r1",
+    ],
+)
+def test_a_key_value_that_could_render_like_another_is_refused(tmp_path, value):
+    """SPEC.md §13: an empty key value, or one holding whitespace (an NBSP
+    included) or a `Cf` character, is refused when a key is declared. Only
+    ASCII space and tab are trimmed (§4.1.4), so a leading or trailing NBSP
+    or ideographic space is part of the value, and refused."""
+    f = write(tmp_path, "i.csv", b"id,name\n" + value + b",a\nr_2,b\n", {"key": "id"})
+    assert rules(check_file(f)) == ["key-not-identifier"]
+
+
+@pytest.mark.parametrize("value", [b"002RadioTV.do", b"Africa/Abidjan", b"r-1", b" r1\t"])
+def test_key_punctuation_outside_the_allowlist_is_accepted(tmp_path, value):
+    """The rest of §4.1.9's allowlist is for formulas, and a CSV has none.
+    These are real registry ids (iptv-org/database)."""
+    f = write(tmp_path, "i.csv", b"id,name\n" + value + b",a\nr_2,b\n", {"key": "id"})
+    assert check_file(f) == []
+
+
+def test_a_key_rule_needs_a_declared_key(tmp_path):
+    f = write(tmp_path, "i.csv", b"id,name\nr 1,a\n,b\n")
+    assert check_file(f) == []
 
 
 def test_messy_file_reports_every_kind_at_once(tmp_path):

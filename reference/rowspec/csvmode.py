@@ -14,6 +14,13 @@ Of the thirteen refusals in SPEC.md §9:
   * 3, 7, 8, 9, 11 cannot arise in a CSV -- they are about alignment rows,
     formulas and aggregates, none of which the format has.
 
+§13 also says how a CSV reads four rules: record boundaries are RFC 4180's
+(an empty line between rows is a one-field record, one empty line at the end
+is accepted, and a quote left open at the end of the file is refused); a
+conflict marker is §4.1.12's line-start rule; and a declared key's values may
+not be empty or hold whitespace or `Cf`. Column names are exempt from §9.16's
+allowlist, apart from `Cf`, because it exists for formulas.
+
 Two deliberate softenings, both stated by SPEC.md §13: refusals 14 (a UTF-8
 BOM) and 15 (a lone CR) are WARNINGS in CSV mode, not refusals. Excel writes
 the BOM, and refusing either would fail files whose values are correct.
@@ -33,13 +40,10 @@ import unicodedata
 from . import sidecar as sidecar_mod
 from .table import Malformed
 
-# Git writes exactly seven of its marker character, then a space and a label or
-# end of line. `.mdtbl` refuses any line merely starting with those characters;
-# a CSV cell can legitimately hold `<<<`, so CSV mode matches git's real output.
-# `=======` alone is only a conflict if a `<<<<<<<` opened one, and git never
-# emits it otherwise -- checking that ordering removes the one marker that
-# plausibly occurs as data.
-_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})(?: (.*))?$")
+# SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
+# seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
+# it appears. A shorter run, or one that does not start the line, is data.
+_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")
 
 # Deliberately not float(): Python accepts `1_0`, `nan`, `inf` and surrounding
 # whitespace as numbers, and an independent implementation should not have to
@@ -121,29 +125,48 @@ def _conflict_markers(text):
     """SPEC.md §9.1. Python's csv module parses a committed conflict as ordinary
     rows without complaint, which is why this check runs on the raw text."""
     out = []
-    opened = False
     for line in text.splitlines():
-        m = _MARKER.match(line)
-        if not m:
+        if not _MARKER.match(line):
             continue
-        marker, label = m.group(1), m.group(2)
-        if marker.startswith("<"):
-            opened = True
-        elif marker.startswith("=") and not opened:
-            continue
-        shown = f"{marker} {label}" if label else marker
         out.append(
             Finding(
                 "conflict-marker",
-                f"unresolved conflict marker {_show(shown, 60)}",
+                f"unresolved conflict marker {_show(line, 60)}",
                 "A merge was committed before it was finished. Every CSV reader in wide use, "
                 "including Python's, parses these lines as ordinary data rows without "
                 "complaining, so this file currently has rows nobody wrote.",
             )
         )
-        if marker.startswith(">"):
-            opened = False
     return out
+
+
+def _unterminated_quote(text, delimiter):
+    """RFC 4180: a field that opens with `"` runs to the next `"` that is not
+    doubled. If the file ends first, the grammar generates no records at all
+    from that point on.
+
+    Python's csv module does not refuse this. It folds the rest of the file
+    into one cell, so every row after the quote vanishes into a value and
+    nothing reports it. Returns the start of the open field, or None.
+
+    A quote opens a field only at its start, the way the csv module reads it;
+    anywhere else it is data, so `5" pipe` is not an open field.
+    """
+    quoted, at_start, opened, i = False, True, 0, 0
+    while i < len(text):
+        ch = text[i]
+        if quoted:
+            if ch == '"':
+                if text[i + 1 : i + 2] == '"':
+                    i += 2
+                    continue
+                quoted = False
+        elif at_start and ch == '"':
+            quoted, at_start, opened = True, False, i
+        else:
+            at_start = ch == delimiter or ch in "\r\n"
+        i += 1
+    return text[opened : opened + 20] if quoted else None
 
 
 def _grouped_header(names, second):
@@ -263,6 +286,21 @@ def check_text(text, name="<input>", side=None, delimiter=","):
         # nobody wrote. One clear cause beats twenty symptoms.
         return findings
 
+    # SPEC.md §13 and RFC 4180 -- a quoted field still open at the end of the
+    # file. Refused alone, for the conflict marker's reason: every finding
+    # after it would be about rows the open quote swallowed.
+    opened = _unterminated_quote(text, delimiter)
+    if opened is not None:
+        return [
+            Finding(
+                "unterminated-quote",
+                f"the quoted field that starts {_show(opened)} is never closed",
+                "RFC 4180 ends a quoted field at its closing quote. With none before the "
+                "end of the file, a CSV reader folds every later row into this one cell, "
+                "so those rows silently disappear.",
+            )
+        ]
+
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     records = [r for r in reader]
     if not records or not any(any(c.strip() for c in r) for r in records[:1]):
@@ -272,7 +310,13 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     names, name_findings = _header_names(header, records[1] if len(records) > 1 else None)
     findings += name_findings
 
-    body = [r for r in records[1:] if r != []]
+    # RFC 4180: an empty line is a record of one empty field, not a gap. The
+    # csv module yields `[]` for it; skipping that made the record count
+    # depend on the reader, so it is read as `[""]` and the field-count rule
+    # decides, as for any other row. SPEC.md §13 accepts ONE empty line at the
+    # end of the file: it is not between rows, and real exports end that way.
+    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]
+    body = [r if r else [""] for r in rest]
 
     key_idx = None
     if side and side.key:
@@ -299,6 +343,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     )
 
     if key_idx is not None:
+        findings += _key_identifiers(body, names, key_idx)
         findings += _duplicate_keys(body, names, key_idx)
 
     if side:
@@ -313,6 +358,44 @@ def _near(name, names):
 
     hit = difflib.get_close_matches(name, [n for n in names if n], n=1, cutoff=0.6)
     return f"; did you mean {_show(hit[0])}?" if hit else ""
+
+
+def _key_identifiers(body, names, key_idx):
+    """SPEC.md §13: a value of the declared key column is refused when it is
+    empty, or holds whitespace or a `Cf` format character (§4.1.9, §9.16).
+    An id that renders like another without being equal to it is the
+    duplicate-key refusal failing to fire, and that is true of any key.
+
+    The rest of §4.1.9's allowlist is not applied. It exists so a name can be
+    written inside a formula, and a CSV has none: `002RadioTV.do` and
+    `Africa/Abidjan` are real registry keys."""
+    key = names[key_idx]
+    bad = []
+    for n, rec in enumerate(body, 1):
+        if key_idx >= len(rec):
+            continue  # a short row is the field-count refusal's to report
+        # §4.1.4 trims ASCII space and tab only; any other whitespace at
+        # either end is part of the value, and is refused below.
+        raw = unicodedata.normalize("NFC", rec[key_idx].strip(" \t"))
+        if raw == "":
+            bad.append((n, rec, f"{key} value is empty, and an id is one or more characters"))
+            continue
+        for ch in raw:
+            if ch.isspace() or unicodedata.category(ch) == "Cf":
+                kind = "whitespace" if ch.isspace() else "the format character"
+                bad.append((n, rec, f"{key} value {_show(raw)} contains {kind} U+{ord(ch):04X}"))
+                break
+    findings = []
+    _cap(
+        findings,
+        "key-not-identifier",
+        bad,
+        lambda b: f"{_name_row(b[1], names, key_idx, b[0])}: {b[2]}",
+        "A key value names its row. One that is empty, or that holds a space or an "
+        "invisible character, can render exactly like another id without being equal "
+        "to it, and then no duplicate is ever found.",
+    )
+    return findings
 
 
 def _duplicate_keys(body, names, key_idx):
