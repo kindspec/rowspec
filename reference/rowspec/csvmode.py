@@ -343,7 +343,8 @@ def check_text(text, name="<input>", side=None, delimiter=","):
             return next(reader, [])
 
         names = [unicodedata.normalize("NFC", h.strip()) for h in first_record(0)]
-        key_idx = {n: i for i, n in enumerate(names)}.get(side.key) if side else None
+        # The first column of that name, as `names.index` gives elsewhere.
+        key_idx = next((i for i, n in enumerate(names) if side and n == side.key), None)
 
         def locate(start):
             rec, rec_start = where[start]
