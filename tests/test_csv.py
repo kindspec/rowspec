@@ -179,6 +179,20 @@ def test_quoted_commas_and_embedded_newlines_are_not_false_positives(tmp_path):
     assert check_file(f) == []
 
 
+def test_a_quote_left_open_is_refused_rather_than_swallowing_rows(tmp_path):
+    """RFC 4180 generates no record from an open quote to the end of the file.
+    Python's reader folds `r_02` into r_01's cell instead, and says nothing."""
+    f = write(tmp_path, "u.csv", b'id,note\nr_01,"abc\nr_02,b\n')
+    found = check_file(f)
+    assert rules(found) == ["unterminated-quote"]
+    assert "abc" in messages(found)
+
+
+def test_quotes_that_close_or_sit_mid_field_are_not_open(tmp_path):
+    f = write(tmp_path, "q.csv", b'id,note\nr_01,"say ""hi"""\nr_02,5" pipe\n')
+    assert check_file(f) == []
+
+
 def test_a_clean_csv_produces_nothing(tmp_path):
     assert check_file(write(tmp_path, "ok.csv", CLEAN)) == []
 

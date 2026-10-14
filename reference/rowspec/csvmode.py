@@ -146,6 +146,35 @@ def _conflict_markers(text):
     return out
 
 
+def _unterminated_quote(text, delimiter):
+    """RFC 4180: a field that opens with `"` runs to the next `"` that is not
+    doubled. If the file ends first, the grammar generates no records at all
+    from that point on.
+
+    Python's csv module does not refuse this. It folds the rest of the file
+    into one cell, so every row after the quote vanishes into a value and
+    nothing reports it. Returns the start of the open field, or None.
+
+    A quote opens a field only at its start, the way the csv module reads it;
+    anywhere else it is data, so `5" pipe` is not an open field.
+    """
+    quoted, at_start, opened, i = False, True, 0, 0
+    while i < len(text):
+        ch = text[i]
+        if quoted:
+            if ch == '"':
+                if text[i + 1 : i + 2] == '"':
+                    i += 2
+                    continue
+                quoted = False
+        elif at_start and ch == '"':
+            quoted, at_start, opened = True, False, i
+        else:
+            at_start = ch == delimiter or ch in "\r\n"
+        i += 1
+    return text[opened : opened + 20] if quoted else None
+
+
 def _grouped_header(names, second):
     """A spreadsheet export with a merged/grouped header: row 1 holds group
     labels repeated across their span, row 2 holds the real column names.
@@ -262,6 +291,21 @@ def check_text(text, name="<input>", side=None, delimiter=","):
         # conflict block makes ragged rows and duplicate keys out of lines
         # nobody wrote. One clear cause beats twenty symptoms.
         return findings
+
+    # SPEC.md §13 and RFC 4180 -- a quoted field still open at the end of the
+    # file. Refused alone, for the conflict marker's reason: every finding
+    # after it would be about rows the open quote swallowed.
+    opened = _unterminated_quote(text, delimiter)
+    if opened is not None:
+        return [
+            Finding(
+                "unterminated-quote",
+                f"the quoted field that starts {_show(opened)} is never closed",
+                "RFC 4180 ends a quoted field at its closing quote. With none before the "
+                "end of the file, a CSV reader folds every later row into this one cell, "
+                "so those rows silently disappear.",
+            )
+        ]
 
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     records = [r for r in reader]
