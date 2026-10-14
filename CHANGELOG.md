@@ -51,18 +51,18 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
-- **The mutation gate covers CSV mode** (#63). `just mutants-csv` breaks
-  `csvmode.py` and requires `conformance/cases-csv/` to notice. Of 32 mutants
-  tried, 22 are killed and 2 are claimed equivalent, with the reason; those 24
-  are gated, in CI and in the release gate. The other 8 survive: they are kept,
-  ungated, as `CSV_PENDING` in `conformance/mutants.py` and tracked in #94,
-  and each joins the gate once a case written from the spec kills it.
+- **The mutation gate covers CSV mode** (#63, #94). `just mutants-csv` breaks
+  `csvmode.py` and requires `conformance/cases-csv/` to notice: 33 mutants
+  are killed and 2 are claimed equivalent, with the reason, and none survive.
+  It runs in CI and in the release gate. Ten of the 33 first survived and
+  waited, ungated, until cases written from the spec for #94 killed them.
 
-- **57 CSV-profile conformance cases** (#63) in `conformance/cases-csv/`,
-  written from SPEC.md by an author who did not write CSV mode. They run in
-  CI as `just conform-csv`, in the `conformance` job and in the release gate,
-  with a floor of 57 cases. `conformance/cases-csv/README.md` records what the
-  author was given and the questions they left open.
+- **77 CSV-profile conformance cases** (#63, #94) in `conformance/cases-csv/`,
+  written from SPEC.md by two authors who did not write CSV mode: 57 first,
+  then 20 for the behaviours #94 listed. They run in CI as
+  `just conform-csv`, in the `conformance` job and in the release gate, with
+  a floor of 77 cases. `conformance/cases-csv/README.md` records what each
+  author was given and the questions the first left open.
 
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
