@@ -254,6 +254,43 @@ def test_a_stray_quote_is_refused(tmp_path, field):
     assert rules(check_file(f)) == ["stray-quote"]
 
 
+def test_a_stray_quote_finding_names_its_row_and_only_its_field(tmp_path):
+    """The shape of owid's scripts/input/yougov/mapping.csv: unescaped quotes
+    inside two quoted fields whose first 40 characters are the same. Each
+    finding names its row, as every other CSV-mode finding does, and quotes
+    the field and nothing past it."""
+    data = (
+        b"id,question,scale\r\n"
+        b'q1,"Rate "Not at all" to "Fully" for people",5\r\n'
+        b'q2,"Rate "Not at all" to "Fully" for the state",5\r\n'
+    )
+    found = [f for f in check_file(write(tmp_path, "m.csv", data)) if f.level == "refuse"]
+    assert [str(f).split(":")[0] for f in found] == ["row id='q1'", "row id='q2'"]
+    assert len({str(f) for f in found}) == 2
+    assert all(",5" not in str(f) for f in found), messages(found)
+
+
+def test_a_stray_quote_in_a_short_field_is_quoted_up_to_its_end(tmp_path):
+    f = write(tmp_path, "s.csv", b'id,a,b\nr_01,x"y,next\n')
+    assert messages(check_file(f)) == "row id='r_01': the field 'x\"y' holds a stray quote"
+
+
+def test_a_stray_quote_names_its_row_by_the_declared_key(tmp_path):
+    f = write(tmp_path, "k.csv", b'note,sku\nx"y,s_1\n', {"key": "sku"})
+    assert messages(check_file(f)).startswith("row sku='s_1':")
+
+
+def test_a_stray_quote_in_the_header_names_the_header(tmp_path):
+    f = write(tmp_path, "h.csv", b'id,na"me\nr_01,a\n')
+    assert messages(check_file(f)).startswith("the header row:")
+
+
+def test_the_cap_on_stray_quotes_counts_fields(tmp_path):
+    rows = b"".join(b'r_%d,x"y,z"w\n' % i for i in range(3))
+    found = check_file(write(tmp_path, "c.csv", b"id,a,b\n" + rows))
+    assert str(found[-1]) == "\u2026 and 3 more field(s) with the same problem"
+
+
 def test_a_clean_csv_produces_nothing(tmp_path):
     assert check_file(write(tmp_path, "ok.csv", CLEAN)) == []
 
