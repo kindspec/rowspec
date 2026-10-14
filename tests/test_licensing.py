@@ -66,9 +66,12 @@ def headed_files():
             want[p] = "CC0-1.0"
         elif fnmatch.fnmatch(p, "conformance/*.py") and p.count("/") == 1:
             want[p] = "MIT"
-        elif fnmatch.fnmatch(p, "conformance/reserved/*.md") or fnmatch.fnmatch(
-            p, "conformance/cases-csv/*.md"
-        ):
+        elif fnmatch.fnmatch(p, "conformance/reserved/*.md"):
+            want[p] = "CC0-1.0"
+        elif fnmatch.fnmatch(p, "conformance/cases-csv/*.md") and p.count("/") == 2:
+            # The tree's own prose only. fnmatch's `*` crosses `/`, so without
+            # the depth guard a case's WHY.md -- a fixture, headerless like
+            # every file in a case -- would be required to carry a header.
             want[p] = "CC0-1.0"
         elif top in ("docs", "reference", "export", "tests") and p.endswith((".py", ".md", ".yml")):
             want[p] = DIRECTORIES[top]
