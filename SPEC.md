@@ -1436,6 +1436,28 @@ relaxation**, and the difference must be stated rather than discovered:
   that costs a file to obtain. Key inference was tried and rejected: a
   legitimately non-unique first column produces confident wrong refusals on
   valid data.
+- **column names are exempt from §4.1.9's allowlist.** The allowlist exists so
+  that a name can be written inside a formula, and a CSV has no formulas, so
+  `first name`, `total (USD)` and `a-b` are column names, and so is an empty
+  header cell. Two rules still apply to them, because neither rests on
+  formulas: a column name holding a `Cf` format character is refused (§3:
+  two names that render identically must not coexist), and names compare
+  after NFC, so §9.2 refuses two that normalise alike.
+- **the values of a declared key are refused when empty, or when they hold
+  whitespace or a `Cf` format character** (§4.1.9, §9.16). Any of those lets
+  two ids render alike without being equal, and then refusal 5 never fires.
+  The rest of the allowlist is exempt for the column-name reason: real
+  registry keys include `002RadioTV.do` and `Africa/Abidjan`.
+- **records are RFC 4180's.** A quoted field runs to its closing quote, so a
+  file that ends inside one is refused: the grammar generates no record from
+  the open quote on, and a lenient reader folds every later row into one
+  cell. An empty line is a record of one empty field, not a gap, so §9.6
+  refuses it against a header of more than one column. Only the line break
+  that ends the last record is optional.
+- **conflict markers are §4.1.12's, unchanged.** A line whose first seven
+  characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
+  inside a quoted field included. A shorter run, or one that does not start
+  the line, is data.
 
 An implementation claiming CSV-mode conformance states which profile it means.
 
