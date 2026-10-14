@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "SPDX-License-Identifier: CC0-1.0",
+  "title": "rowspec case bodies",
+  "description": "Applied alongside kindkit's case-tree/expect.schema.json to every expect.json in this tree. It checks one thing: a `refusal` names SPEC.md §9 identifiers, spelled exactly -- one, or a list of at least two where §9 leaves the choice open. README.md in this directory says what each field means.",
+  "type": "object",
+  "properties": {
+    "refusal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/refusal"
+        },
+        {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/refusal"
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "refusal": {
+      "$comment": "SPEC.md §9's identifiers, in §9's order. tests/test_conformance.py fails when this list and §9 differ.",
+      "enum": [
+        "conflict-marker",
+        "duplicate-column",
+        "duplicate-aggregate",
+        "duplicate-declaration",
+        "duplicate-row-id",
+        "row-field-count",
+        "alignment-field-count",
+        "alignment-row-in-data",
+        "rowrel-without-order",
+        "bad-order-column",
+        "unknown-aggregate",
+        "malformed-declaration",
+        "no-table",
+        "bad-encoding",
+        "lone-cr",
+        "bad-identifier",
+        "value-in-computed-cell",
+        "malformed-table-line",
+        "unclassified-line",
+        "malformed-formula",
+        "bad-alignment-row",
+        "computed-column-compared",
+        "nesting-too-deep",
+        "ident-compared-in-if",
+        "order-without-key",
+        "leading-bom"
+      ]
+    }
+  }
+}

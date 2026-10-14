@@ -85,6 +85,9 @@ than the format. A Python implementation reports the identifier as the
 `refusal` attribute of the exception it raises; a runner in another language
 reads it from wherever that language's binding puts it.
 
+`case-body.schema.json` in this directory lists §9's identifiers, so kindkit's
+case-tree validator refuses a `refusal` that is misspelt or names no §9 entry.
+
 Values in `expect.json` are JSON: a number is a number, an error is the string
 `"#REF!(...)"`, a blank cell is `""`.
 

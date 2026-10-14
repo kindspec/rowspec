@@ -25,7 +25,9 @@ prose, and where the two disagree the suite wins.
   `rowspec.Malformed` takes it as the keyword `refusal=`, so existing
   one-argument calls still construct. CSV mode does not report identifiers
   yet, and the CSV-profile cases in `conformance/cases-csv/` still assert
-  `refusal_contains`; SPEC.md §13 says so.
+  `refusal_contains`; SPEC.md §13 says so. `conformance/cases/case-body.schema.json`
+  lists the identifiers, so kindkit's case-tree validator refuses a misspelt
+  one.
 
 - **§9 lists `order-without-key`**, as entry 25. §6 has always required a
   `key` beside `order := by(c)`, and both implementations refused a table
