@@ -1,0 +1,7 @@
+note
+key := id
+key := id
+order := none()
+total := nosuch(qty)
+total := sum(qty)
+g := sum(v)# x
