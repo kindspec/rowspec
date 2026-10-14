@@ -24,6 +24,24 @@ prose, and where the two disagree the suite wins.
   addition can cancel a `sum` or `avg` (#83). So it can disagree with
   `rowspec eval` beyond the last digit.
 
+- **SPEC.md §13 states how the CSV profile reads four rules, and CSV mode
+  now follows it** (#63). Each is a file that used to pass:
+  - a quoted field still open at the end of the file is refused, where a CSV
+    reader folds every later row into that one cell;
+  - an empty line between rows is a record of one empty field (RFC 4180), so
+    it is refused against a wider header instead of being skipped; a single
+    empty line at the end of the file is still accepted;
+  - a line whose first seven characters are a conflict-marker run is refused
+    wherever it appears, as §4.1.12 says, a bare `=======` included;
+  - with a key declared, an empty key value, or one holding whitespace or a
+    `Cf` character, is refused. Only ASCII space and tab are trimmed first.
+
+  §13 also records that column names, and key values apart from those three,
+  are exempt from §4.1.9's allowlist in CSV mode, because the allowlist exists
+  for formulas. That was already CSV mode's behaviour. Only a `Cf` character
+  is still refused in a column name, so other look-alikes, such as an NBSP
+  for a space, are not.
+
 ### Added
 
 - **The exported workbook is checked against LibreOffice** (#36).
