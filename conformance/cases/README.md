@@ -99,3 +99,33 @@ Values in `expect.json` are JSON: a number is a number, an error is the string
   any implementation; a failing case is a finding, not a bug in the case. Add,
   do not edit: changing an existing case to match an implementation is how a
   suite stops measuring anything.
+
+## Provenance of the `refusal` identifiers
+
+The identifiers in this tree's `refusal` fields (#61) were not chosen by
+the author of `reference/rowspec/`. Two separate exports were made from
+commit `ce24fa9`, which was then the head of `main`, with a draft of SPEC.md
+§9 that gave each entry its identifier in place of that commit's `SPEC.md`.
+Neither export held a `.git` directory.
+
+- **The cases** were tagged in an export holding only `SPEC.md` (the draft)
+  and `conformance/cases/`. It held no implementation, no runner and no
+  mutation gate. Each refusing `parse` case's `refusal` was assigned from the
+  draft and the fixture bytes.
+- **`reference/rowspec_alt/`** was tagged separately, in an export holding the
+  same draft `SPEC.md`, `conformance/cases/` without identifiers,
+  `conformance/run_cases.py` and `reference/rowspec_alt/`, but not
+  `reference/rowspec/`.
+
+What is recorded here was checked against the two export directories the
+work left behind. Every file they hold that the tagging did not edit is byte
+for byte the file at `ce24fa9`. Both hold the same draft `SPEC.md`, which is
+in no commit of this repository. The exact commands that made the exports,
+and whether one author or two did the tagging, were not recorded and cannot be
+checked now.
+
+Since then, two identifier assignments have changed with SPEC.md rather than
+with an implementation. `parse/bom-refused` became `leading-bom` when §9.14
+was split. `parse/order-unrecognised-construct-refused` gained
+`rowrel-without-order`: its file also uses `cumulative()`, so with no valid
+`order` declared, §9.9 applies too.

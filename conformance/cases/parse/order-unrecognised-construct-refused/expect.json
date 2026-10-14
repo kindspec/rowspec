@@ -1,5 +1,8 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal": "malformed-declaration"
+  "refusal": [
+    "malformed-declaration",
+    "rowrel-without-order"
+  ]
 }
