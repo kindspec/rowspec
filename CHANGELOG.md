@@ -30,7 +30,7 @@ prose, and where the two disagree the suite wins.
     reader folds every later row into that one cell;
   - an empty line between rows is a record of one empty field (RFC 4180), so
     it is refused against a wider header instead of being skipped; a single
-    blank line at the end of the file is still accepted;
+    empty line at the end of the file is still accepted;
   - a line whose first seven characters are a conflict-marker run is refused
     wherever it appears, as §4.1.12 says, a bare `=======` included;
   - with a key declared, an empty key value, or one holding whitespace or a

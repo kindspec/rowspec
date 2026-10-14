@@ -1450,14 +1450,19 @@ relaxation**, and the difference must be stated rather than discovered:
   is part of the value and is refused. Any of those lets two ids render alike
   without being equal, and then refusal 5 never fires. The rest of the
   allowlist is exempt for the column-name reason: real registry keys include
-  `002RadioTV.do` and `Africa/Abidjan`.
+  `002RadioTV.do` and `Africa/Abidjan`. That exemption has a cost: punctuation
+  look-alikes such as `∕` (U+2215) for `/` or `‐` (U+2010) for `-` are not
+  refused, so §3's guarantee that two identifiers cannot render identically
+  does not hold for CSV key values either.
 - **record boundaries are RFC 4180's.** A quoted field runs to its closing
-  quote, so a file that ends inside one is refused (§9.6): the grammar
-  generates no record from the open quote on, and a lenient reader folds
-  every later row into one cell. An empty line between rows is a record of
+  quote, so a file that ends inside one is refused. This is the profile's
+  reading of §9.6, and it applies whatever the field count: the grammar
+  generates no record from the open quote on, so there is no row whose count
+  could match, and a lenient reader folds every later row into one cell. An empty line between rows is a record of
   one empty field, not a gap, so §9.6 refuses it against a header of more
-  than one column. A single blank line at the end of the file is not between
-  rows and is accepted; a second one is between rows.
+  than one column. A single empty line at the end of the file is not between
+  rows and is accepted; a second one is between rows. A trailing line that
+  holds only spaces or tabs is not empty, and is a record like any other.
 - **conflict markers are §4.1.12's, unchanged.** A line whose first seven
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start

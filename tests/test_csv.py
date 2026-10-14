@@ -136,12 +136,15 @@ def test_field_count(tmp_path):
         b"id,name\nr_01,a\n\nr_02,b",
         b"id,name\r\nr_01,a\r\n\r\nr_02,b\r\n",
         b"id,name\nr_01,a\n\n\n",
+        b"id,name\r\nr_01,a\r\n\r\n\r\n",
+        b"id,name\nr_01,a\n \n",
     ],
 )
 def test_a_blank_line_between_rows_is_a_record_of_one_empty_field(tmp_path, data):
     """RFC 4180: an empty line is a record with one empty field, and against
     a two-field header that is a field-count mismatch. Two blank lines at the
-    end are not "one at the end": the first sits between rows."""
+    end are not "one at the end": the first sits between rows. A trailing line
+    of spaces is not empty at all, so it is a record like any other."""
     found = check_file(write(tmp_path, "b.csv", data))
     assert rules([f for f in found if f.level == "refuse"]) == ["field-count"]
 

@@ -102,7 +102,7 @@ differently from `.mdtbl`, as SPEC.md §13 states:
   first field, is data.
 - **6, field count**: record boundaries are RFC 4180's. An empty line between
   rows is a record of one empty field, so it is refused against a wider
-  header; one blank line at the very end of the file is accepted. A quoted
+  header; one empty line at the very end of the file is accepted. A quoted
   field that the file ends inside is refused outright: a CSV reader would
   otherwise fold every later row into that one cell.
 - **5, duplicate row id**: with a key declared, a key value is also refused

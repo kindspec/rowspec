@@ -14,8 +14,8 @@ Of the thirteen refusals in SPEC.md §9:
   * 3, 7, 8, 9, 11 cannot arise in a CSV -- they are about alignment rows,
     formulas and aggregates, none of which the format has.
 
-§13 also says how a CSV meets three of them: record boundaries are RFC 4180's
-(an empty line between rows is a one-field record, one blank line at the end
+§13 also says how a CSV reads four rules: record boundaries are RFC 4180's
+(an empty line between rows is a one-field record, one empty line at the end
 is accepted, and a quote left open at the end of the file is refused); a
 conflict marker is §4.1.12's line-start rule; and a declared key's values may
 not be empty or hold whitespace or `Cf`. Column names are exempt from §9.16's
@@ -313,7 +313,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     # RFC 4180: an empty line is a record of one empty field, not a gap. The
     # csv module yields `[]` for it; skipping that made the record count
     # depend on the reader, so it is read as `[""]` and the field-count rule
-    # decides, as for any other row. SPEC.md §13 accepts ONE blank line at the
+    # decides, as for any other row. SPEC.md §13 accepts ONE empty line at the
     # end of the file: it is not between rows, and real exports end that way.
     rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]
     body = [r if r else [""] for r in rest]
