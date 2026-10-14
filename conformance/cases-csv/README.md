@@ -149,6 +149,10 @@ text after a closing quote, both refused), the blank line in 7, 11 (a marker
 line is refused inside a quoted field too), and 12. It also withdrew 3. The
 rest stand as the cases read them.
 
+SPEC.md §9.14 has since been split: malformed UTF-8 is still §9.14
+(`bad-encoding`), and a leading BOM is now §9.26 (`leading-bom`). The cases'
+`WHY.md` files keep the numbers they were written with.
+
 The next 20 cases (#94) were written by a second author, also not the author
 of `csvmode.py`, from this export and the text of #94, which lists in spec
 terms the behaviours the first 57 cases left unpinned:

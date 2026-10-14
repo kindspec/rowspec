@@ -840,8 +840,8 @@ class Structure:
 def structure(text):
     st = Structure()
 
-    # §9.14 -- a leading BOM, or bytes that are not well-formed UTF-8.  The
-    # caller decodes, so a BOM survives as U+FEFF.
+    # §9.26 -- a leading BOM. The caller decodes, so a BOM survives as
+    # U+FEFF; bytes that are not well-formed UTF-8 (§9.14) never reach here.
     if text.startswith("﻿"):
         raise Malformed("leading-bom", "leading BOM (§9.26)")
 

@@ -561,7 +561,7 @@ CSV_MUTANTS = {
         "    ragged = [(i, r) for i, r in enumerate(body, 1) if len(r) != len(header)]",
         "    ragged = []",
     ),
-    # --- §3 / §9.14 / §13: encoding ------------------------------------------
+    # --- §3 / §9.14 / §9.26 / §13: encoding ---------------------------------
     "csv-invalid-utf8-is-replaced": (
         '        text = raw.decode("utf-8")',
         '        text = raw.decode("utf-8", "replace")',
