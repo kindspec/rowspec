@@ -84,11 +84,19 @@ def test_conflict_marker_is_refused_where_csv_parses_it_as_data(tmp_path):
     assert ">>>>>>> feature/rename" in messages(found)
 
 
-def test_lone_equals_line_is_not_a_conflict_marker(tmp_path):
-    """Git never emits `=======` without opening with `<<<<<<<`, and a CSV cell
-    legitimately can. Flagging it would be a false positive."""
-    f = write(tmp_path, "e.csv", b"id,rule\nr_01,=======\n")
+def test_a_marker_run_that_does_not_start_the_line_is_data(tmp_path):
+    """SPEC.md §4.1.12 is about a line's first seven characters. A cell
+    holding `=======` after the first field does not start the line."""
+    f = write(tmp_path, "e.csv", b"id,rule\nr_01,=======\nr_02,<<<<<<\n")
     assert check_file(f) == []
+
+
+@pytest.mark.parametrize("line", [b"=======", b"<<<<<<<<", b">>>>>>>x", b"|||||||,a"])
+def test_a_line_starting_with_seven_marker_characters_is_refused(tmp_path, line):
+    """SPEC.md §4.1.12, wherever the line appears: no opening `<<<<<<<` is
+    needed, and nothing has to follow the seven characters."""
+    f = write(tmp_path, "m.csv", b"id\nr_01\n" + line + b"\nr_02\n")
+    assert rules(check_file(f)) == ["conflict-marker"]
 
 
 def test_duplicate_column_name(tmp_path):

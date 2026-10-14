@@ -33,13 +33,10 @@ import unicodedata
 from . import sidecar as sidecar_mod
 from .table import Malformed, _check_ident
 
-# Git writes exactly seven of its marker character, then a space and a label or
-# end of line. `.mdtbl` refuses any line merely starting with those characters;
-# a CSV cell can legitimately hold `<<<`, so CSV mode matches git's real output.
-# `=======` alone is only a conflict if a `<<<<<<<` opened one, and git never
-# emits it otherwise -- checking that ordering removes the one marker that
-# plausibly occurs as data.
-_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})(?: (.*))?$")
+# SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
+# seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
+# it appears. A shorter run, or one that does not start the line, is data.
+_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")
 
 # Deliberately not float(): Python accepts `1_0`, `nan`, `inf` and surrounding
 # whitespace as numbers, and an independent implementation should not have to
@@ -121,28 +118,18 @@ def _conflict_markers(text):
     """SPEC.md §9.1. Python's csv module parses a committed conflict as ordinary
     rows without complaint, which is why this check runs on the raw text."""
     out = []
-    opened = False
     for line in text.splitlines():
-        m = _MARKER.match(line)
-        if not m:
+        if not _MARKER.match(line):
             continue
-        marker, label = m.group(1), m.group(2)
-        if marker.startswith("<"):
-            opened = True
-        elif marker.startswith("=") and not opened:
-            continue
-        shown = f"{marker} {label}" if label else marker
         out.append(
             Finding(
                 "conflict-marker",
-                f"unresolved conflict marker {_show(shown, 60)}",
+                f"unresolved conflict marker {_show(line, 60)}",
                 "A merge was committed before it was finished. Every CSV reader in wide use, "
                 "including Python's, parses these lines as ordinary data rows without "
                 "complaining, so this file currently has rows nobody wrote.",
             )
         )
-        if marker.startswith(">"):
-            opened = False
     return out
 
 
