@@ -24,6 +24,19 @@ prose, and where the two disagree the suite wins.
   addition can cancel a `sum` or `avg` (#83). So it can disagree with
   `rowspec eval` beyond the last digit.
 
+### Added
+
+- **The exported workbook is checked against LibreOffice** (#36).
+  `just test-libreoffice` recalculates every exportable `.mdtbl` in the
+  conformance tree in headless LibreOffice. It asserts that each computed cell
+  and aggregate matches `rowspec eval`, with a `#REF!` coming back as a
+  spreadsheet error. The `xlsx-extra` CI job installs LibreOffice and runs it.
+  The test pins each disagreement to the value LibreOffice gives:
+  - four aggregates from the tree, where §7's exact sum is not a
+    spreadsheet's sequential one (#83);
+  - two tables written for the test, a branch flip under tolerant
+    comparison (#88) and an ordinary-magnitude cancellation (#83).
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

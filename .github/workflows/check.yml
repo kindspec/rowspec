@@ -92,6 +92,20 @@ jobs:
       - name: the exporter, with its optional extra installed
         run: just test-xlsx
 
+      # #36: the exported workbook recalculated by a real spreadsheet engine,
+      # against `rowspec eval`. LibreOffice is not on the runner image, and
+      # `just test-libreoffice` fails rather than skips without it, so a
+      # failed install shows up as a red test, not as a pass over nothing.
+      - name: install LibreOffice
+        if: always()
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice-calc-nogui
+          soffice --version
+      - name: the exported workbook, recalculated by LibreOffice
+        if: always()
+        run: just test-libreoffice
+
   # kindkit's reusable workflow: the case tree against the convention, the
   # suite on the reference implementation, the same tree on the second
   # implementation, and the mutation gate. It reports as `kind /
