@@ -18,5 +18,5 @@ refusal, so an implementation that regresses from refusal to traceback fails
 this case — recognition being total ("every byte sequence has exactly one
 defined outcome", §9) is what is being pinned, not just the verdict.
 
-`refusal_contains` is `""` because §9.10 mandates the refusal without
-mandating a message.
+`refusal` is `bad-order-column`: §9.10 mandates the refusal and its
+identifier, not a message.

@@ -1,5 +1,5 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": "malformed declaration"
+  "refusal": "malformed-declaration"
 }

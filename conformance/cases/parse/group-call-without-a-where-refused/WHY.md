@@ -23,7 +23,8 @@ computes a grand total per row.
 
 The data rows above carry **two** fields against a three-field header, so the
 file is refused under §9.6 (field-count mismatch) no matter how the header
-cell is parsed, and `refusal_contains: ""` accepts any refusal reason. An
+cell is parsed, and `refusal` therefore lists `row-field-count` beside
+`malformed-formula`. An
 implementation that wrongly ACCEPTS a header-cell `sum(a)` therefore passes
 this case: it never tested its name. It still pins something — the file must
 be refused, not repaired — but not the `where`-is-mandatory rule.

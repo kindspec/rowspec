@@ -62,7 +62,7 @@ that is `evaluate(text, base=case_dir)`.
 
 | kind | fields | assertion |
 | --- | --- | --- |
-| `parse` | `accept`, `refusal_contains` | the artifact is accepted, or refused with a message containing that substring |
+| `parse` | `accept`, `refusal` | the artifact is accepted, or refused with that SPEC §9 identifier |
 | `roundtrip` | — | `render(structure(bytes)) == bytes` |
 | `eval` | `aggregates` | each named table-level aggregate has that value |
 | `rowrel` | `row_index`, `column`, `value` | that one cell of that one row, in the *derived* order |
@@ -74,9 +74,16 @@ that is `evaluate(text, base=case_dir)`.
 `rowrel` is named for the operators that motivated it, but it is the general
 single-cell assertion and is what the reserved `lookup()` cases use.
 
-`refusal_contains: ""` means *refuse, for any stated reason*. It is used where
-the spec mandates a refusal but names no message — asserting invented wording
-would test the reference implementation's phrasing rather than the format.
+`refusal` is the identifier that opens the refusal's entry in SPEC §9, such as
+`"duplicate-row-id"`. Where a file violates several refusals and §9 leaves
+which one is reported to the implementation, `refusal` is a list of every
+identifier that applies, and reporting any one of them passes. A refusing
+`parse` case with no `refusal` fails rather than accepting a refusal for any
+reason. The message is never asserted on: implementations word it freely, and
+asserting invented wording would test one implementation's phrasing rather
+than the format. A Python implementation reports the identifier as the
+`refusal` attribute of the exception it raises; a runner in another language
+reads it from wherever that language's binding puts it.
 
 Values in `expect.json` are JSON: a number is a number, an error is the string
 `"#REF!(...)"`, a blank cell is `""`.

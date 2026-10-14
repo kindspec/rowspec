@@ -372,6 +372,16 @@ for r in seq:
         "    d = v - prev",
         "    d = prev - v",
     ),
+    # --- §9 identifiers (#61): refusing is not enough, it must be for the reason
+    # SPEC.md names. Both survive a suite that asserts only THAT a file is refused.
+    "every-refusal-reports-one-identifier": (
+        "        self.refusal = refusal",
+        '        self.refusal = "malformed-formula"',
+    ),
+    "a-missing-order-is-reported-as-a-bad-order-column": (
+        'refusal="rowrel-without-order"',
+        'refusal="bad-order-column"',
+    ),
     # --- aggregate functions -----------------------------------------------------
     "count-off-by-one": (
         'if fn == "count":\n    return len(vals)',
@@ -379,7 +389,8 @@ for r in seq:
     ),
     "unknown-aggregate-function-silently-becomes-sum": (
         'if fn not in ("sum", "count", "min", "max", "avg"):\n'
-        '    raise Malformed(f"unknown aggregate function {fn!r} in {nm!r}")',
+        '    raise Malformed(f"unknown aggregate function {fn!r} in {nm!r}", '
+        'refusal="unknown-aggregate")',
         'if fn not in ("sum", "count", "min", "max", "avg"):\n    fn = "sum"',
     ),
     "sum-crashes-on-a-blank-cell": (

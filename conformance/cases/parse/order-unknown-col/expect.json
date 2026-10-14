@@ -1,5 +1,5 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": "no column"
+  "refusal": "bad-order-column"
 }

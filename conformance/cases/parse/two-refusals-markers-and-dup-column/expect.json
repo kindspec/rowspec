@@ -1,5 +1,9 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": ""
+  "refusal": [
+    "conflict-marker",
+    "duplicate-column",
+    "unclassified-line"
+  ]
 }

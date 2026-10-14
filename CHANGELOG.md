@@ -7,6 +7,33 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Changed
+
+- **Every §9 refusal has a stable identifier, and the suite asserts it**
+  (#61). Each entry in SPEC.md §9 now opens with a name such as
+  `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
+  identifier with the refusal; the message stays free. Refusing `parse` cases
+  replace `refusal_contains` with `refusal`: one identifier where exactly one
+  refusal applies, or a list of every identifier that applies where §9 leaves
+  the choice to the implementation. Before this, 99 of the 116 refusing
+  `parse` cases asserted `refusal_contains: ""` and passed on a refusal for any
+  reason. The runner fails a refusing case that names no identifier, and a
+  case still carrying `refusal_contains`.
+  **This breaks every implementation that claims conformance and does not
+  report identifiers**: it now fails every refusing `parse` case. The Python
+  binding is the `refusal` attribute of the raised exception;
+  `rowspec.Malformed` takes it as the keyword `refusal=`, so existing
+  one-argument calls still construct. CSV mode does not report identifiers
+  yet, because no conformance case runs it (#63).
+
+- **§9 lists `order-without-key`**, as entry 25. §6 has always required a
+  `key` beside `order := by(c)`, and both implementations refused a table
+  without one, but §9 — which says it is complete — did not carry it.
+
+- **§9.14: a leading BOM is `bad-encoding` and nothing else.** It is decided
+  on the bytes before any line is classified. The reference implementation
+  previously refused such a file as an unclassifiable first line.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

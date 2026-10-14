@@ -85,17 +85,33 @@ def adapter_for(impl):
     importlib.reload(ref)
 
     def parse(case):
+        if "refusal_contains" in case.expect:
+            # The field this one replaced. Ignoring it would let a case written
+            # to the old schema assert less than its author meant.
+            yield "`refusal_contains` is no longer read; name the §9 identifier in `refusal`"
+            return
         try:
             ev_at(ref, case.files["input"], case.dir)
             got = None
         except ref.Malformed as ex:
-            got = str(ex)
-        if case.expect["accept"] and got is not None:
-            yield f"expected accept, got {got!r}"
-        elif not case.expect["accept"] and (
-            got is None or case.expect["refusal_contains"] not in got
-        ):
-            yield f"expected refusal ~{case.expect['refusal_contains']!r}, got {got!r}"
+            # SPEC §9: the identifier is read from the refusal, never parsed
+            # out of its message, which each implementation words freely.
+            got = getattr(ex, "refusal", None), str(ex)
+        if case.expect["accept"]:
+            if got is not None:
+                yield f"expected accept, got {got[0]!r}: {got[1]!r}"
+            return
+        want = case.expect.get("refusal")
+        if isinstance(want, str):
+            want = [want]
+        if not want or not all(isinstance(w, str) and w for w in want):
+            # A refusal case naming no identifier passes on a refusal for any
+            # reason, which is the hole this field exists to close (#61).
+            yield f"refusal case names no identifier: refusal={case.expect.get('refusal')!r}"
+        elif got is None or got[0] not in want:
+            yield f"expected refusal {' or '.join(want)}, got " + (
+                "accept" if got is None else f"{got[0]!r}: {got[1]!r}"
+            )
 
     def roundtrip(case):
         out = ref.render(ref.structure(case.files["input"]))

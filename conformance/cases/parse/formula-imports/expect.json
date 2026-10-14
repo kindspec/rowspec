@@ -1,5 +1,8 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": ""
+  "refusal": [
+    "malformed-formula",
+    "unknown-aggregate"
+  ]
 }

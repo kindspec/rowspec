@@ -1,5 +1,9 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": ""
+  "refusal": [
+    "lone-cr",
+    "malformed-table-line",
+    "unclassified-line"
+  ]
 }

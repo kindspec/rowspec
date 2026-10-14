@@ -1,5 +1,5 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": "row order"
+  "refusal": "rowrel-without-order"
 }

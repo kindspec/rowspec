@@ -10,6 +10,5 @@ The escape makes a pipe *writable in a cell*; it does not make it legal in an
 needs saying: `r\|01` is a well-formed cell holding `r|01`, and `r|01` is not a
 well-formed row key.
 
-Left as `refusal_contains: ""` deliberately — §9.16 and §9.5-adjacent
-diagnostics could both reasonably fire, and §9 says which one is reported is
-unspecified.
+`refusal` is `bad-identifier` alone: §9.5 does not apply, because `r|01`
+and `r_02` are distinct keys.

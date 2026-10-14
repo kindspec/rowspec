@@ -1,5 +1,8 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal_contains": "conflict marker"
+  "refusal": [
+    "conflict-marker",
+    "unclassified-line"
+  ]
 }
