@@ -31,7 +31,7 @@ import sys
 import unicodedata
 
 from . import sidecar as sidecar_mod
-from .table import Malformed, _check_ident
+from .table import Malformed
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
@@ -352,31 +352,37 @@ def _near(name, names):
 
 
 def _key_identifiers(body, names, key_idx):
-    """SPEC.md §4.1.9 and §9.16: a value of the declared key column is an
-    `ident`, so it is not empty and holds no whitespace, no `Cf` character and
-    nothing outside the allowlist -- the same check `.mdtbl` applies to its
-    key. An id that renders like another but is not equal to it is the
-    duplicate-key refusal failing to fire."""
+    """SPEC.md §13: a value of the declared key column is refused when it is
+    empty, or holds whitespace or a `Cf` format character (§4.1.9, §9.16).
+    An id that renders like another without being equal to it is the
+    duplicate-key refusal failing to fire, and that is true of any key.
+
+    The rest of §4.1.9's allowlist is not applied. It exists so a name can be
+    written inside a formula, and a CSV has none: `002RadioTV.do` and
+    `Africa/Abidjan` are real registry keys."""
     key = names[key_idx]
     bad = []
     for n, rec in enumerate(body, 1):
         if key_idx >= len(rec):
             continue  # a short row is the field-count refusal's to report
         raw = unicodedata.normalize("NFC", rec[key_idx].strip())
-        try:
-            if raw == "":
-                raise Malformed(f"{key} value is empty, and an id is one or more characters")
-            _check_ident(raw, f"{key} value")
-        except Malformed as e:
-            bad.append((n, rec, str(e)))
+        if raw == "":
+            bad.append((n, rec, f"{key} value is empty, and an id is one or more characters"))
+            continue
+        for ch in raw:
+            if ch.isspace() or unicodedata.category(ch) == "Cf":
+                kind = "whitespace" if ch.isspace() else "the format character"
+                bad.append((n, rec, f"{key} value {_show(raw)} contains {kind} U+{ord(ch):04X}"))
+                break
     findings = []
     _cap(
         findings,
         "key-not-identifier",
         bad,
         lambda b: f"{_name_row(b[1], names, key_idx, b[0])}: {b[2]}",
-        "A key value names its row, so it follows the identifier rule: letters, marks, "
-        "digits and underscore. Two ids that render identically must not both be possible.",
+        "A key value names its row. One that is empty, or that holds a space or an "
+        "invisible character, can render exactly like another id without being equal "
+        "to it, and then no duplicate is ever found.",
     )
     return findings
 

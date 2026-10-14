@@ -239,12 +239,20 @@ def test_keys_that_render_identically_are_one_key(tmp_path):
     assert "U+00E9" in dup[0].detail and "U+0065 U+0301" in dup[0].detail
 
 
-@pytest.mark.parametrize("value", [b"r 1", b"", b"r\xe2\x80\x8b1", b"r.1"])
-def test_a_key_value_is_an_identifier(tmp_path, value):
-    """SPEC.md §4.1.9: values of the key column are `ident`. Whitespace, a
-    `Cf` character, an empty value and punctuation are each refused."""
+@pytest.mark.parametrize("value", [b"r 1", b"", b"r\xe2\x80\x8b1", b"r\xc2\xa01"])
+def test_a_key_value_that_could_render_like_another_is_refused(tmp_path, value):
+    """SPEC.md §13: an empty key value, or one holding whitespace (an NBSP
+    included) or a `Cf` character, is refused when a key is declared."""
     f = write(tmp_path, "i.csv", b"id,name\n" + value + b",a\nr_2,b\n", {"key": "id"})
     assert rules(check_file(f)) == ["key-not-identifier"]
+
+
+@pytest.mark.parametrize("value", [b"002RadioTV.do", b"Africa/Abidjan", b"r-1"])
+def test_key_punctuation_outside_the_allowlist_is_accepted(tmp_path, value):
+    """The rest of §4.1.9's allowlist is for formulas, and a CSV has none.
+    These are real registry ids (iptv-org/database)."""
+    f = write(tmp_path, "i.csv", b"id,name\n" + value + b",a\nr_2,b\n", {"key": "id"})
+    assert check_file(f) == []
 
 
 def test_a_key_rule_needs_a_declared_key(tmp_path):
