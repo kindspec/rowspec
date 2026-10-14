@@ -7,7 +7,35 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Changed
+
+- **xlsx export writes live formulas** (#35). The sheet holds a spreadsheet
+  table named `rowspec`; computed columns are formulas over structured
+  references, and declared aggregates are `SUBTOTAL` forms. Every operand and
+  aggregate is guarded, so a blank operand, text in a summed column, or the
+  minimum of nothing is a spreadsheet error rather than a `0`. What a
+  spreadsheet cannot express is refused with `NotExpressible` and nothing is
+  written: `cumulative`, `prior`, `delta`, any `where` predicate, an `if`
+  comparing a number column against non-empty text, column names that differ
+  only by case, a literal of more than 15 significant digits, and a table with
+  no rows. `python -m rowspec_xlsx` reports a refusal on stderr and exits 1.
+  The workbook recalculates under spreadsheet arithmetic. Tolerant
+  comparison and subtraction can flip an `if` (#88), and left-to-right
+  addition can cancel a `sum` or `avg` (#83). So it can disagree with
+  `rowspec eval` beyond the last digit.
+
 ### Added
+
+- **The exported workbook is checked against LibreOffice** (#36).
+  `just test-libreoffice` recalculates every exportable `.mdtbl` in the
+  conformance tree in headless LibreOffice. It asserts that each computed cell
+  and aggregate matches `rowspec eval`, with a `#REF!` coming back as a
+  spreadsheet error. The `xlsx-extra` CI job installs LibreOffice and runs it.
+  The test pins each disagreement to the value LibreOffice gives:
+  - four aggregates from the tree, where §7's exact sum is not a
+    spreadsheet's sequential one (#83);
+  - two tables written for the test, a branch flip under tolerant
+    comparison (#88) and an ordinary-magnitude cancellation (#83).
 
 - **The runner takes `--profile mdtbl|csv`** (#63). `csv` runs
   `conformance/cases-csv/`, a tree of its own for SPEC.md §13's CSV profile,

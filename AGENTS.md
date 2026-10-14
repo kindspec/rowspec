@@ -55,6 +55,7 @@ just setup    just check    just test    just conform    just mutants
 just conform-alt          # the SECOND implementation, same fixture tree
 just conform-csv          # SPEC.md §13's CSV profile, cases-csv/
 just test-xlsx            # the exporter, WITH its optional extra installed
+just test-libreoffice     # the exported workbook, recalculated by LibreOffice
 ```
 
 [ROADMAP.md](ROADMAP.md) is what is next and what is deliberately not.
