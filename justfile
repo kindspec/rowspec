@@ -82,6 +82,12 @@ conform-csv:
 mutants:
     cd conformance && uv run python mutants.py
 
+# The same gate over SPEC.md §13's CSV profile: csvmode.py, measured by
+# cases-csv/. A separate run with its own report, because the two profiles are
+# two trees and kindkit's check_gate.py ties a report to exactly one.
+mutants-csv:
+    cd conformance && uv run python mutants.py --profile csv
+
 # Validate a file or a directory
 run *ARGS:
     uv run python -m rowspec check {{ARGS}}

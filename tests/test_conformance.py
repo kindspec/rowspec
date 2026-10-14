@@ -40,7 +40,8 @@ def test_second_implementation_passes():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-def test_mutation_gate_is_sound():
+@pytest.mark.parametrize("profile", [(), ("--profile", "csv")], ids=["mdtbl", "csv"])
+def test_mutation_gate_is_sound(profile):
     """Assert the gate's own VERDICT, not a substring of its report.
 
     This asserted `"0 survived" in stdout`, which is true when mutants have
@@ -53,25 +54,34 @@ def test_mutation_gate_is_sound():
     `mutants.py` already decides this correctly and reports it in its exit
     code. Defer to it.
     """
-    r = _run("mutants.py")
+    r = _run("mutants.py", *profile)
     assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_a_gate_profile_that_is_not_known_is_refused():
+    r = _run("mutants.py", "--profile", "xlsx")
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "usage: mutants.py" in r.stderr, r.stderr
 
 
 def _gate_tree(tmp_path):
     """A copy of the gate and what it measures, so a test can plant files in
     it without touching the scratch file of a gate running in this tree."""
-    skip = shutil.ignore_patterns("__pycache__", "mutant_impl.py", ".mutants.lock")
+    skip = shutil.ignore_patterns(
+        "__pycache__", "mutant_impl.py", "mutant_csvmode.py", ".mutants.lock"
+    )
     for name in ("conformance", "reference"):
         shutil.copytree(os.path.join(ROOT, name), tmp_path / name, ignore=skip)
     return tmp_path / "conformance"
 
 
-def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path):
+@pytest.mark.parametrize("name", ["mutant_impl.py", "mutant_csvmode.py"])
+def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path, name):
     """A run killed mid-probe leaves a MUTATED `mutant_impl.py` behind, and the
     file is gitignored, so nothing else shows it. The next run used to write
     over it and delete it, so the evidence of the kill went with it (#81)."""
     conf = _gate_tree(tmp_path)
-    stale = conf / "mutant_impl.py"
+    stale = conf / name
     stale.write_text("# left behind by a killed run\n")
     r = subprocess.run(
         [sys.executable, "mutants.py"], cwd=conf, capture_output=True, text=True, timeout=600

@@ -44,6 +44,12 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **The mutation gate covers CSV mode** (#63). `just mutants-csv` breaks
+  `csvmode.py` in 24 ways and requires `conformance/cases-csv/` to notice: 22
+  are killed, 2 are claimed equivalent with the reason, and none survive. It
+  runs in CI and in the release gate. Eight more defects that no case catches
+  yet are #94, waiting for cases written from the spec.
+
 - **57 CSV-profile conformance cases** (#63) in `conformance/cases-csv/`,
   written from SPEC.md by an author who did not write CSV mode. They run in
   CI as `just conform-csv`, in the `conformance` job and in the release gate,

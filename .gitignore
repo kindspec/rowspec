@@ -43,5 +43,6 @@ htmlcov/
 # rowspec
 .cache/
 mutant_impl.py
+mutant_csvmode.py
 .venv/
 .mutants.lock
