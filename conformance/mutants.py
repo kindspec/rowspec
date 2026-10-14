@@ -504,9 +504,9 @@ for r in seq:
 # A mutant the CSV tree does not kill is a hole, as for the table above. The
 # ones that survived when this table was first written waited, ungated, until
 # a second author wrote cases from the spec for them (kindspec/rowspec#94); they
-# are the section below marked as such. A new survivor goes the same way: an
-# issue in spec terms, a case from someone who has not read csvmode.py, then
-# the mutant joins this table.
+# are the section below marked as such. A new survivor goes the same way: it
+# waits in an issue's text, written in spec terms, until a case from someone
+# who has not read csvmode.py kills it, and then it joins this table.
 CSV_EQUIVALENT = {
     "csv-empty-file-check-removed": (
         "an empty or whitespace-only file then reaches the header check, which "
