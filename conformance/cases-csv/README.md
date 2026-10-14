@@ -83,3 +83,56 @@ applies, or it cannot tell which rule refused the file.
 - **A case may fail.** The suite is written from `SPEC.md` and runs ahead of
   any implementation; a failing case is a finding, not a bug in the case. Add,
   do not edit.
+
+## Provenance
+
+The first cases in this tree (#63) were written by an author who was not the
+author of `reference/rowspec/csvmode.py`. They worked in a directory holding
+only this export, with no `.git` and no implementation:
+
+    git archive 436fd6f SPEC.md conformance ':(exclude)conformance/mutants.py'
+
+`mutants.py` was left out because it quotes the implementation. The author
+wrote 63 cases. The 57 here are byte for byte as written. The other six
+expected a column name outside §4.1.9's allowlist to be refused, and were
+withdrawn when SPEC.md §13 exempted CSV column names from it.
+
+Where the spec left a question open, the author wrote the case their reading
+supported, explained the reading in the case's `WHY.md`, and listed the
+question. Their twelve, as they listed them:
+
+1. **§9.14, a BOM against invalid UTF-8.** Only the BOM becomes a warning;
+   invalid UTF-8 is still refused. (`encoding/invalid-utf8-refused`)
+2. **Which refusals cannot apply in CSV.** Read as: 3, 4, 7–12, 17, 20–24 and
+   the `.mdtbl` forms of 18 and 19 cannot apply; 1, 2, 5 (with a sidecar), 6,
+   13 and 16 apply; 14 and 15 are warnings.
+   (`nonapply/`, `nonapply/pipe-and-hash-values-accepted`)
+3. **A formula-shaped header cell** is a column name, refused under §9.16.
+   Withdrawn: SPEC.md §13 exempts CSV column names from §4.1.9's allowlist.
+4. **A lone CR.** Inside a quoted field it warns. In a file whose lines all
+   end in a lone CR, CR is read as the record break. No case for an unquoted
+   lone CR mid-field. (`encoding/lone-cr-in-quoted-field-warns`,
+   `encoding/lone-cr-line-breaks-warn`)
+5. **Sidecar failure modes.** Invalid JSON, or a key naming a missing column,
+   is refused; a duplicate `key` member is refused by analogy with §9.4. No
+   case for a non-string key. (`identity/sidecar-*`)
+6. **Malformed RFC 4180 quoting.** An unterminated quote is refused. No case
+   for a bare quote inside an unquoted field, or for text after a closing
+   quote. (`rfc4180/unterminated-quote-refused`)
+7. **Blank and `#` lines are records**, refused on field count.
+   (`fieldcount/blank-line-between-rows-refused`,
+   `fieldcount/hash-line-is-a-record-refused`)
+8. **A header-only CSV** is a zero-row table and is accepted; only a
+   zero-byte file is "no table". (`table/header-only-accepted`,
+   `table/empty-file-refused`)
+9. **Identifiers compare after NFC**, with no case folding.
+   (`columns/case-differing-columns-accepted`)
+10. **Whitespace around fields.** No case.
+11. **A conflict marker inside a quoted multi-line value.** No case.
+12. **Key values are identifiers only when a sidecar declares the key.**
+    (`ident/key-value-rules-without-sidecar-accepted`)
+
+SPEC.md §13 has since settled some of these, each in the direction the
+author read it: the unterminated quote in 6, the blank line in 7, 11 (a
+marker line is refused inside a quoted field too), and 12. It also withdrew 3.
+The rest stand as the cases read them.

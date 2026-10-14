@@ -115,6 +115,11 @@ def _stub(tmp_path):
     return str(lib)
 
 
+#: The trees built here are a few cases each, far below the real tree's floor
+#: (`MIN_CSV_CASES`), which would otherwise refuse every one of them.
+SMALL_TREE = ("--min-cases", "1")
+
+
 def _run(*args, pythonpath=None):
     env = dict(os.environ)
     if pythonpath:
@@ -135,6 +140,7 @@ def test_each_check_case_passes_or_fails_as_it_should(tmp_path):
         "csv",
         "--report-json",
         str(report),
+        *SMALL_TREE,
         pythonpath=_stub(tmp_path),
     )
     assert r.returncode == 1, r.stdout + r.stderr
@@ -155,10 +161,10 @@ def test_a_sidecar_beside_the_csv_reaches_the_implementation(tmp_path):
     sidecar = root / "with" / "input.csv.rowspec.json"
     sidecar.write_text('{"key": "a"}')
     lib = _stub(tmp_path)
-    r = _run("_stub_csvmode", str(root), "--profile", "csv", pythonpath=lib)
+    r = _run("_stub_csvmode", str(root), "--profile", "csv", *SMALL_TREE, pythonpath=lib)
     assert r.returncode == 0, r.stdout + r.stderr
     sidecar.unlink()
-    r = _run("_stub_csvmode", str(root), "--profile", "csv", pythonpath=lib)
+    r = _run("_stub_csvmode", str(root), "--profile", "csv", *SMALL_TREE, pythonpath=lib)
     assert r.returncode == 1, r.stdout + r.stderr
 
 
@@ -171,12 +177,12 @@ def test_the_reference_csv_mode_is_bound(tmp_path):
         ("accepted", b"a,b\n", {"accept": True}, True),
     ]
     root = _tree(tmp_path / "tree", cases)
-    r = _run("--profile", "csv", "rowspec.csvmode", str(root))
+    r = _run("--profile", "csv", "rowspec.csvmode", str(root), *SMALL_TREE)
     assert r.returncode == 0, r.stdout + r.stderr
     (root / "accepted" / "expect.json").write_text(
         json.dumps({"kind": "check", "accept": False, "refusal_contains": ""})
     )
-    r = _run("--profile", "csv", "rowspec.csvmode", str(root))
+    r = _run("--profile", "csv", "rowspec.csvmode", str(root), *SMALL_TREE)
     assert r.returncode == 1, r.stdout + r.stderr
 
 
@@ -186,9 +192,18 @@ def test_the_second_implementation_does_not_claim_the_csv_profile(tmp_path):
     pass them or fail them. The tree is populated so that the exit is about
     the implementation and not about an empty root."""
     root = _tree(tmp_path / "tree", CASES[:1])
-    r = _run("rowspec_alt.table", str(root), "--profile", "csv")
+    r = _run("rowspec_alt.table", str(root), "--profile", "csv", *SMALL_TREE)
     assert r.returncode == 2, r.stdout + r.stderr
     assert "does not implement the CSV profile" in r.stderr, r.stderr
+
+
+def test_a_csv_tree_below_its_floor_is_no_verdict(tmp_path):
+    """The CSV profile carries a case-count floor like the .mdtbl one, so a
+    tree that quietly lost most of itself is no verdict rather than a pass."""
+    root = _tree(tmp_path / "tree", [c for c in CASES if c[3]][:1])
+    r = _run("_stub_csvmode", str(root), "--profile", "csv", pythonpath=_stub(tmp_path))
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "expected at least" in r.stderr, r.stderr
 
 
 def test_an_empty_csv_tree_is_no_verdict(tmp_path):

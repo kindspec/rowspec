@@ -63,6 +63,14 @@ jobs:
         if: always()
         run: just test
 
+      # SPEC.md §13's CSV profile: conformance/cases-csv/ against
+      # rowspec.csvmode. Not in the `kind` job: kindkit's workflow requires a
+      # second implementation to run the whole fixture root, and rowspec_alt
+      # claims the .mdtbl profile only (#63).
+      - name: the CSV-profile suite
+        if: always()
+        run: just conform-csv
+
       # NOTE: deliberately NOT run over conformance/cases -- those fixtures are
       # meant to be malformed. This is the recipe a USER should copy: `check`
       # answers "will this survive being edited", `eval` answers "does it

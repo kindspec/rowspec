@@ -1,0 +1,6 @@
+id,expr
+r1,=SUM(A1:A3)
+r2,=qty * unit
+r3,cumulative(amt)
+r4,=1/0
+r5,=((((1))))
