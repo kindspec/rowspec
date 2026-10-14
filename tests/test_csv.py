@@ -129,12 +129,30 @@ def test_field_count(tmp_path):
     assert "row id='r_02' has 2 field(s), the header declares 3" in messages(found)
 
 
-@pytest.mark.parametrize("data", [b"id,name\nr_01,a\n\nr_02,b\n", b"id,name\nr_01,a\n\n"])
-def test_a_blank_line_is_a_record_of_one_empty_field(tmp_path, data):
-    """RFC 4180: an empty line is a record with one empty field. Against a
-    two-field header that is a field-count mismatch, between rows or after
-    them; only the single line break that ends the last record is free."""
-    assert rules(check_file(write(tmp_path, "b.csv", data))) == ["field-count"]
+@pytest.mark.parametrize(
+    "data",
+    [
+        b"id,name\nr_01,a\n\nr_02,b\n",
+        b"id,name\nr_01,a\n\nr_02,b",
+        b"id,name\r\nr_01,a\r\n\r\nr_02,b\r\n",
+        b"id,name\nr_01,a\n\n\n",
+    ],
+)
+def test_a_blank_line_between_rows_is_a_record_of_one_empty_field(tmp_path, data):
+    """RFC 4180: an empty line is a record with one empty field, and against
+    a two-field header that is a field-count mismatch. Two blank lines at the
+    end are not "one at the end": the first sits between rows."""
+    found = check_file(write(tmp_path, "b.csv", data))
+    assert rules([f for f in found if f.level == "refuse"]) == ["field-count"]
+
+
+@pytest.mark.parametrize("data", [b"id,name\nr_01,a\n\n", b"id,name\r\nr_01,a\r\n\r\n"])
+def test_one_blank_line_at_the_end_of_the_file_is_accepted(tmp_path, data):
+    """SPEC.md §13: a single blank line after the last record is not between
+    rows. fivethirtyeight's women-stem.csv, pepecash_prices.csv and
+    xcp_prices.csv each end this way."""
+    found = check_file(write(tmp_path, "b.csv", data))
+    assert [f for f in found if f.level == "refuse"] == []
 
 
 def test_a_blank_line_fits_a_one_column_file(tmp_path):
