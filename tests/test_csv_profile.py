@@ -81,8 +81,7 @@ CASES = [
     ("warned-for-any-reason", b"WARN byte-order mark\n", accept(warns=True), PASS),
     ("warned-for-another-reason", b"WARN BOM\n", accept(warns=True, warning_contains="CR"), FAIL),
     ("no-warning-when-one-expected", b"a,b\n", accept(warns=True), FAIL),
-    ("warned-when-none-expected", b"WARN lone CR\n", accept(warns=False), FAIL),
-    ("silent-as-expected", b"a,b\n", accept(warns=False), PASS),
+    ("warns-false-is-not-assertable", b"a,b\n", accept(warns=False), FAIL),
     ("bytes-that-are-not-utf8", b"\xff\xfe\xc3(,a\n", accept(), PASS),
     ("a-misspelt-field", b"a,b\n", accept(warn=False), FAIL),
     ("refusal-contains-on-an-accept", b"a,b\n", accept(refusal_contains=""), FAIL),
@@ -149,15 +148,18 @@ def test_each_check_case_passes_or_fails_as_it_should(tmp_path):
 def test_a_sidecar_beside_the_csv_reaches_the_implementation(tmp_path):
     """The case directory is the repository root, so a sidecar is the file
     beside `input.csv`. The runner passes the path; the stub warns when it
-    finds the sidecar there, and the case asserts that warning both ways."""
-    cases = [
-        ("with", b"a\n", {"accept": True, "warns": True, "warning_contains": "sidecar"}, True),
-        ("without", b"a\n", {"accept": True, "warns": False}, True),
-    ]
+    finds the sidecar there, so the same case passes with the sidecar and
+    fails once it is gone."""
+    cases = [("with", b"a\n", accept(warns=True, warning_contains="sidecar"), PASS)]
     root = _tree(tmp_path / "tree", cases)
-    (root / "with" / "input.csv.rowspec.json").write_text('{"key": "a"}')
-    r = _run("_stub_csvmode", str(root), "--profile", "csv", pythonpath=_stub(tmp_path))
+    sidecar = root / "with" / "input.csv.rowspec.json"
+    sidecar.write_text('{"key": "a"}')
+    lib = _stub(tmp_path)
+    r = _run("_stub_csvmode", str(root), "--profile", "csv", pythonpath=lib)
     assert r.returncode == 0, r.stdout + r.stderr
+    sidecar.unlink()
+    r = _run("_stub_csvmode", str(root), "--profile", "csv", pythonpath=lib)
+    assert r.returncode == 1, r.stdout + r.stderr
 
 
 def test_the_reference_csv_mode_is_bound(tmp_path):

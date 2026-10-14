@@ -288,8 +288,12 @@ def csv_adapter_for(impl):
         if not isinstance(e.get("accept"), bool):
             yield "'accept' must be true or false"
             return
-        if "warns" in e and not isinstance(e["warns"], bool):
-            yield "'warns' must be true or false"
+        if "warns" in e and e["warns"] is not True:
+            # An implementation may emit advisory warnings the spec does not
+            # require, so the absence of a warning is not something the spec
+            # lets a case assert. `warns: false` would fail a conforming
+            # implementation for saying more than §13 asks.
+            yield "'warns' may only be true: no warning is not something SPEC.md lets a case check"
             return
         if e["accept"]:
             if "refusal_contains" in e:
@@ -333,8 +337,6 @@ def csv_adapter_for(impl):
             want = e.get("warning_contains", "")
             if not any(want in w for w in warnings):
                 yield f"expected a warning ~{want!r}, got {warnings or 'no warning'!r}"
-        elif e.get("warns") is False and warnings:
-            yield f"expected no warning, got {warnings!r}"
 
     return Adapter(fixture_suffixes=(CSV_NOT_A_FIXTURE,), handlers={"check": check})
 

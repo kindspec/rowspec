@@ -46,14 +46,20 @@ apply.
 
 | kind | fields | assertion |
 | --- | --- | --- |
-| `check` | `accept`, `refusal_contains`, `warns`, `warning_contains` | the file is refused, or accepted with or without warnings |
+| `check` | `accept`, `refusal_contains`, `warns`, `warning_contains` | the file is refused, or accepted, or accepted with a warning §13 requires |
 
 - `accept: false` with `refusal_contains`: the file is refused, and at least
   one refusal's message contains that substring.
-- `accept: true`: the file is not refused. `warns: true` adds that at least one
-  warning is reported, and `warning_contains` that one warning's message
-  contains that substring. `warns: false` adds that no warning is reported.
-  Leave `warns` out to assert nothing about warnings.
+- `accept: true`: the file is not refused, and nothing is asserted about
+  warnings. This is the shape of a control case.
+- `accept: true` with `warns: true`: the file is not refused and at least one
+  warning is reported; `warning_contains` adds that one warning's message
+  contains that substring. Assert a warning only where SPEC.md requires one:
+  §13 makes refusals 14 (a BOM) and 15 (a lone CR) warnings in CSV mode.
+
+**There is no `warns: false`.** An implementation may report advisory warnings
+the spec does not require, so "no warning" is not something the spec lets a
+case check. The runner refuses `warns` with any value but `true`.
 
 A refused file asserts nothing about warnings, and an accepted file has no
 refusal to match, so `warns` or `warning_contains` on `accept: false`, and
@@ -64,6 +70,9 @@ silently not checked. So is any field not in the table.
 `warning_contains: ""` means *warn, for any stated reason*. Use them where the
 spec mandates the outcome and names no message: asserting invented wording
 would test one implementation's phrasing rather than the profile.
+
+A `refusal_contains: ""` case must be built so that exactly one refusal
+applies, or it cannot tell which rule refused the file.
 
 ## Ground rules
 
