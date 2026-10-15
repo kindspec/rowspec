@@ -121,6 +121,14 @@ prose, and where the two disagree the suite wins.
   as `bad-order-column`. SPEC.md §9.10 refuses one that "is blank in any
   row"; `rowspec_alt` refused blank only when it was mixed with a value.
 
+- **A header group aggregate over a column that does not exist is
+  `#REF!(name)`, not a refusal** (#100). `| t = sum(nope where a = "x") |`
+  was refused as `malformed-formula` by the reference implementation. SPEC.md
+  §8 makes a name that does not resolve `#REF!(name)`, §4.2 rule 7 rejects
+  refusing an aggregate over an absent column, and §9.20 does not reach a
+  cell the grammar generates. The predicate's own refusals, such as
+  `computed-column-compared`, still apply.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

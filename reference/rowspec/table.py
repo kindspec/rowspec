@@ -1196,9 +1196,18 @@ def evaluate(text):
                     f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
                 )
             if col not in cols:
-                raise Malformed(
-                    f"column {nm!r} aggregates unknown column {col!r}", refusal="malformed-formula"
-                )
+                # §8: a name that does not resolve is #REF!(name), not a
+                # refusal -- §4.2 rule 7's argument, and the leftmost name. The
+                # predicate is still checked, so its own refusals still fire.
+                try:
+                    _predicate(ptext, cols, formulas, "malformed-formula")
+                except KeyError:
+                    pass
+                for r in seq:
+                    r[nm] = f"#REF!({col})"
+                del groups[nm]
+                progressed = True
+                continue
             if col in formulas and any(r.get(col) in (None, "") for r in seq):
                 continue  # its source is not computed yet
             try:
