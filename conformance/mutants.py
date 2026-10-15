@@ -612,6 +612,65 @@ for r in seq:
         "if poisoned is None and (v is None or ovf):",
         "if poisoned is None and v is None:",
     ),
+    # --- §4.2 rule 9: one dependency graph over every computed column ------
+    "a-row-relative-column-has-no-edge-to-its-source": (
+        "        deps[nm] = [src]",
+        "        deps[nm] = []",
+    ),
+    "a-formula-has-no-edge-to-a-row-relative-column": (
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}",
+        "    deps = {nm: [n for n in names_of(t) if n not in rowrel] for nm, t in trees.items()}",
+    ),
+    "a-row-relative-column-over-itself-is-not-a-cycle": (
+        "        deps[nm] = [src]",
+        "        deps[nm] = [src] if src != nm else []",
+    ),
+    "a-group-aggregate-over-itself-is-not-a-cycle": (
+        "        deps[nm] = [col]",
+        "        deps[nm] = [col] if col != nm else []",
+    ),
+    "a-group-aggregate-function-is-not-checked": (
+        '        if fn not in ("sum", "count", "min", "max", "avg"):\n'
+        "            raise Malformed(\n"
+        '                f"unknown aggregate {fn!r} in column {nm!r}", '
+        'refusal="unknown-aggregate"\n'
+        "            )",
+        "        pass",
+    ),
+    # --- §4.2 rule 10 and §8: a header error is the same in every row ------
+    "an-overlong-literal-is-found-per-row": (
+        '        return "#REF!(overflow)" if node.v in (INF, -INF) else None',
+        "        return None",
+    ),
+    "a-data-error-outranks-a-header-error": (
+        "        if err:\n"
+        "            r[nm] = err\n"
+        "            continue\n"
+        "        try:\n"
+        "            r[nm] = ev(tree, r)",
+        "        try:\n"
+        "            r[nm] = ev(tree, r)\n"
+        "            if err:\n"
+        "                r[nm] = err",
+    ),
+    "the-rightmost-header-error-wins": (
+        "        return _header_error(node.l, known) or _header_error(node.r, known)",
+        "        return _header_error(node.r, known) or _header_error(node.l, known)",
+    ),
+    # --- §8: which of several #REF! an aggregate carries ---------------------
+    "a-name-ranks-after-every-shape": (
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 5), e[6:-1]))",
+    ),
+    "names-rank-in-reverse-code-point-order": (
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
+        "    return min(errs, key=lambda e: "
+        "(_REF_RANK.get(e[6:-1], 1), [-ord(ch) for ch in e[6:-1]]))",
+    ),
+    "the-first-error-by-row-wins": (
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
+        "    return errs[0]",
+    ),
 }
 
 

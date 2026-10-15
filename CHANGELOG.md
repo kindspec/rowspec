@@ -193,6 +193,17 @@ prose, and where the two disagree the suite wins.
   missing or cyclic argument to a row-relative call, in the first row too.
   The floor is now 517 cases.
 
+- **The mutation gate covers evaluation order, header errors and the `#REF!`
+  ranking** (#115, #117, #133, #134). Eleven new mutants each break one of
+  them: a dropped edge in the dependency graph (row-relative to its source, a
+  formula to a row-relative column, a `prior` or a group aggregate over
+  itself), an unchecked function in a group call, an overlong literal found
+  per row, a data error outranking a header error, the rightmost header error
+  winning, and an aggregate's `#REF!` chosen with names last, names in
+  reverse code-point order, or by row position. The cases kill every one of
+  them on a wrong answer. `just mutants` reports 97 killed, 0 survived, 2
+  equivalent.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
