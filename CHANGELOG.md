@@ -201,6 +201,24 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **Every computed column is evaluated by dependency over one graph** (#112,
+  #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's
+  operands the values those columns evaluate to, whatever order the header
+  is in, and a cycle `#REF!(cycle)` in every column on it or depending on it.
+  The reference implementation evaluated ordinary formulas, then
+  `prior`/`delta`/`cumulative` in one pass in header order, then group
+  aggregates, and read a computed source back through its printed form. So
+  `delta` and `cumulative` over a computed `1e-05` gave `#REF!(b)`;
+  `cumulative` over a computed `#REF!(/0)` gave `#REF!(b)`; `prior(nope)` was
+  blank in every row and `delta(nope)` blank in the first; `d = prior(d)` was
+  blank rather than a cycle; a row-relative column over a group aggregate, or
+  over a row-relative column written later in the header, read blanks; and a
+  group aggregate over a `prior` column was `#REF!(cycle)`. Ordinary formulas,
+  row-relative columns and group aggregates are now nodes of one graph, each
+  evaluated once the columns it names hold their values, and each reads them
+  as numbers and errors. `rowspec_alt` already gave every one of these
+  answers; a test now holds both to them.
+
 - **A computed cell holding only U+00A0 or another Unicode space is
   `value-in-computed-cell`** (#137). SPEC.md §4.1.4 trims a cell of ASCII
   space and tab only, so such a cell holds a value, and §9.17 refuses a value
