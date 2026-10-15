@@ -243,6 +243,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **An aggregate argument that is not an `ident` is `malformed-declaration`**
+  (#156). SPEC.md §4.1 writes `arg = ident`. The reference implementation
+  matched the argument as any run of characters but whitespace and
+  parentheses, so `t := sum(<U+0000>n)` or `t := sum(n<U+200B>)` gave
+  `#REF!(<argument>)`, and `t := sum()` gave `#REF!()`. It now refuses each,
+  with or without a `where`, as `rowspec_alt` already did.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also

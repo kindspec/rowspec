@@ -118,6 +118,16 @@ def _check_ident(name, what):
             )
 
 
+def _is_ident(name):
+    """§4.1's `ident` as a test: one or more characters, each admitted by
+    `_check_ident`."""
+    try:
+        _check_ident(name, "")
+    except Malformed:
+        return False
+    return name != ""
+
+
 _ANNOT = re.compile(r'"[^"]*"|[ \t]#')
 
 
@@ -224,8 +234,11 @@ def parse(text):
         if ww:
             nm_, fn_, inner = mw.groups()
             col_, ptext = inner[: ww.start()], inner[ww.end() :]
-            if not re.fullmatch(r"[ \t]*[^\s()]+", col_):
-                # §4.1: only WSP may pad the aggregated column, never U+00A0.
+            if not _is_ident(col_.lstrip(WSP)):
+                # §4.1: only WSP may pad the aggregated column, never U+00A0,
+                # and the column is an `ident`: a control or Cf character in
+                # it is a malformed declaration, not a name that resolves to
+                # no column.
                 raise Malformed(
                     f"line {n}: malformed declaration: {line.strip(WSP)!r}",
                     refusal="malformed-declaration",
@@ -282,6 +295,15 @@ def parse(text):
             key = arg
         else:
             _check_ident(name, "aggregate name")
+            if not _is_ident(arg):
+                # §4.1: `arg = ident`. The pattern above admits any character
+                # but whitespace and parentheses, so a control or Cf character
+                # would otherwise become part of a name that resolves to no
+                # column, and the aggregate a #REF! instead of a refusal.
+                raise Malformed(
+                    f"line {n}: malformed declaration: {line.strip(WSP)!r}",
+                    refusal="malformed-declaration",
+                )
             if name in decls:
                 raise Malformed(
                     f"line {n}: duplicate aggregate name {name!r}", refusal="duplicate-aggregate"
