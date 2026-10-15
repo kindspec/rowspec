@@ -97,8 +97,8 @@ stock `git merge`, evaluates the merged file, and asserts on the computed
 number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
-    410 conformance cases          two implementations, both passing
-     77 mutants, all distinct      75 killed, 2 equivalent
+    451 conformance cases          two implementations, both passing
+     88 mutants, all distinct      86 killed, 2 equivalent
                                     0 survived, 0 stale, 0 broken
 
 **The second implementation is the point.** `reference/rowspec_alt/` was written
@@ -110,8 +110,8 @@ where the two disagreed, the independent implementation was correct and the
 reference was wrong.
 
 **The mutation gate is the other half.** The suite is only worth its green tick
-if it can go red, so the implementation is deliberately broken in 75 specific
-ways. 73 must be caught by a case; the other two carry a recorded claim that no
+if it can go red, so the implementation is deliberately broken in 88 specific
+ways. 86 must be caught by a case; the other two carry a recorded claim that no
 input could distinguish them from the original, and the gate fails the run if a
 case turns out to catch one anyway. No two mutants produce the same mutated
 source, and the gate refuses to run if two do. A mutant that survives is reported as a

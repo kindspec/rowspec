@@ -16,6 +16,13 @@ prose, and where the two disagree the suite wins.
   `key := sum(id where g = "a")` as an aggregate named `key`; the second
   implementation refused all three. The reference now refuses them too.
 
+- **A CSV column name is trimmed of ASCII space and tab only before §9.2
+  compares names** (§13; #118), as a key value is (§4.1.4). §13 did not say
+  how a name was trimmed. CSV mode trimmed every Unicode whitespace character,
+  so it refused `a` beside `a<U+00A0>` as `duplicate-column`; those are now
+  two names. A header cell of spaces, one of a tab and an empty one are still
+  one name, and two of them are still a duplicate.
+
 - **Every §9 refusal has a stable identifier, and the suite asserts it**
   (#61). Each entry in SPEC.md §9 now opens with a name such as
   `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
@@ -106,12 +113,27 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **77 CSV-profile conformance cases** (#63, #94) in `conformance/cases-csv/`,
-  written from SPEC.md by two authors who did not write CSV mode: 57 first,
-  then 20 for the behaviours #94 listed. They run in CI as
-  `just conform-csv`, in the `conformance` job and in the release gate, with
-  a floor of 77 cases. `conformance/cases-csv/README.md` records what each
-  author was given and the questions the first left open.
+- **80 CSV-profile conformance cases** (#63, #94, #92) in
+  `conformance/cases-csv/`, written from SPEC.md by authors who did not write
+  CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
+  repeated empty column name (#92). They run in CI as `just conform-csv`, in
+  the `conformance` job and in the release gate, with a floor of 80 cases.
+  `conformance/cases-csv/README.md` records what each author was given and
+  the questions the first left open.
+
+- **28 conformance cases for the overflow, key and predicate fixes** (#100,
+  #102, #107) in `conformance/cases/`, written from SPEC.md without the
+  implementation. They pin `#REF!(overflow)` for infinite operands in
+  aggregates and row expressions, the refusal of a `key :=` naming no stored
+  column, a header group aggregate over a missing column, and predicate
+  refusals behind an unknown name. The floor is now 438 cases.
+
+- **The mutation gate covers those fixes** (#100, #102, #107). Eleven new
+  mutants each undo one fix, and the cases kill every one of them on at least
+  one wrong answer. Thirteen more cases from the same kind of author pin the
+  leftmost unknown name in a predicate, predicate refusals behind a cycle or a
+  missing aggregated column, and `cumulative` across opposite infinities. The
+  floor is now 451 cases.
 
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
