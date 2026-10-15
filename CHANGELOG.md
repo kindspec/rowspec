@@ -277,6 +277,16 @@ prose, and where the two disagree the suite wins.
   no order declared, against a real call that is refused. The floor is now
   604 cases.
 
+- **15 conformance cases for signed non-finite order spellings and
+  row-relative names before a spaced parenthesis** in `conformance/cases/`,
+  written from SPEC.md without the implementation. `-inf`, `+nan`,
+  `-Infinity` and `+INF` in an order column, alone and beside text, are
+  refused as `bad-order-column`, against `--inf`, `+-nan`, `-info` and
+  `- inf`, which are accepted; and `prior (n)`, `delta<TAB>(n)` and
+  `cumulative (n)` with no order declared are `malformed-formula`, not
+  `rowrel-without-order`. The six non-finite cases' `WHY.md` files quote
+  §6 and §9.10 as they now read. The floor is now 619 cases.
+
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break
   one of them: a dropped edge in the dependency graph (a row-relative column to

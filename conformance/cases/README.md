@@ -323,3 +323,37 @@ the case's `WHY.md`.
   Its CSV-profile cases are listed in `cases-csv/README.md`. It writes no
   case for a signed non-finite spelling such as `-inf` in an order column,
   which SPEC.md does not settle.
+- **The tenth batch** was written by an author who was not the author of
+  either implementation and did not read either, against SPEC.md at
+  `e2b121a` in a worktree of that commit, opening only SPEC.md, AGENTS.md,
+  CONTRIBUTING.md, the two case trees, the case-count floors in
+  `conformance/run_cases.py`, the `justfile`, the test names in
+  `tests/test_conformance.py`, and the lines of README.md, ROADMAP.md and
+  CHANGELOG.md that state those counts. Its cases are these, named exactly:
+  - A row-relative name, then a space or tab, then `(`, with no order
+    declared, refused as `malformed-formula` alone:
+    `parse/prior-with-a-space-before-its-paren-without-order-refused`,
+    `parse/delta-with-a-tab-before-its-paren-without-order-refused` and
+    `parse/cumulative-with-a-space-before-its-paren-without-order-refused`.
+  - A signed non-finite spelling in an order column, alone and beside text:
+    `parse/order-column-of-only-minus-inf-refused`,
+    `parse/order-text-column-with-one-minus-inf-cell-refused`,
+    `parse/order-column-of-only-plus-nan-refused`,
+    `parse/order-text-column-with-one-plus-nan-cell-refused`,
+    `parse/order-column-of-only-minus-infinity-mixed-case-refused`,
+    `parse/order-text-column-with-one-minus-infinity-mixed-case-cell-refused`,
+    `parse/order-column-of-only-plus-inf-upper-case-refused` and
+    `parse/order-text-column-with-one-plus-inf-upper-case-cell-refused`.
+  - Their controls, accepted:
+    `parse/order-text-column-with-a-double-minus-inf-cell-accepted`,
+    `parse/order-text-column-with-a-plus-minus-nan-cell-accepted`,
+    `parse/order-text-column-with-a-minus-info-cell-accepted` and
+    `parse/order-text-column-with-a-minus-space-inf-cell-accepted`.
+
+  It also brings the quotations of §6 and §9.10 in the `WHY.md` files of
+  `parse/order-column-of-one-non-finite-spelling-in-mixed-case-refused`,
+  `parse/order-column-of-only-non-finite-spellings-refused`,
+  `parse/order-text-column-with-non-finite-lookalikes-accepted` and
+  `parse/order-text-column-with-one-{inf,infinity,nan}-cell-refused` up to
+  the text that settled the signed spelling, without changing any expected
+  outcome. Its CSV-profile cases are listed in `cases-csv/README.md`.

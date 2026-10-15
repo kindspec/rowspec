@@ -1,0 +1,8 @@
+| id | o | amt |
+| --- | --- | --: |
+| r_01 | -inf | 5 |
+| r_02 | -inf | 7 |
+
+key := id
+order := by(o)
+g := sum(amt)
