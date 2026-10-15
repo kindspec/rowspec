@@ -988,6 +988,11 @@ past a blank produces exactly a stale value, and a plausible one — the reader
 sees a number that was true two rows ago and nothing says so. `cumulative(c)`
 is `#REF!(c)` from the blank row onward, by ordinary propagation.
 
+**`prior(c)` over a text cell is `#REF!(c)`.** A computed value is a number or
+an error (§8), and a value that will not coerce to a number is `#REF!`, so the
+preceding row's text is not carried forward as text. A cell holding only a
+non-ASCII space, such as U+00A0, is text, since trimming removes `WSP` alone.
+
 **`delta(c)` is read as `c - prior(c)`, so §8's leftmost rule decides which
 error it carries: when this row's `c` and the preceding row's both give an
 error, a blank included, `delta(c)` carries this row's.** A blank `c` here
@@ -1376,8 +1381,9 @@ An implementation MUST refuse:
     not this entry
 15. `lone-cr`: a lone `CR` (§3)
 16. `bad-identifier`: an identifier — column name, aggregate name, `key`/`order`
-    argument, or a value of the key column — containing whitespace, a `Cf`
-    format character, or any character outside `ident` (§3, §4, §4.1.9)
+    argument, or a value of the key column — that is empty, or that contains
+    whitespace, a `Cf` format character, or any character outside `ident`
+    (§3, §4, §4.1.9)
 17. `value-in-computed-cell`: a value in a computed cell (§5)
 18. `malformed-table-line`: a table line that does not match `table-line`, in
     particular one lacking its closing `|` (§4.1.3). **A line is a table line
