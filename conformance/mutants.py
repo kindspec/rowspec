@@ -264,8 +264,8 @@ for r in seq:
         "                        _o[nm] = r[nm]",
     ),
     "a-missing-name-is-an-error-only-where-its-branch-is-taken": (
-        "            miss = [n for n in names if n not in known]",
-        "            miss = []",
+        '        return None if node.id in known else f"#REF!({node.id})"',
+        "        return None",
     ),
     "a-missing-column-is-blank-under-a-text-comparison": (
         "    v = env[name]",
