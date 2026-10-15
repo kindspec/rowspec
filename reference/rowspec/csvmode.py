@@ -615,7 +615,8 @@ def _order_column(body, names, side, key_idx):
             f"order column {_show(col)} holds the non-finite spelling {_show(nv[1])} at "
             f"{_name_row(body[nv[0] - 1], names, key_idx, nv[0])}"
         ),
-        "SPEC.md §9.10 refuses inf, nan and infinity, in any case, in an order column.",
+        "SPEC.md §9.10 refuses inf, nan and infinity, in any case and with or without a "
+        "sign, in an order column.",
     )
     return findings
 

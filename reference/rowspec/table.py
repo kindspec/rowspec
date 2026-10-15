@@ -488,9 +488,12 @@ DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 
 
 def is_nonfinite_spelling(v):
-    """SPEC.md §9.10: `inf`, `nan` and `infinity`, in any case. These are text
-    by §4.1.6, so an order column of nothing else is a single type, and §9.10
-    refuses them in any row whatever the rest of the column holds."""
+    """SPEC.md §9.10: `inf`, `nan` and `infinity`, in any case, bare or after
+    one leading `+` or `-`. These are text by §4.1.6, so an order column of
+    nothing else is a single type, and §9.10 refuses them in any row whatever
+    the rest of the column holds."""
+    if v[:1] in ("+", "-"):
+        v = v[1:]
     return v.lower() in ("inf", "nan", "infinity")
 
 

@@ -326,6 +326,16 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **An order column holding a signed non-finite spelling is refused**
+  (#175). SPEC.md §9.10 now refuses `inf`, `nan` and `infinity` in any
+  case after one leading `+` or `-`, as it refuses the bare spelling. The
+  reference read `-inf`, `+NaN` and `-Infinity` as text, so it accepted
+  an order column of them, or one beside other text, which `rowspec_alt`
+  refused. The reference now refuses each as `bad-order-column`, and CSV
+  mode reports `order-non-finite` for the same columns under an `order`
+  sidecar. `--inf`, `- inf`, `inf-` and `-info` are still text and are
+  still accepted.
+
 - **A row-relative name inside a string literal needs no declared order**
   (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
   order, and text inside a `string` is a value (§4.2 rule 6), not an
