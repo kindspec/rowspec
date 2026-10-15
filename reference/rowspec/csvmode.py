@@ -39,18 +39,12 @@ import sys
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
-from rowspec.table import Malformed, split_lines
+from rowspec.table import DATE_RE, Malformed, _isnum, split_lines
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
 # it appears. A shorter run, or one that does not start the line, is data.
 _MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")
-
-# Deliberately not float(): Python accepts `1_0`, `nan`, `inf` and surrounding
-# whitespace as numbers, and an independent implementation should not have to
-# reproduce those quirks to agree with this one.
-_NUMBER = re.compile(r"^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$")
-_DATE = re.compile(r"^\d{1,4}[-/]\d{1,2}[-/]\d{1,2}$")
 
 MAX_EXAMPLES = 3
 
@@ -85,9 +79,13 @@ def _show(s, limit=40):
 
 
 def _type_of(v):
-    if _DATE.match(v):
+    """SPEC.md §4.1.6 and §4.1.7, by the recognisers `table.py` uses for
+    `.mdtbl`: ASCII digits only, no `+`, exponent or one-sided point, and one
+    separator per date. `fullmatch`, because `DATE_RE` ends in `$`, which
+    also matches before a final LF, and a quoted CSV field can end in one."""
+    if DATE_RE.fullmatch(v):
         return "date"
-    if _NUMBER.match(v):
+    if _isnum(v):
         return "number"
     return "text"
 
@@ -218,7 +216,7 @@ def _grouped_header(names, second):
         return None
     if second is None or len(second) != len(names):
         return None
-    below = [c.strip() for c in second]
+    below = [c.strip(" \t") for c in second]
     if len(set(below)) != len(below) or sum(1 for c in below if c) < len(below) - 1:
         return None
     repeated = sorted({n for n in names if names.count(n) > 1 and n})
@@ -382,8 +380,9 @@ def check_text(text, name="<input>", side=None, delimiter=","):
 
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     records = [r for r in reader]
-    if not records or not any(any(c.strip() for c in r) for r in records[:1]):
-        # SPEC.md §9.13 -- a file containing no table.
+    if not records or not any(any(c.strip(" \t") for c in r) for r in records[:1]):
+        # SPEC.md §9.13 -- a file containing no table. §13 trims a name of
+        # ASCII space and tab only, so a U+00A0 header cell is a name.
         raise Malformed("file contains no table: there is no header row")
     header = records[0]
     names, name_findings = _header_names(header, records[1] if len(records) > 1 else None)
@@ -594,7 +593,7 @@ def _order_column(body, names, side, key_idx):
             )
         )
     if "number" in kinds:
-        nonfinite = [(n, v) for n, v in values if _NUMBER.match(v) and not _finite(v)]
+        nonfinite = [(n, v) for n, v in values if _isnum(v) and not _finite(v)]
         _cap(
             findings,
             "order-non-finite",
@@ -621,7 +620,8 @@ def check_file(path):
     side = sidecar_mod.find(path)
     with open(path, "rb") as fh:
         raw = fh.read()
-    if not raw.strip():
+    # ASCII space, tab and line breaks only: VT or FF alone is a column name.
+    if not raw.strip(b" \t\r\n"):
         raise Malformed("file contains no table: the file is empty")
     text, warnings = _decode(raw, "the file")
     if "\r\n" in text:
