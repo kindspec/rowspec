@@ -122,6 +122,18 @@ prose, and where the two disagree the suite wins.
   label from the non-empty ones, and raised `IndexError` when there were
   none. Such a header is now refused as a duplicate column, because §13 makes
   an empty header cell a column name and §9.2 refuses two of one name.
+- **A cell whose binary64 value is infinite is `#REF!(overflow)` as an
+  operand in a row expression, not `inf` or `nan`** (#107). SPEC.md §8 makes
+  such a cell `#REF!(overflow)` wherever it is an operand. The reference
+  implementation passed it on: `a` and `-a` stored an infinity, `a - a`,
+  `a * 0` and `a / a` stored `nan`, `if(a > 0, …)` picked a branch,
+  `prior(a)` stored an infinity in the next row, `delta(a)` subtracted two
+  into `nan`, and `cumulative(a)` went from `#REF!(overflow)` to `nan` after
+  an opposite infinity. A numeric literal too long for binary64 — in
+  arithmetic, as an `if` branch, or as a comparison bound — is
+  `#REF!(overflow)` the same way. `count` over a computed column holding
+  that error is now poisoned by it, as §7 requires. `rowspec_alt` already
+  gave `#REF!(overflow)` in every one; a test now holds both to it.
 
 ## [0.3.0] — 2026-10-08
 
