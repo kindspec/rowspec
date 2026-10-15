@@ -1521,13 +1521,14 @@ class Evaluator:
         if fn == "delta":
             if p == 0:
                 return BLANK
+            # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule this
+            # row's error, a blank included, wins over the preceding row's.
             a, b = vals[p], vals[p - 1]
-            if isinstance(a, Ref):
-                return a
-            if isinstance(b, Ref):
-                return b
-            if a is BLANK or b is BLANK:
-                return Ref(name)
+            for v in (a, b):
+                if isinstance(v, Ref):
+                    return v
+                if v is BLANK:
+                    return Ref(name)
             return fin(a - b)
         total = 0.0
         for i in range(p + 1):

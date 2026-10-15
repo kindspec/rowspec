@@ -9,6 +9,29 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **`delta(c)` carries this row's error when this row and the preceding row
+  both give one** (§7; #116). §7 now reads `delta(c)` as `c - prior(c)`, so
+  §8's leftmost rule decides. SPEC.md did not say, and the two implementations
+  disagreed: over a blank `c` after a stored cell beyond binary64, the
+  reference gave `#REF!(c)` and the second implementation `#REF!(overflow)`.
+  Both now give `#REF!(c)`. The reference also relabelled every error from a
+  computed `c` as `#REF!(c)`; `delta` now carries the error `c` originated,
+  such as `#REF!(/0)`, as §8 requires.
+
+- **`key := fn(col)` is `malformed-declaration`, whatever `fn` is** (§4.1.11,
+  §9.12; #110). `key := col` is `key`'s only form. The grammar generates
+  `key := by(id)`, and SPEC.md did not say whether it was refused. The
+  reference read `key := by(id)` and `key := sum(id)` as `key := id`, and read
+  `key := sum(id where g = "a")` as an aggregate named `key`; the second
+  implementation refused all three. The reference now refuses them too.
+
+- **A CSV column name is trimmed of ASCII space and tab only before §9.2
+  compares names** (§13; #118), as a key value is (§4.1.4). §13 did not say
+  how a name was trimmed. CSV mode trimmed every Unicode whitespace character,
+  so it refused `a` beside `a<U+00A0>` as `duplicate-column`; those are now
+  two names. A header cell of spaces, one of a tab and an empty one are still
+  one name, and two of them are still a duplicate.
+
 - **Every §9 refusal has a stable identifier, and the suite asserts it**
   (#61). Each entry in SPEC.md §9 now opens with a name such as
   `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
@@ -114,6 +137,13 @@ prose, and where the two disagree the suite wins.
   column, a header group aggregate over a missing column, and predicate
   refusals behind an unknown name. The floor is now 438 cases.
 
+- **The mutation gate covers those fixes** (#100, #102, #107). Eleven new
+  mutants each undo one fix, and the cases kill every one of them on at least
+  one wrong answer. Thirteen more cases from the same kind of author pin the
+  leftmost unknown name in a predicate, predicate refusals behind a cycle or a
+  missing aggregated column, and `cumulative` across opposite infinities. The
+  floor is now 451 cases.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
@@ -140,6 +170,13 @@ prose, and where the two disagree the suite wins.
   the computed column, so `count` over that column counted it as a value
   where it must be poisoned. `rowspec_alt` already gave `#REF!(c)`; a test
   now holds both to it. `prior` over a computed column is unchanged here.
+
+- **A blank value in the key column is `bad-identifier`** (#111). SPEC.md
+  §4.1.9 makes a key value an `ident`, one or more characters, so a blank
+  one is not. The reference implementation accepted a table with one blank
+  key and refused two as `duplicate-row-id`, as though two blanks were one
+  id written twice. It now refuses both as `bad-identifier`, before any
+  duplicate check. `rowspec_alt` already did; a test now holds both to it.
 
 - **CSV mode no longer crashes on a header whose only repeated name is
   empty** (#92). The grouped-header check counted empty names, then took its

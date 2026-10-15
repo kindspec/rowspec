@@ -301,7 +301,14 @@ that contain them.
 
 **11. Declarations.** `name := fn(arg)`, with optional `WSP` anywhere `*WSP`
 appears in the grammar; `key := col` is the sole bare form, because `key` names
-a column rather than computing one. A declaration is malformed (§9.12) if it
+a column rather than computing one. **It is also `key`'s only form:
+`key := fn(col)` is malformed (§9.12), whatever `fn` is** — `by`, an aggregate
+function or any other `ident`, with or without a `where`. The `declaration`
+production generates it, because `rhs` does not tie the function form to the
+left-hand name, so the rule is stated here rather than left to the grammar.
+Read as `key := col`, `key := sum(id)` would silently key the table on `id`;
+like a third `order` spelling, it is refused rather than degraded into the form
+it resembles. A declaration is malformed (§9.12) if it
 contains `:=` and does not match `declaration` — including a non-`key` name with
 no function, an unclosed parenthesis, an unrecognised `order` construct such as
 `order := none()`, and any `ident` violating rule 9. **`key := col` is malformed
@@ -979,6 +986,17 @@ past a blank produces exactly a stale value, and a plausible one — the reader
 sees a number that was true two rows ago and nothing says so. `cumulative(c)`
 is `#REF!(c)` from the blank row onward, by ordinary propagation.
 
+**`delta(c)` is read as `c - prior(c)`, so §8's leftmost rule decides which
+error it carries: when this row's `c` and the preceding row's both give an
+error, a blank included, `delta(c)` carries this row's.** A blank `c` here
+beside a stored cell beyond binary64 in the row before is `#REF!(c)`, and the
+same two rows the other way round are `#REF!(overflow)`. Each operand carries the error it originated,
+so a computed `c` holding `#REF!(/0)` here makes `delta(c)` `#REF!(/0)`, not a
+relabelled `#REF!(c)`. **[CHOICE]** — either row would satisfy §6, because the
+preceding row is fixed by the declared order and not by file position. This
+row's is chosen because §7 already defines `delta` as `c` minus `prior(c)`, and
+reading it that way leaves no second rule for a reader to find.
+
 **Per-row group aggregates.** `@c` means *this row's* value of `c`:
 
     | region_total = sum(amount where region = @region) |
@@ -1290,9 +1308,9 @@ An implementation MUST refuse:
     words
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
-    that does not match `declaration`, or a `key := col` whose `col` is not a
-    stored column of the table: no column of that name, or a computed one
-    (§4.1.11)
+    that does not match `declaration`, a `key :=` in function form such as
+    `key := by(id)`, or a `key := col` whose `col` is not a stored column of
+    the table: no column of that name, or a computed one (§4.1.11)
 13. `no-table`: a file containing no table
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
@@ -1492,6 +1510,13 @@ relaxation**, and the difference must be stated rather than discovered:
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
   header cell. Only a `Cf` format character in a column name is still refused,
   and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  **A name is trimmed of ASCII space and tab only before §9.2 compares it**, as
+  a key value is (§4.1.4): `a` with spaces or tabs around it and `a` are one
+  name, and so are a header cell of spaces, one of a tab and an empty one, so
+  any two of them are a duplicate. A leading or trailing non-ASCII space, such
+  as U+00A0, is part of the name, as it is part of a key value, so `a` and
+  `a<U+00A0>` are two names: a look-alike of the kind the next sentence says is
+  not refused.
   **§3's guarantee that two identifiers cannot render identically does not
   hold for CSV column names**: other look-alikes, such as a non-ASCII space in
   place of an ASCII one, are not refused.
