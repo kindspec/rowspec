@@ -201,6 +201,16 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **U+00A0 and other Unicode spaces are not `WSP` around a line, a header
+  cell or a declaration** (#143). SPEC.md §4.1 defines `WSP` as ASCII space
+  and tab only. The reference implementation trimmed lines, header names,
+  formulas and declarations with Python's `str.strip()` and matched them with
+  `\s`, which cover Unicode whitespace, so it accepted U+00A0 after a closing
+  pipe, before a leading pipe or a `#`, on a line of its own, around a header
+  name or a formula, and inside or after a declaration. It now trims and
+  matches ASCII space and tab only, and refuses each of those files as
+  `rowspec_alt` already did; a test now holds both to it.
+
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's
   operands the values those columns evaluate to, whatever order the header
