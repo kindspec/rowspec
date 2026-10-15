@@ -311,7 +311,9 @@ def parse(text):
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
-            if re.search(rf"\b{fn}[ \t]*\(", expr):
+            # §4.2 rule 4: a function name touches its `(`. `prior (n)` is
+            # not a row-relative call, and is refused as a formula below.
+            if re.search(rf"\b{fn}\(", expr):
                 if order is None:
                     raise Malformed(
                         f"column {nm!r} uses row-relative {fn}() but the table "
@@ -1289,7 +1291,9 @@ def _evaluate_columns(seq, cols, formulas):
     computed = frozenset(formulas)
     rowrel, groups, plain = {}, {}, {}
     for nm, expr in formulas.items():
-        m = re.fullmatch(r"[ \t]*(\w+)[ \t]*\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
+        # §4.2: `rowrel-call = rowrel-fn "(" ...`, with no WSP before `(`
+        # (rule 4). Admitting it here read `prior (n)` as `prior(n)`.
+        m = re.fullmatch(r"[ \t]*(\w+)\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
         g = _GROUP.fullmatch(expr.strip(WSP))
         if m and m.group(1) in ROWREL:
             rowrel[nm] = m.groups()

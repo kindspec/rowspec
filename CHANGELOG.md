@@ -243,6 +243,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **WSP between a row-relative function name and its `(` is
+  `malformed-formula`** (#157). SPEC.md §4.2 rule 4 recognises a function
+  name only immediately before `(`. The reference implementation admitted
+  space or tab there, so `p = prior (n)`, `p = delta<TAB>(n)` and
+  `p = cumulative (n)` were evaluated as `prior(n)`, `delta(n)` and
+  `cumulative(n)`, and with no `order` declared were refused as
+  `rowrel-without-order`. Each is now `malformed-formula`, as `rowspec_alt`
+  already gave.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also
