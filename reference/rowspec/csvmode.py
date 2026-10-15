@@ -553,7 +553,8 @@ def _typed_columns(body, names, side, key_idx):
 
 def _order_column(body, names, side, key_idx):
     """SPEC.md §9.10 and §6: the order column must be a stored column with a
-    single type across all rows, and must not contain a non-finite number."""
+    single type across all rows, blank in no row, and must not contain a
+    non-finite number."""
     findings = []
     col = side.order
     if col is None:

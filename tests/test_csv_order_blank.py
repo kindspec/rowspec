@@ -59,3 +59,9 @@ def test_a_file_with_no_data_rows_is_not_refused_on_order():
 
 def test_a_blank_in_a_column_that_is_not_the_order_column_is_not_refused():
     assert rules("id,n,m\na,1,\nb,2, \n") == []
+
+
+def test_an_empty_order_name_on_an_empty_headed_column_refuses_its_blank():
+    """`order: ""` names the empty-headed column (§13), whose blank is refused."""
+    side = sidecar.Sidecar("t.csv.rowspec.json", key="id", order="")
+    assert "order-blank" in rules("id,\na,1\nb,\n", side)
