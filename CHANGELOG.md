@@ -196,6 +196,11 @@ prose, and where the two disagree the suite wins.
 - **2 conformance cases ranking `/0` above `empty`** (#115) in one aggregate,
   with the data lines swapped in the second. The floor is now 519 cases.
 
+- **2 conformance cases for an unknown function in a group aggregate over
+  itself**: it is refused even though the column is on a cycle, since
+  acceptance depends only on the formula's own bytes. A `min` control is
+  accepted. The floor is now 521 cases.
+
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Twelve new mutants each break one
   of them: a dropped edge in the dependency graph (a row-relative column to
