@@ -524,10 +524,8 @@ for r in seq:
         "        return len(vals)",
     ),
     "count-never-poisons": (
-        '    bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]',
-        '    bad = [] if fn == "count" else [\n'
-        '        v for v in vals if isinstance(v, str) and v.startswith("#REF!")\n'
-        "    ]",
+        "    bad = [v for v in vals if _is_ref(v)]",
+        '    bad = [] if fn == "count" else [v for v in vals if _is_ref(v)]',
     ),
     "canon-drops-formulas": (
         'hdr.append(f"{c} = {st[\'formulas\'][c]}" if c in st["formulas"] else c)',
