@@ -342,10 +342,13 @@ def parse(text):
             raise Malformed(f"key := {key} is a computed column", refusal="malformed-declaration")
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
+        # A string literal is a value compared against cell text (§4.2 rule
+        # 6), so `"prior(x)"` inside one is not a row-relative operator.
+        bare = re.sub(r'"[^"]*"', "", expr)
         for fn in ROWREL:
             # §4.2 rule 4: a function name touches its `(`. `prior (n)` is
             # not a row-relative call, and is refused as a formula below.
-            if re.search(rf"\b{fn}\(", expr):
+            if re.search(rf"\b{fn}\(", bare):
                 if order is None:
                     raise Malformed(
                         f"column {nm!r} uses row-relative {fn}() but the table "
