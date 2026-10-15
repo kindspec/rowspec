@@ -9,6 +9,13 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **`key := fn(col)` is `malformed-declaration`, whatever `fn` is** (§4.1.11,
+  §9.12; #110). `key := col` is `key`'s only form. The grammar generates
+  `key := by(id)`, and SPEC.md did not say whether it was refused. The
+  reference read `key := by(id)` and `key := sum(id)` as `key := id`, and read
+  `key := sum(id where g = "a")` as an aggregate named `key`; the second
+  implementation refused all three. The reference now refuses them too.
+
 - **Every §9 refusal has a stable identifier, and the suite asserts it**
   (#61). Each entry in SPEC.md §9 now opens with a name such as
   `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
