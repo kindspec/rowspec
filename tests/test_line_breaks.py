@@ -26,7 +26,7 @@ from rowspec.table import canon, parse  # noqa: E402
 IMPLS = pytest.mark.parametrize("impl", ["rowspec.table", "rowspec_alt.table"])
 BREAKS = pytest.mark.parametrize(
     "ch",
-    ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", " ", " "],
+    ["\x0b", "\x0c", "\x1c", "\x1d", "\x1e", "\x85", "\u2028", "\u2029"],
     ids=lambda c: f"U+{ord(c):04X}",
 )
 STORED = "| id | a |\n| -- | -- |\n| r_1 | x{}y |\n\nkey := id\n"
