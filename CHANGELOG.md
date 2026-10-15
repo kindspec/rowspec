@@ -9,6 +9,13 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **A CSV column name is trimmed of ASCII space and tab only before §9.2
+  compares names** (§13; #118), as a key value is (§4.1.4). §13 did not say
+  how a name was trimmed. CSV mode trimmed every Unicode whitespace character,
+  so it refused `a` beside `a<U+00A0>` as `duplicate-column`; those are now
+  two names. A header cell of spaces, one of a tab and an empty one are still
+  one name, and two of them are still a duplicate.
+
 - **Every §9 refusal has a stable identifier, and the suite asserts it**
   (#61). Each entry in SPEC.md §9 now opens with a name such as
   `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
