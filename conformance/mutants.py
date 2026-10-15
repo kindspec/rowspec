@@ -560,6 +560,43 @@ for r in seq:
         '            r[nm] = "#REF!(overflow)" if prev_ovf else prev',
         "            r[nm] = prev",
     ),
+    "a-predicate-reports-its-last-unknown-name": (
+        "                unknown = unknown or c",
+        "                unknown = c",
+    ),
+    "a-group-predicate-waits-on-its-source": (
+        "            try:\n"
+        "                preds, missing = _predicate(ptext, cols, formulas, "
+        '"malformed-formula"), None\n'
+        "            except KeyError as e:\n"
+        "                preds, missing = None, e.args[0]\n"
+        "            if col not in cols:\n"
+        "                missing = col\n"
+        '            elif col in formulas and any(r.get(col) in (None, "") for r in seq):\n'
+        "                continue",
+        '            if col in formulas and any(r.get(col) in (None, "") for r in seq):\n'
+        "                continue\n"
+        "            try:\n"
+        "                preds, missing = _predicate(ptext, cols, formulas, "
+        '"malformed-formula"), None\n'
+        "            except KeyError as e:\n"
+        "                preds, missing = None, e.args[0]\n"
+        "            if col not in cols:\n"
+        "                missing = col",
+    ),
+    "a-declaration-over-a-missing-column-skips-its-refusals": (
+        "    for nm, (fn, col, pred) in decls.items():\n"
+        '        if fn not in ("sum", "count", "min", "max", "avg"):',
+        "    for nm, (fn, col, pred) in decls.items():\n"
+        "        if col not in cols:\n"
+        '            out[nm] = f"#REF!({col})"\n'
+        "            continue\n"
+        '        if fn not in ("sum", "count", "min", "max", "avg"):',
+    ),
+    "cumulative-is-poisoned-only-by-a-blank": (
+        "if poisoned is None and (v is None or ovf):",
+        "if poisoned is None and v is None:",
+    ),
 }
 
 
