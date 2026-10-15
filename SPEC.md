@@ -955,7 +955,14 @@ all four. Every failure was silent.
 - The sort key is the **tuple** `(typed value of c, key)`. It is never a string
   concatenation: concatenating lets the row id decide the order of rows whose
   keys differ, which would make the id an address after all.
-- Non-finite numbers in `c` are refused.
+- Non-finite numbers in `c` are refused, and so is a non-finite **spelling**
+  (§9.10): `inf`, `nan` or `infinity` in any case, bare or after one leading
+  `+` or `-`. Each is text under §4.1.6, signed or not, but Python's `float()`
+  reads every one of them as a number, so a host that reads the column would
+  sort it differently from rowspec. A sign changes nothing about that:
+  `float()` reads `-inf` as a number exactly as it reads `inf`, so it is
+  refused on the same ground. pandas' `read_csv` reads the `inf` and
+  `infinity` forms the same way, signed or not.
 - **A blank cell in `c` is refused** (§9.10). Blank is none of `number`, `date`
   or `text`, so a column mixing blanks with any of them mixes types.
   **[CHOICE]** against admitting it and sorting blanks first: the order is what
@@ -1367,10 +1374,10 @@ An implementation MUST refuse:
 9. `rowrel-without-order`: a row-relative operator with no declared order
 10. `bad-order-column`: `order := by(c)` where `c` is not a stored column, is
     computed, mixes types, **is blank in any row**, or holds a non-finite
-    spelling (`inf`, `nan`, `infinity`, any case) in any row (§6). Blank is
-    listed explicitly because it is not one of the three types §6 admits, so
-    "mixes types" reaches it only through an argument rather than through the
-    words
+    spelling (`inf`, `nan`, `infinity`, any case, bare or after one leading
+    `+` or `-`) in any row (§6). Blank is listed explicitly because it is not
+    one of the three types §6 admits, so "mixes types" reaches it only through
+    an argument rather than through the words
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
     that does not match `declaration`, a `key :=` in function form such as
