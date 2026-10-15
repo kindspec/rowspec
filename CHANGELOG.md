@@ -252,6 +252,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A row-relative name inside a string literal needs no declared order**
+  (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
+  order, and text inside a `string` is a value (§4.2 rule 6), not an
+  operator. The reference implementation looked for `prior(`, `delta(` and
+  `cumulative(` anywhere in a header formula, so
+  `| p = sum(n where c = "prior(x)") |` in a table with no `order` was
+  refused as `rowrel-without-order`. It now skips string literals, and the
+  formula is accepted, as `rowspec_alt` already did.
+
 - **WSP between a row-relative function name and its `(` is
   `malformed-formula`** (#157). SPEC.md §4.2 rule 4 recognises a function
   name only immediately before `(`. The reference implementation admitted
