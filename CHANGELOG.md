@@ -252,6 +252,19 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **CSV mode reads a header of U+00A0 and other Unicode spaces as column
+  names** (#154). SPEC.md §13 trims a column name of ASCII space and tab
+  only, so a header cell holding U+00A0 is a non-empty name. The check for
+  a missing header row trimmed with Python's `str.strip()`, so a header of
+  `<U+00A0>,<U+2003>` was refused as `file contains no table: there is no
+  header row`, while `<U+00A0>,b` was accepted. It now trims ASCII space
+  and tab only: the first file is accepted, and `<U+00A0>,<U+00A0>` is a
+  duplicate column. Two other checks trimmed too much. A file holding only
+  VT or FF was refused as empty, while `<VT>,x` was accepted; it is now a
+  header of one name. A second row holding `a` and `a<U+00A0>` counted as a
+  repeated name, so a grouped header was reported as duplicate columns; it
+  is now reported as a grouped header.
+
 - **The xlsx export refuses a character XML cannot hold instead of
   crashing or writing a broken file** (#166). §4.1 lets a stored cell or
   string literal hold any C0 control but CR and LF, and U+FFFE and U+FFFF;

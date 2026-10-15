@@ -216,7 +216,7 @@ def _grouped_header(names, second):
         return None
     if second is None or len(second) != len(names):
         return None
-    below = [c.strip() for c in second]
+    below = [c.strip(" \t") for c in second]
     if len(set(below)) != len(below) or sum(1 for c in below if c) < len(below) - 1:
         return None
     repeated = sorted({n for n in names if names.count(n) > 1 and n})
@@ -380,8 +380,9 @@ def check_text(text, name="<input>", side=None, delimiter=","):
 
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     records = [r for r in reader]
-    if not records or not any(any(c.strip() for c in r) for r in records[:1]):
-        # SPEC.md §9.13 -- a file containing no table.
+    if not records or not any(any(c.strip(" \t") for c in r) for r in records[:1]):
+        # SPEC.md §9.13 -- a file containing no table. §13 trims a name of
+        # ASCII space and tab only, so a U+00A0 header cell is a name.
         raise Malformed("file contains no table: there is no header row")
     header = records[0]
     names, name_findings = _header_names(header, records[1] if len(records) > 1 else None)
@@ -619,7 +620,8 @@ def check_file(path):
     side = sidecar_mod.find(path)
     with open(path, "rb") as fh:
         raw = fh.read()
-    if not raw.strip():
+    # ASCII space, tab and line breaks only: VT or FF alone is a column name.
+    if not raw.strip(b" \t\r\n"):
         raise Malformed("file contains no table: the file is empty")
     text, warnings = _decode(raw, "the file")
     if "\r\n" in text:
