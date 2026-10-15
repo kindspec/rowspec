@@ -252,6 +252,12 @@ def parse(text):
         if c in seen:
             raise Malformed(f"duplicate column name {c!r}", refusal="duplicate-column")
         seen.add(c)
+    # §9.12: a key names a stored column, or the declaration is malformed.
+    if key is not None:
+        if key not in cols:
+            raise Malformed(f"key := {key} names no column", refusal="malformed-declaration")
+        if key in formulas:
+            raise Malformed(f"key := {key} is a computed column", refusal="malformed-declaration")
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
@@ -424,7 +430,7 @@ def _predicate(text, cols, computed, refusal):
     `refusal` is the §9 identifier for a predicate the grammar does not
     generate, which depends on where it is written: a header cell or a
     declaration line."""
-    preds = []
+    preds, unknown = [], None
     for part in [x.strip() for x in re.split(r"\s+and\s+", text)]:
         m = _PRED.fullmatch(part)
         if not m:
@@ -436,9 +442,11 @@ def _predicate(text, cols, computed, refusal):
                 # anywhere. Refusing would make the file's ACCEPTANCE depend on
                 # the header rather than on its own bytes -- §4.2 rule 7's
                 # argument, which it made for the aggregated column and which
-                # applies unchanged to the predicate's.
-                raise KeyError(c)
-            if c and c in computed:
+                # applies unchanged to the predicate's. Raised only after
+                # every part is checked: a refusal anywhere in the predicate
+                # outranks a #REF!, which is a value.
+                unknown = unknown or c
+            elif c and c in computed:
                 raise Malformed(
                     f"predicate names computed column {c!r} (§9.22): comparison is on "
                     f"cell text and a computed column has none, so the predicate would "
@@ -446,6 +454,8 @@ def _predicate(text, cols, computed, refusal):
                     refusal="computed-column-compared",
                 )
         preds.append((col, at, lit))
+    if unknown:
+        raise KeyError(unknown)  # the leftmost, per §8
     return preds
 
 
@@ -506,6 +516,11 @@ def _agg(fn, vals, what):
         nums = [num(v) for v in vals if v not in ("", None)]
     except (ValueError, TypeError):
         return f"#REF!({what})"
+    if not all(math.isfinite(x) for x in nums):
+        # §8: a stored cell whose binary64 value is infinite is #REF!(overflow)
+        # wherever it is an operand. `fsum` raises on inf + -inf, and `_exact`
+        # cannot take an infinity's integer ratio, so it must not reach them.
+        return "#REF!(overflow)"
     if fn == "sum":
         got = _exact(nums, 1)
     elif fn == "avg":
@@ -879,9 +894,15 @@ def _number(name, env):
     if v == "":
         raise KeyError(name)
     try:
-        return num(v)
+        got = num(v)
     except (ValueError, TypeError):
         raise KeyError(name) from None
+    if got in (INF, -INF):
+        # §8: a stored cell whose decimal spelling is finite but whose binary64
+        # value is not is #REF!(overflow) wherever it is used as an operand.
+        # Passed on, it reached the output as `inf`, or as `nan` once two met.
+        raise KeyError("overflow")
+    return got
 
 
 def truth(c, env):
@@ -894,9 +915,16 @@ def truth(c, env):
             eq = unicodedata.normalize("NFC", str(lv)) == unicodedata.normalize("NFC", c.rhs)
             return eq if c.op == "=" else not eq
         eq = _number(c.lhs, env) == c.rhs
+        if c.rhs in (INF, -INF):
+            # A `signed` bound too long for binary64 is #REF!(overflow) like any
+            # other operand (§4.2 rule 2). The left-hand side goes first: its
+            # error is the leftmost (§8).
+            raise KeyError("overflow")
         return eq if c.op == "=" else not eq
     a = _number(c.lhs, env)
     b = c.rhs if c.kind == "num" else _number(c.rhs, env)
+    if b in (INF, -INF):
+        raise KeyError("overflow")
     if c.op == "<":
         return a < b
     if c.op == "<=":
@@ -908,6 +936,10 @@ def truth(c, env):
 
 def ev(node, env):
     if isinstance(node, Num):
+        if node.v in (INF, -INF):
+            # §4.2 rule 2 stores no infinity, and a `literal` of four hundred
+            # digits is one: `999...9 * 0` was `nan`.
+            raise KeyError("overflow")
         return node.v
     if isinstance(node, If):
         # ONLY the selected branch. Eager evaluation of both makes
@@ -1151,30 +1183,46 @@ def evaluate(text):
         # §8 forbids a stale value, and skipping a blank row produced exactly
         # one: `prior` reported a number true two rows ago, and `cumulative`
         # resumed as though the blank had not happened.
-        acc, prev, poisoned = 0.0, None, False
+        acc, prev, poisoned = 0.0, None, None
+        prev_ovf = False
         for r in seq:
             raw = str(r.get(src, "")).strip()
             try:
                 v = num(raw)
             except (ValueError, TypeError):
                 v = None
+            # §8: a stored cell whose binary64 value is infinite is
+            # #REF!(overflow) as an operand. Passed on, `delta` subtracted two
+            # infinities into `nan` and `prior` stored `inf`.
+            ovf = v in (INF, -INF)
             if fn == "prior":
                 # `prev` is None only before the first row; after that it is the
                 # preceding row's value, blank included.
-                r[nm] = "" if prev is None else prev
+                if prev is None:
+                    r[nm] = ""
+                else:
+                    r[nm] = "#REF!(overflow)" if prev_ovf else prev
             elif fn == "delta":
                 if prev is None:
                     r[nm] = ""
+                elif ovf:
+                    # An infinite `prev` needs no branch of its own: a finite
+                    # `v` minus it is an infinity, which the step below maps.
+                    r[nm] = "#REF!(overflow)"
                 elif v is None or not isinstance(prev, float):
                     r[nm] = f"#REF!({src})"
                 else:
                     d = v - prev
                     r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
             elif fn == "cumulative":
-                if v is None:
-                    poisoned = True
+                # The first bad CELL sets the label for the rest of the column.
+                # An overflow of the running total itself is not a bad cell: it
+                # is `acc` below, and a later blank still relabels it #REF!(c),
+                # as in `rowspec_alt`. SPEC.md does not order the two.
+                if poisoned is None and (v is None or ovf):
+                    poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
                 if poisoned:
-                    r[nm] = f"#REF!({src})"
+                    r[nm] = poisoned
                 else:
                     acc += v
                     # §8: `inf` is not a `number` under §4.1.6, so storing one
@@ -1182,6 +1230,7 @@ def evaluate(text):
                     # `canon` would not round-trip its own output.
                     r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             prev = raw if v is None else v
+            prev_ovf = ovf
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
     # One fixpoint over BOTH kinds. A group aggregate over a computed column
@@ -1195,17 +1244,23 @@ def evaluate(text):
                 raise Malformed(
                     f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
                 )
-            if col not in cols:
-                raise Malformed(
-                    f"column {nm!r} aggregates unknown column {col!r}", refusal="malformed-formula"
-                )
-            if col in formulas and any(r.get(col) in (None, "") for r in seq):
-                continue  # its source is not computed yet
+            # The predicate first: it depends only on the header, and a
+            # refusal in it must fire whether or not the aggregate ever gets
+            # a value -- a missing column, or a source on a cycle, included.
             try:
-                preds = _predicate(ptext, cols, formulas, "malformed-formula")
+                preds, missing = _predicate(ptext, cols, formulas, "malformed-formula"), None
             except KeyError as e:
+                preds, missing = None, e.args[0]
+            if col not in cols:
+                # §8: a name that does not resolve is #REF!(name), not a
+                # refusal -- §4.2 rule 7's argument -- and the aggregated
+                # column is leftmost, ahead of any name in the predicate.
+                missing = col
+            elif col in formulas and any(r.get(col) in (None, "") for r in seq):
+                continue  # its source is not computed yet
+            if missing:
                 for r in seq:
-                    r[nm] = f"#REF!({e.args[0]})"
+                    r[nm] = f"#REF!({missing})"
                 del groups[nm]
                 progressed = True
                 continue
@@ -1232,16 +1287,25 @@ def evaluate(text):
     # row-relative, computed over the DERIVED order
     out = {}
     for nm, (fn, col, pred) in decls.items():
+        # Refusals first: a missing column is a #REF!, which is a value, and
+        # must not hide an unknown function or a predicate §9 refuses.
+        if fn not in ("sum", "count", "min", "max", "avg"):
+            raise Malformed(
+                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
+            )
+        try:
+            preds_ = _predicate(pred, cols, formulas, "malformed-declaration") if pred else None
+        except KeyError as e:
+            preds_ = e
+        # The leftmost name: the aggregated column precedes the predicate.
         if col not in cols:
             out[nm] = f"#REF!({col})"
             continue
+        if isinstance(preds_, KeyError):
+            out[nm] = f"#REF!({preds_.args[0]})"
+            continue
         rows_ = seq
         if pred:
-            try:
-                preds_ = _predicate(pred, cols, formulas, "malformed-declaration")
-            except KeyError as e:
-                out[nm] = f"#REF!({e.args[0]})"
-                continue
             rows_ = [
                 o
                 for o in seq
@@ -1251,10 +1315,6 @@ def evaluate(text):
                 )
             ]
         vals = [r.get(col) for r in rows_]
-        if fn not in ("sum", "count", "min", "max", "avg"):
-            raise Malformed(
-                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
-            )
         out[nm] = _agg(fn, vals, col)
 
     return seq, out

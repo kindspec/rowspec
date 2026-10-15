@@ -33,6 +33,14 @@ prose, and where the two disagree the suite wins.
   `key` beside `order := by(c)`, and both implementations refused a table
   without one, but §9 — which says it is complete — did not carry it.
 
+- **`key := col` must name a stored column, or it is `malformed-declaration`**
+  (§9.12, §4.1.11, §6; part of #100). A key naming no column, or naming a
+  computed one, had no §9 entry, and the two implementations disagreed: the
+  reference accepted both and the second implementation refused both as
+  `malformed-declaration`. The reference now refuses both too. No new
+  identifier: the declaration names nothing a key can be, which is §9.12's
+  ground.
+
 - **§9 splits encoding into two entries: `bad-encoding` (§9.14) for bytes
   that are not UTF-8, and `leading-bom` (§9.26) for a leading BOM.** Both are
   decided on the bytes before any line is classified. Previously a leading
@@ -114,6 +122,77 @@ prose, and where the two disagree the suite wins.
   against `rowspec.csvmode`; its one case kind, `check`, is described in that
   tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
   `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
+
+### Fixed
+
+- **CSV mode no longer crashes on a header whose only repeated name is
+  empty** (#92). The grouped-header check counted empty names, then took its
+  label from the non-empty ones, and raised `IndexError` when there were
+  none. Such a header is now refused as a duplicate column, because §13 makes
+  an empty header cell a column name and §9.2 refuses two of one name.
+- **A cell whose binary64 value is infinite is `#REF!(overflow)` as an
+  operand in a row expression, not `inf` or `nan`** (#107). SPEC.md §8 makes
+  such a cell `#REF!(overflow)` wherever it is an operand. The reference
+  implementation passed it on: `a` and `-a` stored an infinity, `a - a`,
+  `a * 0` and `a / a` stored `nan`, `if(a > 0, …)` picked a branch,
+  `prior(a)` stored an infinity in the next row, `delta(a)` subtracted two
+  into `nan`, and `cumulative(a)` went from `#REF!(overflow)` to `nan` after
+  an opposite infinity. A numeric literal too long for binary64 — in
+  arithmetic, as an `if` branch, or as a comparison bound — is
+  `#REF!(overflow)` the same way. `count` over a computed column holding
+  that error is now poisoned by it, as §7 requires. Because the infinite
+  operand is now an error where it is read, §8's leftmost rule can pick it:
+  `a + x` with `a` infinite and `x` blank was `#REF!(x)` and is now
+  `#REF!(overflow)`, and so is `if(a > x, …)`. `rowspec_alt` already gave
+  `#REF!(overflow)` in every one; a test now holds both to it.
+
+- **An aggregate over a cell whose binary64 value is infinite is
+  `#REF!(overflow)`** (#102). SPEC.md §8 makes such a cell `#REF!(overflow)`
+  wherever it is an operand. The reference implementation passed it on. For
+  `sum` and `avg`, `evaluate` raised `ValueError` when two infinities of
+  opposite sign met, or `OverflowError` when the finite operands' partial
+  sum also left binary64. For `min` and `max` it returned a silently wrong
+  number whenever the result was finite: `min` over a positive infinity and
+  `1` was `1`, and so was `max` over a negative infinity and `1`, in a
+  declaration and in a header group aggregate alike. `count` is unchanged.
+  `rowspec_alt` already returned `#REF!(overflow)`; a test now holds both to
+  it.
+
+- **`rowspec_alt` refuses an order column that is blank in every row** (#100),
+  as `bad-order-column`. SPEC.md §9.10 refuses one that "is blank in any
+  row"; `rowspec_alt` refused blank only when it was mixed with a value.
+
+- **A header group aggregate over a column that does not exist is
+  `#REF!(name)`, not a refusal** (#100). `| t = sum(nope where a = "x") |`
+  was refused as `malformed-formula` by the reference implementation. SPEC.md
+  §8 makes a name that does not resolve `#REF!(name)`, §4.2 rule 7 rejects
+  refusing an aggregate over an absent column, and §9.20 does not reach a
+  cell the grammar generates. The predicate's own refusals, such as
+  `computed-column-compared`, still apply.
+
+- **A refusal anywhere in a `where` predicate is reported even after a name
+  that does not resolve** (#100). The reference stopped checking a predicate
+  at its first unknown name and gave `#REF!(name)`, so
+  `sum(a where zz = "x" and b = "x")`, with `b` computed, was accepted where
+  §9.22 refuses it, and so was a right-hand side the grammar does not
+  generate, such as `a = 3`. That held in header cells and in declarations.
+  Every part is now checked first, and the leftmost unknown name is reported
+  only if nothing is refused. `rowspec_alt` already did this.
+
+- **A header group aggregate over a column on a cycle still has its
+  predicate checked** (#100). The reference skipped an aggregate whose
+  source column had no value yet, and a source on a cycle never gets one, so
+  `| b = 1 + 1 | t = sum(u where b = "x") | u = t + 1 |` was `#REF!(cycle)`
+  where §9.22 refuses it, and `sum(u where a = 3)` likewise where §9.20
+  does. The predicate depends only on the header and is now checked first.
+  `rowspec_alt` already did this.
+
+- **A declaration over a missing column is still refused when the line
+  breaks a rule** (#100). The reference returned `#REF!(name)` for
+  `g := sum(nope ...)` before checking the function or the predicate, so
+  `g := foo(nope)` was accepted where §9.11 refuses it, and so was a
+  predicate §9.22 or §9.12 refuses. Both are now checked first.
+  `rowspec_alt` already did this.
 
 ## [0.3.0] — 2026-10-08
 

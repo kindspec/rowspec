@@ -1161,6 +1161,12 @@ def validate(st):
             raise Malformed("order-without-key", "order requires a declared key (§6, §9.25)")
         oi = st.col_index[st.order]
         kinds = {order_kind(cell_value(ln.cells[oi]), st.order) for ln in st.row_lines}
+        if "blank" in kinds:
+            # §9.10 names blank in any row outright, so a column blank in
+            # every row is refused too, not only one mixing blank with a type.
+            raise Malformed(
+                "bad-order-column", f"order := by({st.order}) is blank in a row (§9.10)"
+            )
         if len(kinds) > 1:
             raise Malformed(
                 "bad-order-column",
