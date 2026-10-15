@@ -13,7 +13,7 @@ import importlib
 import pytest
 
 IMPLS = pytest.mark.parametrize("impl", ["rowspec.table", "rowspec_alt.table"])
-SPACES = pytest.mark.parametrize("sp", [" ", " ", "　"], ids=["nbsp", "em", "ideo"])
+SPACES = pytest.mark.parametrize("sp", ["\u00a0", "\u2003", "\u3000"], ids=["nbsp", "em", "ideo"])
 
 H = "| id | a | b = a + 1 |\n| -- | -- | -- |\n"
 R = "| r_1 | 1 |  |\n"
