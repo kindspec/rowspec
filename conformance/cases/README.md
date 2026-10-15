@@ -135,3 +135,33 @@ with an implementation. `parse/bom-refused` became `leading-bom` when §9.14
 was split. `parse/order-unrecognised-construct-refused` gained
 `rowrel-without-order`: its file also uses `cumulative()`, so with no valid
 `order` declared, §9.9 applies too.
+
+## Cases written without the implementation
+
+Two later batches were written by authors who were not the author of
+`reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
+Each author derived every expected outcome from SPEC.md, read the existing
+case tree for its format, and recorded the passage the outcome rests on in
+the case's `WHY.md`.
+
+- **The first batch** (#92, #100, #102) was written on a branch from
+  `d51f27a`. In this tree it covers an order column blank in every row,
+  a header group aggregate over a missing column, and `sum` and `avg` over a
+  stored cell beyond binary64. Its CSV-profile cases are in `cases-csv/`.
+  The exact export it was written from is not recorded here.
+- **The second batch** (#100, #107) was written in a directory holding no
+  `.git` and no implementation, made with
+
+      git archive 2975479 SPEC.md README.md CONTRIBUTING.md AGENTS.md conformance/cases conformance/cases-csv
+
+  plus SPEC.md from `3626006`, the branch that adds §4.1.11's rule that
+  `key :=` names a stored column. Issue and pull request descriptions were
+  read for which behaviours to pin and which questions are open, never for
+  an expected value. It covers that rule
+  (`parse/key-names-*`), a stored cell beyond binary64 as an operand of row
+  arithmetic, `if`, `prior`, `delta` and `cumulative`, `min` and `max` over
+  such a cell, and a header `where` predicate that names a missing column
+  before a computed column or before a numeric right-hand side.
+  It writes no case for a question SPEC.md leaves open: which error an
+  aggregate or `delta` carries when its operands hold two different
+  errors, and what a numeric literal beyond binary64 is.
