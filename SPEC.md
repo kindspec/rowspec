@@ -1597,22 +1597,32 @@ relaxation**, and the difference must be stated rather than discovered:
   refused, so §3's guarantee that two identifiers cannot render identically
   does not hold for CSV key values either.
 - **the sidecar is one JSON object with five optional members: `key`,
-  `order`, `order_type`, `columns` and `delimiter`.** It sits beside the CSV, named for
-  it: `data.csv.rowspec.json` for `data.csv`. **The sidecar is UTF-8 JSON
-  with no byte-order mark**: one that starts with a BOM, which RFC 8259 §8.1
-  says JSON text MUST NOT begin with, or that is not UTF-8, is refused, a
-  sidecar encoded as UTF-16 or UTF-32 included. So is a sidecar that is not
-  valid JSON, or not an object, and a member repeated within one object,
-  `columns` included: JSON's last-one-wins is the silent overwrite §9.4 refuses. A
-  member the profile does not define is refused, because a misspelt `oder`
-  would otherwise switch a check off without a word.
+  `order`, `order_type`, `columns` and `delimiter`.** It sits beside the
+  CSV, named for it: `data.csv.rowspec.json` for `data.csv`. **The sidecar
+  is UTF-8 JSON with no byte-order mark.** One that is not UTF-8 is refused,
+  a sidecar encoded as UTF-16 or UTF-32 included, as RFC 8259 §8.1 requires
+  UTF-8 of JSON exchanged outside a closed ecosystem. One that starts with a
+  BOM is refused too, and that is this profile's choice: §8.1 says
+  implementations "MUST NOT add a byte order mark" and that a parser "MAY
+  ignore the presence of a byte order mark rather than treating it as an
+  error", so a reader that ignored one would be conforming JSON. Refusing it
+  keeps one sidecar readable by every JSON parser, the strict ones included.
+  So is a sidecar that is not valid JSON, or not an object, and a member
+  repeated within one object, `columns` included: JSON's last-one-wins is
+  the silent overwrite §9.4 refuses. A member the profile does not define is
+  refused, because a misspelt `oder` would otherwise switch a check off
+  without a word.
   **A fifth optional member, `delimiter`, names the field separator**: a
   string of exactly one Unicode scalar value other than `"`, CR or LF.
   Anything else is refused: a non-string, an empty string, a longer one, and
   those three, which RFC 4180 reserves for quoting and for ending a record,
   so a delimiter equal to one of them leaves the record boundaries
   undefined. Without `delimiter`, the separator is a tab for a file whose
-  name ends in `.tsv` or `.tab`, in any case, and a comma otherwise.
+  name ends in `.tsv` or `.tab`, in any case, and a comma otherwise. The
+  delimiter is used as written, not NFC-normalised. A file that starts with
+  U+FEFF is read as starting with a BOM, warned on as above, before its
+  records are split, so this holds even when the delimiter is U+FEFF: that
+  first U+FEFF is never a separator.
   **A sidecar names a column as §9.2 compares names in this profile**: after
   trimming ASCII space and tab only, and after NFC. So `" joined"` names the
   column `joined`, and `""` names a column whose header cell is empty. A

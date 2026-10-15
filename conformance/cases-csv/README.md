@@ -44,9 +44,9 @@ declared key, and refusal 5 cannot apply.
 §13 defines four more members, each optional: `order` names the column
 that orders the rows and needs `key`, `order_type` declares its type and
 needs `order`, `columns` maps column names to a declared type, and
-`delimiter` names the field separator, one character other than `"`, CR or
-LF, which defaults to a comma for `input.csv`. A case uses them as it uses
-`key`:
+`delimiter` names the field separator, one Unicode scalar value other than
+`"`, CR or LF, which defaults to a comma for `input.csv`. A case uses them
+as it uses `key`:
 
 ```json
 { "key": "id", "order": "joined", "order_type": "date",
