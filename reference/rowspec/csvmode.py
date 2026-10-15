@@ -563,6 +563,20 @@ def _order_column(body, names, side, key_idx):
             f"{side.path.rsplit('/', 1)[-1]} declares order by {_show(col)} but the file "
             f"has no such column" + _near(col, names)
         )
+    # SPEC.md §13 and §9.10: blank is none of the three types, so an order
+    # column blank in any row, a cell of spaces or tabs included, is refused.
+    blank = [n for n, v in _column_values(body, names, col) if v == ""]
+    _cap(
+        findings,
+        "order-blank",
+        blank,
+        lambda n: (
+            f"order column {_show(col)} is blank at {_name_row(body[n - 1], names, key_idx, n)}"
+        ),
+        "An order needs a place for every row, and a blank value has none: it is "
+        "neither a number, a date nor text, so implementations disagree about where "
+        "that row sorts.",
+    )
     values = [(n, v) for n, v in _column_values(body, names, col) if v != ""]
     kinds = {}
     for n, v in values:

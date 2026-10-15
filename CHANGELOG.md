@@ -299,6 +299,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A blank cell in a CSV sidecar's `order` column is refused** (#180).
+  SPEC.md §13 applies §6's order rules to the column a sidecar's `order`
+  names, and refuses it when it is blank in any row, a cell of spaces or
+  tabs included, since blank is none of the three types. CSV mode dropped
+  blank values before typing the column, so `id,n / a,1 / b,` was
+  accepted. It now reports `order-blank`, naming the row. A file with no
+  data rows is still not refused on `order`, and a cell holding only a
+  non-ASCII space such as U+00A0 is text, not blank.
+
 - **A row-relative name inside a string literal needs no declared order**
   (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
   order, and text inside a `string` is a value (§4.2 rule 6), not an
