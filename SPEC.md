@@ -1498,6 +1498,13 @@ relaxation**, and the difference must be stated rather than discovered:
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
   header cell. Only a `Cf` format character in a column name is still refused,
   and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  **A name is trimmed of ASCII space and tab only before §9.2 compares it**, as
+  a key value is (§4.1.4): `a` with spaces or tabs around it and `a` are one
+  name, and so are a header cell of spaces, one of a tab and an empty one, so
+  any two of them are a duplicate. A leading or trailing non-ASCII space, such
+  as U+00A0, is part of the name, as it is part of a key value, so `a` and
+  `a<U+00A0>` are two names: a look-alike of the kind the next sentence says is
+  not refused.
   **§3's guarantee that two identifiers cannot render identically does not
   hold for CSV column names**: other look-alikes, such as a non-ASCII space in
   place of an ASCII one, are not refused.
