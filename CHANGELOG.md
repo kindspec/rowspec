@@ -115,6 +115,12 @@ prose, and where the two disagree the suite wins.
   tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
   `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
 
+### Fixed
+
+- **`rowspec_alt` refuses an order column that is blank in every row** (#100),
+  as `bad-order-column`. SPEC.md §9.10 refuses one that "is blank in any
+  row"; `rowspec_alt` refused blank only when it was mixed with a value.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI
