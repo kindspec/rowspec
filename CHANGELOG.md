@@ -167,6 +167,13 @@ prose, and where the two disagree the suite wins.
   column, a header group aggregate over a missing column, and predicate
   refusals behind an unknown name. The floor is now 438 cases.
 
+- **The mutation gate covers those fixes** (#100, #102, #107). Eleven new
+  mutants each undo one fix, and the cases kill every one of them on at least
+  one wrong answer. Thirteen more cases from the same kind of author pin the
+  leftmost unknown name in a predicate, predicate refusals behind a cycle or a
+  missing aggregated column, and `cumulative` across opposite infinities. The
+  floor is now 451 cases.
+
 - **32 conformance cases for the spec rulings and reference fixes** (#110,
   #111, #114, #115, #116, #117, #126) in `conformance/cases/`, written from
   SPEC.md without the implementation: `key :=` in function form, the ranking
@@ -174,13 +181,6 @@ prose, and where the two disagree the suite wins.
   with errors in both rows, overlong literals and header errors, blank key
   values, `prior` over text, and stored text spelled like an error. The floor
   is now 483 cases.
-
-- **The mutation gate covers those fixes** (#100, #102, #107). Eleven new
-  mutants each undo one fix, and the cases kill every one of them on at least
-  one wrong answer. Thirteen more cases from the same kind of author pin the
-  leftmost unknown name in a predicate, predicate refusals behind a cycle or a
-  missing aggregated column, and `cumulative` across opposite infinities. The
-  floor is now 451 cases.
 
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
