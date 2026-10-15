@@ -347,9 +347,12 @@ for r in seq:
         "if bad:\n    return _first_ref(bad)",
         "if bad:\n    return 0.0",
     ),
+    # Each row gets the running total of the rows BEFORE it. The earlier
+    # spelling of this mutant replaced the poisoning branch instead, so a blank
+    # reached `acc += v` and most cases died by TypeError, not by a total.
     "off-by-one-cumulative": (
-        "if poisoned:\n    r[nm] = poisoned\nelse:\n    acc += v",
-        'if fn == "cumulative":\n    r[nm] = acc\n    acc += v',
+        'acc += v\nr[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc',
+        "r[nm] = acc\nacc += v",
     ),
     "render-drops-tail": (
         'out += st["row_raws"]\nout += st["tail"]',
@@ -462,6 +465,15 @@ for r in seq:
     # Evaluation is now one dependency graph, so the defect is a missing
     # EDGE: an ordinary formula that does not wait for the row-relative or
     # group column it names reads that column's empty stored cells.
+    #
+    # Only the GROUP half of this mutant is caught. Dropping just the edge to
+    # a row-relative column survives the tree: `_evaluate_columns` visits
+    # `sorted(pending)`, and in every case that has an ordinary formula over a
+    # row-relative column the source's name happens to sort first, so it is
+    # evaluated first without the edge. The gap waits for a case, from an
+    # author who has not read table.py, whose dependent column sorts before
+    # its row-relative source. `tests/test_dependency_order.py` covers it for
+    # the two implementations in the meantime.
     "plain-pass-runs-only-once": (
         "    deps = {nm: names_of(t) for nm, t in trees.items()}",
         "    deps = {nm: [n for n in names_of(t) if n in trees] for nm, t in trees.items()}",
