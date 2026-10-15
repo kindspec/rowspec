@@ -163,6 +163,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A blank value in the key column is `bad-identifier`** (#111). SPEC.md
+  §4.1.9 makes a key value an `ident`, one or more characters, so a blank
+  one is not. The reference implementation accepted a table with one blank
+  key and refused two as `duplicate-row-id`, as though two blanks were one
+  id written twice. It now refuses both as `bad-identifier`, before any
+  duplicate check. `rowspec_alt` already did; a test now holds both to it.
+
 - **CSV mode no longer crashes on a header whose only repeated name is
   empty** (#92). The grouped-header check counted empty names, then took its
   label from the non-empty ones, and raised `IndexError` when there were

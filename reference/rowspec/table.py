@@ -318,6 +318,15 @@ def parse(text):
         rows.append(row)
     if key:
         for r in rows:
+            if str(r.get(key, "")) == "":
+                # §4.1.9: an ident is one or more characters, so a blank key
+                # is not one -- and it must not fall through to §9.5, where
+                # two blanks would be called duplicates of each other.
+                raise Malformed(
+                    f"row key {key}= is blank; a row id is an ident of one or "
+                    f"more letters, marks, digits or underscores (§4.1.9)",
+                    refusal="bad-identifier",
+                )
             _check_ident(str(r.get(key, "")), f"row key {key}=")
         ids = [r.get(key) for r in rows]
         if len(set(ids)) != len(ids):
