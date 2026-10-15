@@ -243,6 +243,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **CSV mode reads a header of U+00A0 and other Unicode spaces as column
+  names** (#154). SPEC.md §13 trims a column name of ASCII space and tab
+  only, so a header cell holding U+00A0 is a non-empty name. The check for
+  a missing header row trimmed with Python's `str.strip()`, so a header of
+  `<U+00A0>,<U+2003>` was refused as `file contains no table: there is no
+  header row`, while `<U+00A0>,b` was accepted. It now trims ASCII space
+  and tab only: the first file is accepted, and `<U+00A0>,<U+00A0>` is a
+  duplicate column.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also

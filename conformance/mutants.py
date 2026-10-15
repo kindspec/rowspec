@@ -868,8 +868,8 @@ CSV_MUTANTS = {
         "        grouped = None",
     ),
     "csv-header-only-file-is-no-table": (
-        "    if not records or not any(any(c.strip() for c in r) for r in records[:1]):",
-        "    if len(records) < 2 or not any(any(c.strip() for c in r) for r in records[:1]):",
+        '    if not records or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
+        '    if len(records) < 2 or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
     ),
     "csv-sidecar-key-naming-no-column-is-ignored": (
         "        if side.key not in names:",
