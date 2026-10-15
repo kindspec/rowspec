@@ -218,7 +218,7 @@ def _grouped_header(names, second):
         return None
     if second is None or len(second) != len(names):
         return None
-    below = [c.strip() for c in second]
+    below = [c.strip(" \t") for c in second]
     if len(set(below)) != len(below) or sum(1 for c in below if c) < len(below) - 1:
         return None
     repeated = sorted({n for n in names if names.count(n) > 1 and n})

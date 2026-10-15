@@ -252,7 +252,9 @@ prose, and where the two disagree the suite wins.
   and tab only: the first file is accepted, and `<U+00A0>,<U+00A0>` is a
   duplicate column. Two other checks trimmed too much. A file holding only
   VT or FF was refused as empty, while `<VT>,x` was accepted; it is now a
-  header of one name.
+  header of one name. A second row holding `a` and `a<U+00A0>` counted as a
+  repeated name, so a grouped header was reported as duplicate columns; it
+  is now reported as a grouped header.
 
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference

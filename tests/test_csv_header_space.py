@@ -77,3 +77,18 @@ def test_a_file_of_ascii_space_tab_and_line_breaks_is_still_empty(tmp_path, body
     """Control: what the empty-file check still trims."""
     with pytest.raises(Malformed, match="no table"):
         check(tmp_path, body)
+
+
+def test_a_unicode_space_does_not_make_a_second_row_name_repeat(tmp_path):
+    """`_grouped_header` asks whether the row below holds distinct names.
+    `a` and `a<U+00A0>` are two names by §13, so the shape is a grouped
+    header and is reported as one, not as two duplicate columns."""
+    body = "G,G,G,H,H,H\na,a\u00a0,b,c,d,e\n1,2,3,4,5,6\n"
+    assert rules(check(tmp_path, body)) == ["grouped-header"]
+
+
+def test_an_ascii_space_still_makes_a_second_row_name_repeat(tmp_path):
+    """Control: `a` and `a ` are one name, so the row below is not a row of
+    distinct names and the repeats are duplicate columns."""
+    body = "G,G,G,H,H,H\na,a ,b,c,d,e\n1,2,3,4,5,6\n"
+    assert rules(check(tmp_path, body)) == ["duplicate-column"]
