@@ -252,6 +252,12 @@ def parse(text):
         if c in seen:
             raise Malformed(f"duplicate column name {c!r}", refusal="duplicate-column")
         seen.add(c)
+    # §9.12: a key names a stored column, or the declaration is malformed.
+    if key is not None:
+        if key not in cols:
+            raise Malformed(f"key := {key} names no column", refusal="malformed-declaration")
+        if key in formulas:
+            raise Malformed(f"key := {key} is a computed column", refusal="malformed-declaration")
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
