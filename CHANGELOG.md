@@ -9,6 +9,15 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **SPEC.md states two rules directly that it reached only by inference**
+  (§7, §9.16; #140). `prior(c)` over a text cell is `#REF!(c)`, a cell
+  holding only a non-ASCII space included, and an empty identifier, such as
+  a blank key value, is `bad-identifier`. Neither changes what the spec
+  requires: the first followed from §4.2 rule 10 and §8, and the second
+  from §4.1.9's `1*`, which already makes an empty identifier refused. The
+  empty case applies to every identifier §9.16 lists, a column name and a
+  `key`/`order` argument included.
+
 - **In the first row, `delta(c)` carries `c`'s error when `c` gives one**
   (§7; #142). SPEC.md read `delta(c)` as `c - prior(c)` but did not say what
   the first row gives, which has no preceding row. It is blank only when `c`
@@ -255,6 +264,28 @@ prose, and where the two disagree the suite wins.
   header of one name. A second row holding `a` and `a<U+00A0>` counted as a
   repeated name, so a grouped header was reported as duplicate columns; it
   is now reported as a grouped header.
+
+- **The xlsx export refuses a character XML cannot hold instead of
+  crashing or writing a broken file** (#166). §4.1 lets a stored cell or
+  string literal hold any C0 control but CR and LF, and U+FFFE and U+FFFF;
+  #144 added form feed and vertical tab, which used to end a line. The XML
+  an `.xlsx` is made of has no character for any of them except tab, LF and
+  CR. openpyxl raised `IllegalCharacterError` on a C0 control, and wrote
+  U+FFFE or U+FFFF into a file no reader could parse, which LibreOffice
+  opened with the value silently dropped. The exporter now raises
+  `NotExpressible`, as it does for anything else a spreadsheet cannot say,
+  and checks the sheet title the same way.
+
+- **CSV mode reads numbers and dates by §4.1.6 and §4.1.7** (#155). CSV
+  mode had regexes of its own, which matched any Unicode decimal digit,
+  accepted a leading `+`, exponent notation, `.5` and `5.`, accepted two
+  different separators in one date, and matched a quoted value ending in an
+  LF. So a column declared `number` accepted `+5`, `1e3` and Arabic-Indic
+  `<U+0665>`, a column declared `date` accepted `2024-01/05`, and an order
+  column holding `1e3` beside `6` was accepted. CSV mode now uses the
+  recognisers `.mdtbl` uses: each of those values is text, so the typed
+  column reports it and the order column mixes types. `1e999` in an order
+  column is now text rather than a non-finite number.
 
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference

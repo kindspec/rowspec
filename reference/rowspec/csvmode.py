@@ -39,18 +39,12 @@ import sys
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
-from rowspec.table import Malformed, split_lines
+from rowspec.table import DATE_RE, Malformed, _isnum, split_lines
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
 # it appears. A shorter run, or one that does not start the line, is data.
 _MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")
-
-# Deliberately not float(): Python accepts `1_0`, `nan`, `inf` and surrounding
-# whitespace as numbers, and an independent implementation should not have to
-# reproduce those quirks to agree with this one.
-_NUMBER = re.compile(r"^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$")
-_DATE = re.compile(r"^\d{1,4}[-/]\d{1,2}[-/]\d{1,2}$")
 
 MAX_EXAMPLES = 3
 
@@ -85,9 +79,13 @@ def _show(s, limit=40):
 
 
 def _type_of(v):
-    if _DATE.match(v):
+    """SPEC.md §4.1.6 and §4.1.7, by the recognisers `table.py` uses for
+    `.mdtbl`: ASCII digits only, no `+`, exponent or one-sided point, and one
+    separator per date. `fullmatch`, because `DATE_RE` ends in `$`, which
+    also matches before a final LF, and a quoted CSV field can end in one."""
+    if DATE_RE.fullmatch(v):
         return "date"
-    if _NUMBER.match(v):
+    if _isnum(v):
         return "number"
     return "text"
 
@@ -595,7 +593,7 @@ def _order_column(body, names, side, key_idx):
             )
         )
     if "number" in kinds:
-        nonfinite = [(n, v) for n, v in values if _NUMBER.match(v) and not _finite(v)]
+        nonfinite = [(n, v) for n, v in values if _isnum(v) and not _finite(v)]
         _cap(
             findings,
             "order-non-finite",
