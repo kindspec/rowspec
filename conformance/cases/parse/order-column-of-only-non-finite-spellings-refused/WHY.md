@@ -7,7 +7,8 @@ any case." So none of these cells is a number, and the column is text in every r
 
 §9.10 (`bad-order-column`) refuses "`order := by(c)` where `c` is not a stored
 column, is computed, mixes types, **is blank in any row**, or holds a
-non-finite spelling (`inf`, `nan`, `infinity`, any case) in any row (§6)". §6:
-"Non-finite numbers in `c` are refused."
+non-finite spelling (`inf`, `nan`, `infinity`, any case, bare or after one
+leading `+` or `-`) in any row (§6)". §6: "Non-finite numbers in `c` are
+refused, and so is a non-finite **spelling** (§9.10)".
 
 The refusal is on the spelling, not on the column's type. Read by type alone, a column of only these spellings is a single-type `text` column with a total order by code point (§4.1.8), and nothing about types refuses it. §9.10 says "holds a non-finite spelling ... in any row", and every row here does. A reader that checks for these spellings only among numbers, or only when a number sits beside them, accepts this file.

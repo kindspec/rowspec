@@ -97,7 +97,7 @@ stock `git merge`, evaluates the merged file, and asserts on the computed
 number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
-    604 conformance cases          two implementations, both passing
+    619 conformance cases          two implementations, both passing
     109 mutants, all distinct      107 killed, 2 equivalent
                                      0 survived, 0 stale, 0 broken
 

@@ -199,16 +199,22 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **98 CSV-profile conformance cases** (#63, #94, #92, #118) in
+- **216 CSV-profile conformance cases** (#63, #94, #92, #118, #162) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
   repeated empty column name (#92), then 5 for how a name is trimmed (#118),
   then 9 for a header of only non-ASCII-space or empty names and for
   U+2003, U+3000 and tab padding in names and key values, then 4 for a
   name of one vertical tab or form feed and for a U+00A0 suffix in a data
-  row under a header with empty names.
-  They run in CI as `just conform-csv`, in the `conformance` job and in the
-  release gate, with a floor of 98 cases.
+  row under a header with empty names, then 118 for the sidecar §13
+  defines: its structure, encoding and repeated or undefined members; how
+  a name is trimmed, normalised and matched to an empty header cell;
+  `order` with blank, non-finite, overflowing and signed non-finite
+  values; `order_type`; typed `columns`, on the key and order columns
+  too; and `delimiter`, including a leading U+FEFF when it is the
+  delimiter. The reference CSV mode passes them after #185, #186, #187
+  and #189. They run in CI as `just conform-csv`, in the `conformance` job and in the
+  release gate, with a floor of 216 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 
@@ -276,6 +282,16 @@ prose, and where the two disagree the suite wins.
   or `cumulative(` inside a string literal in a header `where` or `if` with
   no order declared, against a real call that is refused. The floor is now
   604 cases.
+
+- **15 conformance cases for signed non-finite order spellings and
+  row-relative names before a spaced parenthesis** in `conformance/cases/`,
+  written from SPEC.md without the implementation. `-inf`, `+nan`,
+  `-Infinity` and `+INF` in an order column, alone and beside text, are
+  refused as `bad-order-column`, against `--inf`, `+-nan`, `-info` and
+  `- inf`, which are accepted; and `prior (n)`, `delta<TAB>(n)` and
+  `cumulative (n)` with no order declared are `malformed-formula`, not
+  `rowrel-without-order`. The six non-finite cases' `WHY.md` files quote
+  §6 and §9.10 as they now read. The floor is now 619 cases.
 
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break
