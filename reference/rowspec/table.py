@@ -93,6 +93,14 @@ _IDENT_EXTRA = set("_")
 
 
 def _check_ident(name, what):
+    if not name:
+        # §4.1: `ident = 1*( ... )`. A name of no characters has no bad
+        # character for the loops below to find, and would key a column ''.
+        raise Malformed(
+            f"{what} is empty; §4.1.9 makes an identifier one or more letters, "
+            f"marks, digits or underscores",
+            refusal="bad-identifier",
+        )
     for ch in name:
         if ch in _STRUCTURAL or (
             not (ch.isalnum() or unicodedata.category(ch).startswith("M"))
@@ -620,7 +628,9 @@ def _agg(fn, vals, what):
 
 
 def _ast(expr, where):
-    if "#" in expr:
+    # §4.2 rule 8 refuses a `#` outside the grammar. Inside a `string` it is a
+    # character like any other (rule 6), so `if(a = "#4", 1, 2)` is a formula.
+    if "#" in re.sub(r'"[^"]*"', "", expr):
         raise Malformed(
             f"column {where!r}: '#' is not a comment inside a formula (§4.1.10); "
             f"a whole-line annotation goes outside the table",
