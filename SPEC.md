@@ -301,7 +301,14 @@ that contain them.
 
 **11. Declarations.** `name := fn(arg)`, with optional `WSP` anywhere `*WSP`
 appears in the grammar; `key := col` is the sole bare form, because `key` names
-a column rather than computing one. A declaration is malformed (§9.12) if it
+a column rather than computing one. **It is also `key`'s only form:
+`key := fn(col)` is malformed (§9.12), whatever `fn` is** — `by`, an aggregate
+function or any other `ident`, with or without a `where`. The `declaration`
+production generates it, because `rhs` does not tie the function form to the
+left-hand name, so the rule is stated here rather than left to the grammar.
+Read as `key := col`, `key := sum(id)` would silently key the table on `id`;
+like a third `order` spelling, it is refused rather than degraded into the form
+it resembles. A declaration is malformed (§9.12) if it
 contains `:=` and does not match `declaration` — including a non-`key` name with
 no function, an unclosed parenthesis, an unrecognised `order` construct such as
 `order := none()`, and any `ident` violating rule 9. **`key := col` is malformed
@@ -1324,9 +1331,9 @@ An implementation MUST refuse:
     words
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
-    that does not match `declaration`, or a `key := col` whose `col` is not a
-    stored column of the table: no column of that name, or a computed one
-    (§4.1.11)
+    that does not match `declaration`, a `key :=` in function form such as
+    `key := by(id)`, or a `key := col` whose `col` is not a stored column of
+    the table: no column of that name, or a computed one (§4.1.11)
 13. `no-table`: a file containing no table
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
