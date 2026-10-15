@@ -1240,8 +1240,8 @@ to every operand, the one a stored cell undergoes. **A formula holding such a
 literal is `#REF!(overflow)` in every row, a row whose `if` takes the other
 branch included, because whether a literal fits binary64 is a property of the
 header alone, which is §4.2 rule 10's reason for an unresolved name;** like
-that name it outranks any error that comes from the data, an `if` bound
-included, and of two such errors in one formula the leftmost wins, so
+that name it outranks any error that comes from the data, a blank operand to
+its left included, and of two such errors in one formula the leftmost wins, so
 `1000…0 + nope` is `#REF!(overflow)` and `nope + 1000…0` is `#REF!(nope)`.
 
 **There are exactly five `#REF!` shapes**, and an implementation emits no
