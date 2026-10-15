@@ -138,7 +138,7 @@ was split. `parse/order-unrecognised-construct-refused` gained
 
 ## Cases written without the implementation
 
-Two later batches were written by authors who were not the author of
+Three later batches were written by authors who were not the author of
 `reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
 Each author derived every expected outcome from SPEC.md, read the existing
 case tree for its format, and recorded the passage the outcome rests on in
@@ -165,3 +165,16 @@ the case's `WHY.md`.
   It writes no case for a question SPEC.md leaves open: which error an
   aggregate or `delta` carries when its operands hold two different
   errors, and what a numeric literal beyond binary64 is.
+- **The third batch**, by the second batch's author, was written against
+  SPEC.md at `080d0ae` in a checkout of that commit, opening only SPEC.md,
+  this tree, and the case-count floor in `conformance/run_cases.py`. It
+  covers the leftmost of two missing names inside one `where` predicate, as
+  a header cell and as a declaration (`*-leftmost-missing-name-wins*`); a
+  group aggregate on a cycle whose predicate names a computed column or has
+  a numeric right-hand side, which is still refused
+  (`*cyclic-group-aggregate-*`); an unknown function, and a computed column
+  in a predicate, on a declaration whose aggregated column is missing
+  (`declaration-unknown-function-*`, `declaration-predicate-*-after-a-*`);
+  and `cumulative` across a positive then a negative infinite cell.
+  It writes no case for `cumulative` from an infinite cell into a blank,
+  which SPEC.md does not settle.
