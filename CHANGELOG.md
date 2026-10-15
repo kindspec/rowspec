@@ -261,6 +261,22 @@ prose, and where the two disagree the suite wins.
   of them on a wrong answer. `just mutants` reports 99 killed, 0 survived, 2
   equivalent.
 
+- **The mutation gate covers the declaration-argument, identifier, string
+  and non-finite fixes** (#130, #131, #154, #156, #157, #160, #168, #172).
+  Eight new mutants in `table.py` each undo one fix: a declaration's
+  argument, or the column before its `where`, not checked as an `ident`; an
+  empty column name taken as an `ident`; space or tab admitted before a
+  row-relative call's `(`; a row-relative name inside a string literal
+  needing an order; a `#` inside a string literal read as a comment; and an
+  order column's `inf`, `nan` or `infinity` matched case-sensitively or not
+  refused at all. The cases kill every one of them on a wrong answer, and
+  `just mutants` reports 107 killed, 0 survived, 2 equivalent. Three new
+  mutants in `csvmode.py` restore a trim wider than ASCII space and tab, in
+  the empty-file check, the header check and the grouped-header check. The
+  cases kill the first two; the third is claimed equivalent, since the file
+  is refused either way. `just mutants-csv`
+  reports 35 killed, 0 survived, 3 equivalent.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
