@@ -15,10 +15,29 @@ prose, and where the two disagree the suite wins.
   was left unsettled: the reference read each as text and accepted it, and
   `rowspec_alt` refused it. Decided by the project owner: one leading `+`
   or `-` is refused like the bare spelling, as `bad-order-column`. Python's
-  `float()` and pandas read `-inf` as a number exactly as they read `inf`,
-  so a host that reads the column would sort it differently from rowspec,
-  which is the reason the bare spellings are refused. §4.1.6 is unchanged:
+  `float()` reads every signed spelling as a number exactly as it reads the
+  bare one, so a host that reads the column would sort it differently from
+  rowspec, which is the reason the bare spellings are refused. §4.1.6 is unchanged:
   a signed spelling is still text, and is refused only in an order column.
+
+- **SPEC.md §13 defines the CSV sidecar's `order`, `order_type`, `columns`
+  and `delimiter`** (#162). It defined only `key`, while `docs/csv.md`
+  documented all five and `rowspec check` enforced them. An order or typed
+  value is trimmed of ASCII space and tab only (§4.1.4), and is a number or
+  a date only if it matches §4.1.6's `number` or §4.1.7's `date`. An order
+  column follows §6 and §9.10: one type, no blank in any row, and none of
+  §9.10's non-finite spellings. `order_type` and a `columns` type are each
+  one of `number`, `date` or `text`, and a blank in a typed column is not
+  checked.
+  `order_type` without `order` is refused, as `order` without `key` is.
+  A sidecar names a column as §9.2 compares names, after trimming and NFC,
+  and a name naming no column is refused. `delimiter` is one Unicode scalar
+  value other than `"`, CR or LF, and defaults to a tab for a file named
+  `*.tsv` or `*.tab`, in any case, and a comma otherwise. Every other member
+  is refused, with no exception for an implementation's own. The sidecar is
+  UTF-8 JSON, and one that starts with a byte-order mark is refused, for
+  interoperability: RFC 8259 §8.1 says implementations MUST NOT add one.
+  The CSV profile still carries no §9 identifiers.
 
 - **SPEC.md states two rules directly that it reached only by inference**
   (§7, §9.16; #140). `prior(c)` over a text cell is `#REF!(c)`, a cell
@@ -180,14 +199,16 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **94 CSV-profile conformance cases** (#63, #94, #92, #118) in
+- **98 CSV-profile conformance cases** (#63, #94, #92, #118) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
   repeated empty column name (#92), then 5 for how a name is trimmed (#118),
   then 9 for a header of only non-ASCII-space or empty names and for
-  U+2003, U+3000 and tab padding in names and key values.
+  U+2003, U+3000 and tab padding in names and key values, then 4 for a
+  name of one vertical tab or form feed and for a U+00A0 suffix in a data
+  row under a header with empty names.
   They run in CI as `just conform-csv`, in the `conformance` job and in the
-  release gate, with a floor of 94 cases.
+  release gate, with a floor of 98 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 
@@ -244,6 +265,17 @@ prose, and where the two disagree the suite wins.
   row-relative or aggregate name and its `(`; an empty or whitespace-only
   column name; and a `#` inside a string literal in a header formula. The
   floor is now 582 cases.
+
+- **22 conformance cases for declaration arguments, non-finite order
+  spellings and row-relative names in strings** in `conformance/cases/`,
+  written from SPEC.md without the implementation. A declaration whose
+  argument is empty (`by()`, `sum()`, `count()`) or holds `-` or `.`, with
+  and without a `where`; an order column of only `inf`, `nan` and
+  `infinity` spellings in any case, and one such cell among ordinary text,
+  against a column of look-alikes that is accepted; and `prior(`, `delta(`
+  or `cumulative(` inside a string literal in a header `where` or `if` with
+  no order declared, against a real call that is refused. The floor is now
+  604 cases.
 
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break

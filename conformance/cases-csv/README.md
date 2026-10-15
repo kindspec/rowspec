@@ -38,9 +38,23 @@ it as `input.csv.rowspec.json`, a JSON object:
 { "key": "id" }
 ```
 
-`key` names the column holding the row id. It is the one declaration §13
-calls for. Without a sidecar there is no declared key, and refusal 5 cannot
-apply.
+`key` names the column holding the row id. Without a sidecar there is no
+declared key, and refusal 5 cannot apply.
+
+§13 defines four more members, each optional: `order` names the column
+that orders the rows and needs `key`, `order_type` declares its type and
+needs `order`, `columns` maps column names to a declared type, and
+`delimiter` names the field separator, one Unicode scalar value other than
+`"`, CR or LF, which defaults to a comma for `input.csv`. A case uses them
+as it uses `key`:
+
+```json
+{ "key": "id", "order": "joined", "order_type": "date",
+  "columns": { "population": "number" } }
+```
+
+A member §13 does not define is refused, with no exception an
+implementation may claim, so a case may assert that refusal portably.
 
 **The per-file sidecar is the only form this profile uses.** rowspec's own
 CSV mode also reads a directory-level `.rowspec.json` that maps filename globs
@@ -146,8 +160,20 @@ SPEC.md §13 has since settled some of these, each in the direction the
 author read it or, where they wrote no case, by owner decision: all of 6 (an
 unterminated quote, and since #96 a bare quote inside an unquoted field and
 text after a closing quote, both refused), the blank line in 7, 11 (a marker
-line is refused inside a quoted field too), and 12. It also withdrew 3. The
-rest stand as the cases read them.
+line is refused inside a quoted field too), and 12. It also withdrew 3.
+
+§13's definition of the sidecar (#162) revised 2 and settled 5. On 2: the
+sidecar's `order` brings §9.10 (`bad-order-column`) and §9.25
+(`order-without-key`) into the profile, and a member repeated within the
+sidecar is refused for §9.4's reason. §9.12 still does not apply, since a
+sidecar is not a declaration line, but §13 refuses a sidecar name that names
+no column in its own right. On 5: §13 now states every failure the reading
+listed, and the case for a non-string `key` it left open: invalid JSON, a
+sidecar that is not an object, a repeated member, and a name that is not a
+string or names no column are each refused, by §13's text rather than by
+analogy. The cases already written still read as before.
+
+The rest stand as the cases read them.
 
 SPEC.md §9.14 has since been split: malformed UTF-8 is still §9.14
 (`bad-encoding`), and a leading BOM is now §9.26 (`leading-bom`). The cases'
@@ -188,3 +214,12 @@ Nine cases (`columns/all-non-ascii-space-names-accepted`,
 who was not the author of `csvmode.py` and did not read it, from SPEC.md at
 `29edd7c` and the case trees. `cases/README.md` records that batch's other
 cases.
+
+Four cases (`columns/vertical-tab-only-name-accepted`,
+`columns/form-feed-only-name-accepted`,
+`columns/no-break-space-suffix-in-a-data-row-under-a-label-and-empty-header-accepted`
+and
+`columns/no-break-space-suffix-in-a-data-row-under-two-empty-names-refused`)
+were written by an author who was not the author of `csvmode.py` and did not
+read it, from SPEC.md at `7652865` and the case trees. `cases/README.md`
+records that batch's other cases.

@@ -138,7 +138,7 @@ was split. `parse/order-unrecognised-construct-refused` gained
 
 ## Cases written without the implementation
 
-Seven later batches were written by authors who were not the author of
+Later batches were written by authors who were not the author of
 `reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
 Each author derived every expected outcome from SPEC.md, read the existing
 case tree for its format, and recorded the passage the outcome rests on in
@@ -287,3 +287,39 @@ the case's `WHY.md`.
   Its CSV-profile cases are listed in `cases-csv/README.md`. It writes no
   case for number or date recognition in the CSV profile, which §13 does
   not define.
+- **The ninth batch** was written by an author who was not the author of
+  either implementation and did not read either, against SPEC.md at
+  `7652865` in a worktree of that commit, opening only SPEC.md, AGENTS.md,
+  CONTRIBUTING.md, the two case trees, the case-count floors in
+  `conformance/run_cases.py`, and the lines of README.md, ROADMAP.md and
+  CHANGELOG.md that state those counts. Its cases are these, named exactly:
+  - A declaration with an empty argument:
+    `parse/declaration-order-by-with-an-empty-argument-refused`,
+    `parse/declaration-sum-with-an-empty-argument-refused` and
+    `parse/declaration-count-with-an-empty-argument-refused`.
+  - A declaration argument holding `-` or `.`:
+    `parse/declaration-sum-argument-with-a-hyphen-refused`,
+    `parse/declaration-sum-argument-with-a-dot-refused`,
+    `parse/declaration-sum-argument-with-a-hyphen-before-where-refused` and
+    `parse/declaration-order-argument-with-a-hyphen-refused`; with the
+    controls `eval/declaration-arguments-that-are-idents-control` and
+    `parse/declaration-order-argument-that-is-an-ident-accepted`.
+  - Non-finite spellings in an order column:
+    `parse/order-column-of-only-non-finite-spellings-refused`,
+    `parse/order-column-of-one-non-finite-spelling-in-mixed-case-refused`,
+    `parse/order-text-column-with-one-inf-cell-refused`,
+    `parse/order-text-column-with-one-nan-cell-refused` and
+    `parse/order-text-column-with-one-infinity-cell-refused`; with the
+    control `parse/order-text-column-with-non-finite-lookalikes-accepted`.
+  - A row-relative name inside a header string literal, with no order:
+    `eval/prior-inside-a-string-in-a-header-where-is-not-a-call`,
+    `eval/prior-inside-a-string-in-a-header-if-is-not-a-call`,
+    `eval/delta-inside-a-string-in-a-header-where-is-not-a-call`,
+    `eval/delta-inside-a-string-in-a-header-if-is-not-a-call`,
+    `eval/cumulative-inside-a-string-in-a-header-where-is-not-a-call` and
+    `eval/cumulative-inside-a-string-in-a-header-if-is-not-a-call`; with the
+    control `parse/prior-call-beside-a-string-mention-without-order-refused`.
+
+  Its CSV-profile cases are listed in `cases-csv/README.md`. It writes no
+  case for a signed non-finite spelling such as `-inf` in an order column,
+  which SPEC.md does not settle.

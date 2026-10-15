@@ -958,10 +958,11 @@ all four. Every failure was silent.
 - Non-finite numbers in `c` are refused, and so is a non-finite **spelling**
   (§9.10): `inf`, `nan` or `infinity` in any case, bare or after one leading
   `+` or `-`. Each is text under §4.1.6, signed or not, but Python's `float()`
-  and pandas' `read_csv` read every one of them as a number, so a host that
-  reads the column would sort it differently from rowspec. A sign changes
-  nothing about that: `-inf` is read as a number exactly as `inf` is, so it is
-  refused on the same ground.
+  reads every one of them as a number, so a host that reads the column would
+  sort it differently from rowspec. A sign changes nothing about that:
+  `float()` reads `-inf` as a number exactly as it reads `inf`, so it is
+  refused on the same ground. pandas' `read_csv` reads the `inf` and
+  `infinity` forms the same way, signed or not.
 - **A blank cell in `c` is refused** (§9.10). Blank is none of `number`, `date`
   or `text`, so a column mixing blanks with any of them mixes types.
   **[CHOICE]** against admitting it and sorting blanks first: the order is what
@@ -1602,6 +1603,76 @@ relaxation**, and the difference must be stated rather than discovered:
   look-alikes such as `∕` (U+2215) for `/` or `‐` (U+2010) for `-` are not
   refused, so §3's guarantee that two identifiers cannot render identically
   does not hold for CSV key values either.
+- **the sidecar is one JSON object with five optional members: `key`,
+  `order`, `order_type`, `columns` and `delimiter`.** It sits beside the
+  CSV, named for it: `data.csv.rowspec.json` for `data.csv`. **The sidecar
+  is UTF-8 JSON with no byte-order mark.** One that is not UTF-8 is refused,
+  a sidecar encoded as UTF-16 or UTF-32 included, as RFC 8259 §8.1 requires
+  UTF-8 of JSON exchanged outside a closed ecosystem. One that starts with a
+  BOM is refused too, and that is this profile's choice: §8.1 says
+  implementations "MUST NOT add a byte order mark" and that a parser "MAY
+  ignore the presence of a byte order mark rather than treating it as an
+  error", so a reader that ignored one would be conforming JSON. Refusing it
+  keeps one sidecar readable by every JSON parser, the strict ones included.
+  So is a sidecar that is not valid JSON, or not an object, and a member
+  repeated within one object, `columns` included: JSON's last-one-wins is
+  the silent overwrite §9.4 refuses. A member the profile does not define is
+  refused, because a misspelt `oder` would otherwise switch a check off
+  without a word.
+  **A fifth optional member, `delimiter`, names the field separator**: a
+  string of exactly one Unicode scalar value other than `"`, CR or LF.
+  Anything else is refused: a non-string, an empty string, a longer one, and
+  those three, which RFC 4180 reserves for quoting and for ending a record,
+  so a delimiter equal to one of them leaves the record boundaries
+  undefined. Without `delimiter`, the separator is a tab for a file whose
+  name ends in `.tsv` or `.tab`, in any case, and a comma otherwise. The
+  delimiter is used as written, not NFC-normalised. A file that starts with
+  U+FEFF is read as starting with a BOM, warned on as above, before its
+  records are split, so this holds even when the delimiter is U+FEFF: that
+  first U+FEFF is never a separator.
+  **A sidecar names a column as §9.2 compares names in this profile**: after
+  trimming ASCII space and tab only, and after NFC. So `" joined"` names the
+  column `joined`, and `""` names a column whose header cell is empty. A
+  name that is not a string, or that names no column, is refused, whichever
+  member holds it: a declaration naming nothing is refused rather than
+  skipped, because skipping it switches off the check it asked for.
+- **`order` names the column that orders the rows, and §6's order rules
+  apply to it.** `key` is then required (§9.25). Each value of the column is
+  trimmed of ASCII space and tab only (§4.1.4), so a leading or trailing
+  non-ASCII space is part of it. A trimmed value is a `number` if it matches
+  §4.1.6's `number`, a `date` if it matches §4.1.7's `date`, and `text`
+  otherwise; no value matches both. So `1e3`, `+5` and `٥` are text, and
+  `2024-13-45` is a date, as in `.mdtbl`. The column is refused (§6, §9.10)
+  when it mixes types, **when it is blank in any row**, a cell of spaces or
+  tabs included, since blank is none of the three types, and when it holds
+  any non-finite spelling §9.10 lists, in any row and whatever the rest of
+  the column holds. A `number` whose binary64 value is infinite, such as a
+  four-hundred-digit one, is a non-finite number, and is refused (§6). A
+  file with no data rows has no order values and is not refused on `order`.
+- **`order_type` declares the order column's type**: one of the strings
+  `number`, `date` or `text`, and anything else, a non-string included, is
+  refused. Every trimmed value of the order column must then be of that type,
+  so a column of numbers declared `text` is refused even though it has a
+  single type. Declaring the type turns §6's inference into a check.
+  **`order_type` without `order` is refused**, as `order` without `key` is
+  (§9.25): it declares a check with no column to run on, and ignoring it
+  would leave the author believing the check ran.
+- **`columns` declares the type of any stored column, the key and order
+  columns included**: a JSON object
+  whose members map a column name to `number`, `date` or `text`. Any other
+  type, a non-string included, is refused, and so is a `columns` that is not
+  an object. Two members naming one column, such as `café` spelt NFC and
+  NFD, are refused as a repeated member is. Each trimmed value of a named
+  column is classified as an order value is, and refused when its type is
+  not the declared one: `text` means a value matching neither `number` nor
+  `date`, so `5` in a `text` column is refused, and `inf`, which is text by
+  §4.1.6, is refused in a `number` column and admitted in a `text` one. A
+  number beyond binary64 matches `number` and is admitted: it is
+  `#REF!(overflow)` where it is used (§8), and nothing here sorts by it.
+  **A blank value is not checked**, so a typed column may hold blanks: the
+  blank rule above exists because an order needs a place for every row, and
+  a typed column orders nothing. `columns` does not require `key`. Where it
+  names the key or the order column, its check applies alongside theirs.
 - **record boundaries are RFC 4180's.** A quoted field runs to its closing
   quote, so a file that ends inside one is refused. This is the profile's
   reading of §9.6, and it applies whatever the field count: the grammar
@@ -1623,8 +1694,9 @@ relaxation**, and the difference must be stated rather than discovered:
 
 **The CSV profile does not carry §9's identifiers yet.** A CSV-mode refusal is
 not required to report one, its conformance cases assert only that a file is
-refused, and most of the refusals a sidecar brings, such as invalid JSON or a
-sidecar `key` naming no column, have no §9 entry to name. §9.12 refuses a
+refused, and most of the refusals a sidecar brings, such as invalid JSON, a
+sidecar `key` naming no column, or a value of a typed column of another type,
+have no §9 entry to name. §9.12 refuses a
 `key :=` line naming no column, and a sidecar is not a declaration line.
 
 An implementation claiming CSV-mode conformance states which profile it means.

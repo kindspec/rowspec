@@ -1,0 +1,9 @@
+| id | note | amt | t = sum(amt where note = "cumulative(amt)") |
+| --- | --- | --: | --: |
+| r_01 | cumulative(amt) | 5 |  |
+| r_02 | x | 7 |  |
+| r_03 | cumulative(amt) | 11 |  |
+
+key := id
+g := max(t)
+h := min(t)

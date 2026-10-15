@@ -1,0 +1,9 @@
+| id | note | amt | t = sum(amt where note = "delta(amt)") |
+| --- | --- | --: | --: |
+| r_01 | delta(amt) | 5 |  |
+| r_02 | x | 7 |  |
+| r_03 | delta(amt) | 11 |  |
+
+key := id
+g := max(t)
+h := min(t)
