@@ -524,8 +524,10 @@ for r in seq:
         'if False:\n    out[nm] = f"#REF!({col})"\n    continue',
     ),
     # --- §8 overflow, §9.12 key, and the §8 order of a predicate's errors ----
-    # Each undoes one fix, restoring what the reference did before it. The
-    # same fixes' other guards have no mutant here yet: the tree does not kill
+    # Each undoes one fix. Most restore what the reference did before it;
+    # a-predicate-reports-its-last-unknown-name is instead a plausible way to
+    # get the leftmost rule wrong, since the old code stopped at the first
+    # unknown name. The same fixes' other guards have no mutant here yet: the tree does not kill
     # one, so each waits, as CSV_MUTANTS' survivors did, for a case from an
     # author who has not read table.py.
     #
