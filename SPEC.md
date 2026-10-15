@@ -1527,7 +1527,8 @@ relaxation**, and the difference must be stated rather than discovered:
 **The CSV profile does not carry §9's identifiers yet.** A CSV-mode refusal is
 not required to report one, its conformance cases assert only that a file is
 refused, and most of the refusals a sidecar brings, such as invalid JSON or a
-key naming no column, have no §9 entry to name.
+sidecar `key` naming no column, have no §9 entry to name. §9.12 refuses a
+`key :=` line naming no column, and a sidecar is not a declaration line.
 
 An implementation claiming CSV-mode conformance states which profile it means.
 
