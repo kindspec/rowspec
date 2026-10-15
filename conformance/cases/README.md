@@ -311,10 +311,13 @@ the case's `WHY.md`.
     `parse/order-text-column-with-one-nan-cell-refused` and
     `parse/order-text-column-with-one-infinity-cell-refused`; with the
     control `parse/order-text-column-with-non-finite-lookalikes-accepted`.
-  - A row-relative name inside a header string literal, with no order, for
-    each of `prior`, `delta` and `cumulative`:
-    `eval/<fn>-inside-a-string-in-a-header-where-is-not-a-call` and
-    `eval/<fn>-inside-a-string-in-a-header-if-is-not-a-call`; with the
+  - A row-relative name inside a header string literal, with no order:
+    `eval/prior-inside-a-string-in-a-header-where-is-not-a-call`,
+    `eval/prior-inside-a-string-in-a-header-if-is-not-a-call`,
+    `eval/delta-inside-a-string-in-a-header-where-is-not-a-call`,
+    `eval/delta-inside-a-string-in-a-header-if-is-not-a-call`,
+    `eval/cumulative-inside-a-string-in-a-header-where-is-not-a-call` and
+    `eval/cumulative-inside-a-string-in-a-header-if-is-not-a-call`; with the
     control `parse/prior-call-beside-a-string-mention-without-order-refused`.
 
   Its CSV-profile cases are listed in `cases-csv/README.md`. It writes no

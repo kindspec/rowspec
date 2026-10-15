@@ -169,7 +169,7 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **94 CSV-profile conformance cases** (#63, #94, #92, #118) in
+- **98 CSV-profile conformance cases** (#63, #94, #92, #118) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
   repeated empty column name (#92), then 5 for how a name is trimmed (#118),
