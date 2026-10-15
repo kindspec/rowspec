@@ -9,6 +9,17 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **A signed non-finite spelling in an order column is refused** (§6,
+  §9.10). §9.10 listed `inf`, `nan` and `infinity` in any case and said
+  nothing about a sign, so `-inf`, `+nan` or `-Infinity` in an order column
+  was left unsettled: the reference read each as text and accepted it, and
+  `rowspec_alt` refused it. Decided by the project owner: one leading `+`
+  or `-` is refused like the bare spelling, as `bad-order-column`. Python's
+  `float()` reads every signed spelling as a number exactly as it reads the
+  bare one, so a host that reads the column would sort it differently from
+  rowspec, which is the reason the bare spellings are refused. §4.1.6 is unchanged:
+  a signed spelling is still text, and is refused only in an order column.
+
 - **SPEC.md §13 defines the CSV sidecar's `order`, `order_type`, `columns`
   and `delimiter`** (#162). It defined only `key`, while `docs/csv.md`
   documented all five and `rowspec check` enforced them. An order or typed
@@ -280,6 +291,22 @@ prose, and where the two disagree the suite wins.
   of them on a wrong answer. `just mutants` reports 99 killed, 0 survived, 2
   equivalent.
 
+- **The mutation gate covers the declaration-argument, identifier, string
+  and non-finite fixes** (#130, #131, #154, #156, #157, #160, #168, #172).
+  Eight new mutants in `table.py` each undo one fix: a declaration's
+  argument, or the column before its `where`, not checked as an `ident`; an
+  empty column name taken as an `ident`; space or tab admitted before a
+  row-relative call's `(`; a row-relative name inside a string literal
+  needing an order; a `#` inside a string literal read as a comment; and an
+  order column's `inf`, `nan` or `infinity` matched case-sensitively or not
+  refused at all. The cases kill every one of them on a wrong answer, and
+  `just mutants` reports 107 killed, 0 survived, 2 equivalent. Three new
+  mutants in `csvmode.py` restore a trim wider than ASCII space and tab, in
+  the empty-file check, the header check and the grouped-header check. The
+  cases kill the first two; the third is claimed equivalent, since the file
+  is refused either way. `just mutants-csv`
+  reports 35 killed, 0 survived, 3 equivalent.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
@@ -305,6 +332,30 @@ prose, and where the two disagree the suite wins.
   believing the check ran. CSV mode accepted it and checked nothing. It is
   now refused as a malformed sidecar, in the per-file sidecar and in the
   directory one alike.
+
+- **A CSV sidecar names a column after trimming ASCII space and tab and
+  after NFC, `""` included** (#181, #182, #183). SPEC.md §13 compares a
+  name in `key`, `order` or `columns` as §9.2 compares column names, and
+  refuses one that names no column rather than skipping it. CSV mode
+  normalised names to NFC but did not trim them, so `"key": " id"` was
+  refused as naming no column; it ignored `"key": ""` and `"order": ""`
+  altogether, so neither named an empty-headed column nor was refused
+  without one; and two `columns` members alike after NFC, such as `café`
+  spelt NFC and NFD, were merged with the last one winning. Each name is
+  now trimmed and normalised before it is matched, an empty name names the
+  empty-headed column or is refused, and two members naming one column are
+  refused as a repeated member is. A leading or trailing non-ASCII space,
+  such as U+00A0, is still part of the name.
+
+- **An order column holding a signed non-finite spelling is refused**
+  (#175). SPEC.md §9.10 now refuses `inf`, `nan` and `infinity` in any
+  case after one leading `+` or `-`, as it refuses the bare spelling. The
+  reference read `-inf`, `+NaN` and `-Infinity` as text, so it accepted
+  an order column of them, or one beside other text, which `rowspec_alt`
+  refused. The reference now refuses each as `bad-order-column`, and CSV
+  mode reports `order-non-finite` for the same columns under an `order`
+  sidecar. `--inf`, `- inf`, `inf-` and `-info` are still text and are
+  still accepted.
 
 - **A row-relative name inside a string literal needs no declared order**
   (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
