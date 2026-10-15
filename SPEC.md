@@ -702,7 +702,9 @@ because the answer is a value.
 named `cycle` would be. The collision is accepted rather than dodged with a
 spelling outside `ident`, as `#REF!(/0)` uses: both readings are error values,
 both poison every aggregate over the column identically under §8, and no
-computed value anywhere branches on which of the two it is. The collision costs
+computed value anywhere branches on which of the two it is — §8's ranking of
+several errors in one aggregate reads a `#REF!` as spelled, so it ranks the two
+alike. The collision costs
 a diagnostic and never a number, and closing it would change the output of a
 conforming implementation for no gain.
 
@@ -1238,6 +1240,13 @@ computed beside them says little until they are fixed. `/0`, `empty` and
 nothing makes one more basic than another, so they keep the order the list of
 shapes below gives them.
 
+**The ranking reads a `#REF!` as it is spelled.** `#REF!(cycle)`,
+`#REF!(empty)` and `#REF!(overflow)` rank as those shapes whatever produced
+them, a broken reference to a column named `cycle`, `empty` or `overflow`
+included. Those names collide with the shapes (§4.2 rule 9, and below), and
+ranking by spelling is what keeps the collision from reaching a value: two
+readers that disagree about which reading a `#REF!` is still rank it alike.
+
 **An aggregate whose result is not finite is `#REF!(overflow)`**, on the same
 ground as §4.2 rule 2: `inf` is not a `number` under §4.1.6, so an
 implementation that returned one would write a file it could not read back and
@@ -1264,9 +1273,11 @@ This paragraph said *three* while rule 2 already required `overflow`, and later
 rule is added in one section and counted in another. The count is now asserted
 by a conformance case rather than only claimed here. Note that `overflow` and
 `empty` are well-formed `ident`s and therefore collide with a broken reference
-to a column actually named that, exactly as `cycle` does and unlike `/0`; §4.2 rule 9's argument for accepting that
-collision — both readings are errors, both poison every aggregate identically,
-and no computed value branches on which it is — applies here unchanged.
+to a column actually named that, exactly as `cycle` does and unlike `/0`; §4.2
+rule 9's argument for accepting that collision — both readings are errors, both
+poison every aggregate identically, and no computed value branches on which it
+is — applies here unchanged, the ranking of several errors above included,
+because it reads a `#REF!` as spelled.
 
 A broken reference never evaluates to zero, empty, or a stale value. A blank
 cell is not zero. A value that will not coerce to a number is `#REF!`, not a

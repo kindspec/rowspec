@@ -19,7 +19,8 @@ prose, and where the two disagree the suite wins.
   `#REF!(overflow)` and `#REF!(/0)` gave whichever came first, and the second
   implementation's `sum(a)` over a text cell and a cell beyond binary64 did
   the same. Both now follow the ranking, in table-level and per-row group
-  aggregates.
+  aggregates. The ranking reads a `#REF!` as spelled, so a broken reference
+  to a column named `cycle`, `empty` or `overflow` ranks as that shape.
 
 - **A CSV column name is trimmed of ASCII space and tab only before §9.2
   compares names** (§13; #118), as a key value is (§4.1.4). §13 did not say

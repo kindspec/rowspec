@@ -102,3 +102,40 @@ def test_a_per_row_group_aggregate_follows_the_same_ranking(impl):
         "",
     ):
         assert [str(r["t"]) for r in rows] == ["#REF!(/0)", "#REF!(/0)"]
+
+
+@IMPLS
+def test_div0_outranks_empty(impl):
+    """`f` is `#REF!(empty)` in group A, whose `a` is all blank, and
+    `#REF!(/0)` in group B."""
+    for _, aggs in both_orders(
+        impl,
+        '| id | g | a | z | e = min(a where g = @g) | f = if(g = "A", e, 1 / z) |',
+        "| -- | -- | -: | -: | -: | -: |",
+        ["| r_0 | A |  | 1 |  |  |", "| r_1 | B | 1 | 0 |  |  |"],
+        "s := sum(f)\n",
+    ):
+        assert aggs == {"s": "#REF!(/0)"}
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "name, other, want",
+    [
+        ("overflow", "a / z", "#REF!(/0)"),
+        ("empty", "a / z", "#REF!(/0)"),
+        ("cycle", "b + 1", "#REF!(cycle)"),
+    ],
+)
+def test_a_ref_ranks_as_spelled(impl, name, other, want):
+    """A broken reference to a column named `overflow`, `empty` or `cycle`
+    ranks as that shape, not as a name. Read as a name, the first two would
+    outrank `#REF!(/0)`, and `#REF!(b)` would sort before `#REF!(cycle)`."""
+    for _, aggs in both_orders(
+        impl,
+        f'| id | g | {name} | a | b | z | c = if(g = "A", {name} + 1, {other}) |',
+        "| -- | -- | -- | -: | -: | -: | -: |",
+        ["| r_0 | A | x | 1 | 1 | 1 |  |", "| r_1 | B | 1 | 1 |  | 0 |  |"],
+        "s := sum(c)\n",
+    ):
+        assert aggs == {"s": want}
