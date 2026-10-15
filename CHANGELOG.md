@@ -179,6 +179,14 @@ prose, and where the two disagree the suite wins.
   Every part is now checked first, and the leftmost unknown name is reported
   only if nothing is refused. `rowspec_alt` already did this.
 
+- **A header group aggregate over a column on a cycle still has its
+  predicate checked** (#100). The reference skipped an aggregate whose
+  source column had no value yet, and a source on a cycle never gets one, so
+  `| b = 1 + 1 | t = sum(u where b = "x") | u = t + 1 |` was `#REF!(cycle)`
+  where §9.22 refuses it, and `sum(u where a = 3)` likewise where §9.20
+  does. The predicate depends only on the header and is now checked first.
+  `rowspec_alt` already did this.
+
 - **A declaration over a missing column is still refused when the line
   breaks a rule** (#100). The reference returned `#REF!(name)` for
   `g := sum(nope ...)` before checking the function or the predicate, so

@@ -1244,26 +1244,23 @@ def evaluate(text):
                 raise Malformed(
                     f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
                 )
+            # The predicate first: it depends only on the header, and a
+            # refusal in it must fire whether or not the aggregate ever gets
+            # a value -- a missing column, or a source on a cycle, included.
+            try:
+                preds, missing = _predicate(ptext, cols, formulas, "malformed-formula"), None
+            except KeyError as e:
+                preds, missing = None, e.args[0]
             if col not in cols:
                 # §8: a name that does not resolve is #REF!(name), not a
-                # refusal -- §4.2 rule 7's argument, and the leftmost name. The
-                # predicate is still checked, so its own refusals still fire.
-                try:
-                    _predicate(ptext, cols, formulas, "malformed-formula")
-                except KeyError:
-                    pass
-                for r in seq:
-                    r[nm] = f"#REF!({col})"
-                del groups[nm]
-                progressed = True
-                continue
-            if col in formulas and any(r.get(col) in (None, "") for r in seq):
+                # refusal -- §4.2 rule 7's argument -- and the aggregated
+                # column is leftmost, ahead of any name in the predicate.
+                missing = col
+            elif col in formulas and any(r.get(col) in (None, "") for r in seq):
                 continue  # its source is not computed yet
-            try:
-                preds = _predicate(ptext, cols, formulas, "malformed-formula")
-            except KeyError as e:
+            if missing:
                 for r in seq:
-                    r[nm] = f"#REF!({e.args[0]})"
+                    r[nm] = f"#REF!({missing})"
                 del groups[nm]
                 progressed = True
                 continue

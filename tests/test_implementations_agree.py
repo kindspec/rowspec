@@ -129,3 +129,43 @@ def test_a_declaration_over_a_missing_column_names_the_column_first(impl):
     """§8's leftmost rule, on a declaration's right-hand side."""
     _, aggs = impl.evaluate(HEADER.format(f="1") + '\ng := sum(nope1 where nope2 = "x")\n')
     assert aggs == {"g": "#REF!(nope1)"}
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "cells, refusal",
+    [
+        (["b = 1 + 1", 't = sum(u where b = "x")', "u = t + 1"], "computed-column-compared"),
+        (["t = sum(u where a = 3)", "u = t + 1"], "malformed-formula"),
+        (
+            ["b = 1 + 1", 't = sum(u where b = "x")', "u = v + 1", "v = u + 1"],
+            "computed-column-compared",
+        ),
+    ],
+    ids=["computed-in-predicate", "bad-rhs", "source-depends-on-a-cycle"],
+)
+def test_a_group_aggregate_over_a_cycle_still_checks_its_predicate(impl, cells, refusal):
+    """The aggregated column never gets a value, so the aggregate is
+    `#REF!(cycle)` -- but its predicate depends only on the header, and a
+    refusal there must still fire."""
+    src = (
+        "| id | a | " + " | ".join(cells) + " |\n"
+        "| -- | -- |" + " -: |" * len(cells) + "\n"
+        "| r_1 | x |" + "  |" * len(cells) + "\n"
+    )
+    with pytest.raises(impl.Malformed) as ex:
+        impl.evaluate(src)
+    assert ex.value.refusal == refusal
+
+
+@IMPLS
+def test_the_leftmost_unknown_name_in_a_header_predicate_is_reported(impl):
+    """§8's leftmost rule, inside one predicate."""
+    rows, _ = impl.evaluate(HEADER.format(f='sum(a where z1 = "x" and z2 = "x")'))
+    assert rows[0]["t"] == "#REF!(z1)"
+
+
+@IMPLS
+def test_the_leftmost_unknown_name_in_a_declaration_predicate_is_reported(impl):
+    _, aggs = impl.evaluate(HEADER.format(f="1") + '\ng := sum(a where z1 = "x" and z2 = "x")\n')
+    assert aggs == {"g": "#REF!(z1)"}
