@@ -280,6 +280,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A row-relative name inside a string literal needs no declared order**
+  (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
+  order, and text inside a `string` is a value (§4.2 rule 6), not an
+  operator. The reference implementation looked for `prior(`, `delta(` and
+  `cumulative(` anywhere in a header formula, so
+  `| p = sum(n where c = "prior(x)") |` in a table with no `order` was
+  refused as `rowrel-without-order`. It now skips string literals, and the
+  formula is accepted, as `rowspec_alt` already did.
+
 - **An order column holding `inf`, `nan` or `infinity` in any case is
   refused, even when it holds nothing else** (#168). SPEC.md §9.10 refuses
   a non-finite spelling in an order column in any row. The reference read
