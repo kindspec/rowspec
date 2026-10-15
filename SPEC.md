@@ -988,6 +988,17 @@ past a blank produces exactly a stale value, and a plausible one — the reader
 sees a number that was true two rows ago and nothing says so. `cumulative(c)`
 is `#REF!(c)` from the blank row onward, by ordinary propagation.
 
+**`delta(c)` is read as `c - prior(c)`, so §8's leftmost rule decides which
+error it carries: when this row's `c` and the preceding row's both give an
+error, a blank included, `delta(c)` carries this row's.** A blank `c` here
+beside a stored cell beyond binary64 in the row before is `#REF!(c)`, and the
+same two rows the other way round are `#REF!(overflow)`. Each operand carries the error it originated,
+so a computed `c` holding `#REF!(/0)` here makes `delta(c)` `#REF!(/0)`, not a
+relabelled `#REF!(c)`. **[CHOICE]** — either row would satisfy §6, because the
+preceding row is fixed by the declared order and not by file position. This
+row's is chosen because §7 already defines `delta` as `c` minus `prior(c)`, and
+reading it that way leaves no second rule for a reader to find.
+
 **Per-row group aggregates.** `@c` means *this row's* value of `c`:
 
     | region_total = sum(amount where region = @region) |
