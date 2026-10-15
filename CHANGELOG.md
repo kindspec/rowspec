@@ -117,6 +117,12 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **CSV mode no longer crashes on a header whose only repeated name is
+  empty** (#92). The grouped-header check counted empty names, then took its
+  label from the non-empty ones, and raised `IndexError` when there were
+  none. Such a header is now refused as a duplicate column, because §13 makes
+  an empty header cell a column name and §9.2 refuses two of one name.
+
 - **`sum` and `avg` over a cell whose binary64 value is infinite are
   `#REF!(overflow)`, not an exception** (#102). SPEC.md §8 makes such a cell
   `#REF!(overflow)` wherever it is an operand. The reference implementation
