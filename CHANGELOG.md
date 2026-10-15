@@ -252,6 +252,17 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **The xlsx export refuses a character XML cannot hold instead of
+  crashing or writing a broken file** (#166). §4.1 lets a stored cell or
+  string literal hold any C0 control but CR and LF, and U+FFFE and U+FFFF;
+  #144 added form feed and vertical tab, which used to end a line. The XML
+  an `.xlsx` is made of has no character for any of them except tab, LF and
+  CR. openpyxl raised `IllegalCharacterError` on a C0 control, and wrote
+  U+FFFE or U+FFFF into a file no reader could parse, which LibreOffice
+  opened with the value silently dropped. The exporter now raises
+  `NotExpressible`, as it does for anything else a spreadsheet cannot say,
+  and checks the sheet title the same way.
+
 - **CSV mode reads numbers and dates by §4.1.6 and §4.1.7** (#155). CSV
   mode had regexes of its own, which matched any Unicode decimal digit,
   accepted a leading `+`, exponent notation, `.5` and `5.`, accepted two
