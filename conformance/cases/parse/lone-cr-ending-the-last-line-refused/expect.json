@@ -3,7 +3,6 @@
   "kind": "parse",
   "refusal": [
     "lone-cr",
-    "malformed-declaration",
-    "unclassified-line"
+    "malformed-declaration"
   ]
 }

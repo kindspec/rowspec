@@ -9,7 +9,8 @@ file's last line is optional", but a `CR` with no `LF` after it is not a
 terminator: `eol` is `LF` or `CRLF`. §9.15 (`lone-cr`) applies.
 
 The `CR` is not a `char`, so the line also does not match `declaration`,
-and it contains `:=` (§9.12, `malformed-declaration`); it is then none of
-the line kinds (§9.19, `unclassified-line`). §9: "where several apply, the
-case names each of them, and reporting any one passes." A reader that
-strips a trailing `CR` before classifying lines accepts the file.
+and it contains `:=` (§9.12, `malformed-declaration`). §9: "where several
+apply, the case names each of them, and reporting any one passes." As in the
+suite's other cases for a `:=` line that fails `declaration`, §9.19 is not
+listed. A reader that strips a trailing `CR` before classifying lines
+accepts the file.

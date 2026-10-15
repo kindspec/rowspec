@@ -15,6 +15,7 @@ beside a stored cell beyond binary64 in the row before is `#REF!(c)`". §8:
 So `d` in the first row is `#REF!(v)`, not blank.
 
 The row that comes first in the declared order is the second line of the
-file, so a reader that takes "first" from file position answers for the
-wrong row. §7: row-relative operators are "evaluated over the derived
-order and never over file position".
+file. The other row holds the number `5`, so a reader that takes "first"
+from file position computes this row's `d` as the blank `v` minus `5`, which
+is still `#REF!(v)`; this case does not catch that reader. The number
+control, `rowrel/delta-first-row-over-a-computed-number-is-blank`, does.

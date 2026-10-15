@@ -212,7 +212,7 @@ prose, and where the two disagree the suite wins.
   acceptance depends only on the formula's own bytes. A `min` control is
   accepted. The floor is now 521 cases.
 
-- **58 conformance cases for whitespace, line breaks and identifiers** in
+- **61 conformance cases for whitespace, line breaks and identifiers** in
   `conformance/cases/`, written from SPEC.md without the implementation.
   `delta(c)` in the first row over a computed `#REF!(/0)`, an unresolved
   name inside `c`, and a blank or text `c`; cell values, key values, order
@@ -223,7 +223,7 @@ prose, and where the two disagree the suite wins.
   `Cf` character around a declaration's argument; whitespace between a
   row-relative or aggregate name and its `(`; an empty or whitespace-only
   column name; and a `#` inside a string literal in a header formula. The
-  floor is now 579 cases.
+  floor is now 582 cases.
 
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break

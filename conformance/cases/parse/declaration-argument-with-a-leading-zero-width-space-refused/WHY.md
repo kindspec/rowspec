@@ -8,10 +8,11 @@ is ASCII space and horizontal tab only. U+200B is a `Cf` format character, not
 does not match `declaration`. §4.1.11: "A declaration is malformed (§9.12)
 if it contains `:=` and does not match `declaration` — including … any
 `ident` violating rule 9." §3: "`Cf` format characters cannot appear in
-identifiers".
+identifiers", because §4.1.9's allowlist excludes them.
 
-§9.16 (`bad-identifier`) refuses an identifier containing "any character
-outside `ident`". Following `parse/cf-in-key-declaration` and
-`parse/cf-in-aggregate-name`, which put a `Cf` inside a declaration's
-identifier, both identifiers are listed. The control is
+§9.16 (`bad-identifier`) is not listed. Its list of identifiers is "column
+name, aggregate name, `key`/`order` argument, or a value of the key column",
+and an aggregate's argument is none of these: it is a reference to a column,
+not the column's name in the header. §9.12 is the entry SPEC.md names for
+this line. The control is
 `eval/declaration-argument-padded-with-space-and-tab`.

@@ -17,6 +17,7 @@ holding `#REF!(/0)` here makes `delta(c)` `#REF!(/0)`, not a relabelled
 So `d` in the first row is `#REF!(nope)`, not blank and not `#REF!(c)`.
 
 The row that comes first in the declared order is the second line of the
-file, so a reader that takes "first" from file position answers for the
-wrong row. §7: row-relative operators are "evaluated over the derived
-order and never over file position".
+file. Every row of `c` here gives the same error, so this case does not
+catch a reader that takes "first" from file position: either row's `d` is
+that error. The number control,
+`rowrel/delta-first-row-over-a-computed-number-is-blank`, does.
