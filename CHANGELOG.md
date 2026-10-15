@@ -115,6 +115,16 @@ prose, and where the two disagree the suite wins.
   tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
   `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
 
+### Fixed
+
+- **`sum` and `avg` over a cell whose binary64 value is infinite are
+  `#REF!(overflow)`, not an exception** (#102). SPEC.md §8 makes such a cell
+  `#REF!(overflow)` wherever it is an operand. The reference implementation
+  passed it on, and `evaluate` raised `ValueError` when two infinities of
+  opposite sign met, or `OverflowError` when the finite operands' partial
+  sum also left binary64. `rowspec_alt` already returned `#REF!(overflow)`;
+  a test now holds both to it.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI

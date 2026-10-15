@@ -506,6 +506,11 @@ def _agg(fn, vals, what):
         nums = [num(v) for v in vals if v not in ("", None)]
     except (ValueError, TypeError):
         return f"#REF!({what})"
+    if not all(math.isfinite(x) for x in nums):
+        # §8: a stored cell whose binary64 value is infinite is #REF!(overflow)
+        # wherever it is an operand. `fsum` raises on inf + -inf, and `_exact`
+        # cannot take an infinity's integer ratio, so it must not reach them.
+        return "#REF!(overflow)"
     if fn == "sum":
         got = _exact(nums, 1)
     elif fn == "avg":
