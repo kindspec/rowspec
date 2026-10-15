@@ -243,6 +243,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **An empty column name is `bad-identifier`** (#130). SPEC.md §4.1 makes
+  an `ident` one or more characters. The reference implementation checked
+  each character of a name and so passed a name with none: a header cell
+  that is empty or holds only space and tab, or a computed cell such as
+  `|  = 1 |`, gave a column keyed `''`. It is now refused, as `rowspec_alt`
+  already did.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also
