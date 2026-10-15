@@ -56,10 +56,27 @@ def test_an_infinite_cell_is_overflow_as_an_operand(impl, formula):
         f"if(a > {BIG}, 1, 2)",
         f"if(a < -{BIG}, 1, 2)",
         f"if(a = {BIG}, 1, 2)",
+        BIG,
+        f"-{BIG}",
+        f"{BIG}.5",
+        f"a + {BIG}",
     ],
-    ids=["times-zero", "minus-itself", "if-branch", "order-bound", "negated-bound", "equality"],
+    ids=[
+        "times-zero",
+        "minus-itself",
+        "if-branch",
+        "order-bound",
+        "negated-bound",
+        "equality",
+        "bare",
+        "negated",
+        "with-a-fraction",
+        "an-operand",
+    ],
 )
 def test_an_infinite_literal_is_overflow(impl, formula):
+    """§8: a numeric literal beyond binary64 is `#REF!(overflow)`, like a stored
+    cell (#117), and the formula holding it is not refused."""
     assert column(impl, formula, ["5"]) == [OVF]
 
 
@@ -114,12 +131,57 @@ def two_columns(impl, formula, a, x):
         ("x + a", "#REF!(x)"),
         ("if(a > x, 1, 2)", OVF),
         ("if(x > a, 1, 2)", "#REF!(x)"),
-        (f"if(x = {BIG}, 1, 2)", "#REF!(x)"),
-        (f"if(x > {BIG}, 1, 2)", "#REF!(x)"),
+        (f"if(x = {BIG}, 1, 2)", OVF),
+        (f"if(x > {BIG}, 1, 2)", OVF),
     ],
     ids=["a-plus-x", "x-plus-a", "a-above-x", "x-above-a", "x-equals-big", "x-above-big"],
 )
 def test_the_leftmost_error_wins_over_an_infinite_operand(impl, formula, want):
     """§8: of two errors, the leftmost in the formula text. `a` is infinite and
-    `x` is blank, so each is an error and only position decides between them."""
+    `x` is blank, so each is an error and only position decides between them.
+    A literal beyond binary64 is a header error instead (§4.2 rule 10, #117),
+    so it outranks a blank `x` wherever it sits."""
     assert two_columns(impl, formula, BIG, "") == want
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "formula",
+    [
+        f"if(a > 0, 1, {BIG})",
+        f"if(a < 0, 1, {BIG})",
+        f"if(a > 0, {BIG}, 1)",
+        f"if(a > 0, 1, if(a > 0, 2, {BIG}))",
+        f"if(a > 0, if(a < 0, {BIG}, 2), 1)",
+    ],
+    ids=["else-branch", "else-branch-flipped", "then-branch", "nested-else", "nested-then"],
+)
+def test_an_infinite_literal_is_overflow_in_every_row(impl, formula):
+    """§8 by §4.2 rule 10's reasoning: the literal's cause is in the header, so
+    it is `#REF!(overflow)` in every row, a row that takes the other branch of
+    an `if` included (#117). One row of each sign, so each branch is taken."""
+    assert column(impl, formula, ["5", "-5"]) == [OVF, OVF]
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "formula, values, want",
+    [
+        (f"{BIG} + nope", ["5"], OVF),
+        (f"nope + {BIG}", ["5"], "#REF!(nope)"),
+        (f"1 / 0 + {BIG}", ["5"], OVF),
+        (f"a + {BIG}", [""], OVF),
+        (f"if(a > {BIG}, 1, 2)", [""], OVF),
+    ],
+    ids=[
+        "literal-then-name",
+        "name-then-literal",
+        "div0-then-literal",
+        "blank-then-literal",
+        "blank-bound",
+    ],
+)
+def test_an_infinite_literal_is_a_header_error(impl, formula, values, want):
+    """Like an unresolved name (§4.2 rule 10), it outranks any error that comes
+    from the data, and of two header errors the leftmost wins (§8)."""
+    assert column(impl, formula, values) == [want]

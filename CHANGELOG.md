@@ -9,6 +9,22 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **A numeric literal beyond binary64 range is `#REF!(overflow)`, like a
+  stored cell** (§8; #117). §8 covered only a stored cell, so a formula such as
+  `| b = 1000…0 |` with four hundred digits had no defined value, and nothing
+  in §9 refused it. The formula is not refused: the literal is an operand like
+  any other. Like an unresolved name (§4.2 rule 10), its cause is in the
+  header, so a formula holding one is `#REF!(overflow)` in every row, a row
+  whose `if` takes the other branch included. It outranks an error from the
+  data, and of two such errors the leftmost wins: `1000…0 + nope` is
+  `#REF!(overflow)`. §8 now states this for every header error, an unresolved
+  name included: a header error outranks an error raised while evaluating a
+  row, which is what both implementations already did for a name. An
+  operation on literals, such as `1 / 0`, is still evaluated per row. Both implementations used to evaluate the literal per
+  row: a row taking the other branch got a number, a blank operand to its left
+  gave `#REF!(c)`, and `1000…0 + nope` gave `#REF!(nope)`. Both now follow the
+  rule.
+
 - **An aggregate whose operands hold several different `#REF!` values
   carries one chosen by shape, then by name, never by row position** (§8;
   #115). The ranking is `cycle`, a name, `/0`, `empty`, `overflow`; among
