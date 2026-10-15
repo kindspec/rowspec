@@ -126,6 +126,16 @@ def _check_ident(name, what):
             )
 
 
+def _is_ident(name):
+    """§4.1's `ident` as a test: one or more characters, each admitted by
+    `_check_ident`."""
+    try:
+        _check_ident(name, "")
+    except Malformed:
+        return False
+    return name != ""
+
+
 _ANNOT = re.compile(r'"[^"]*"|[ \t]#')
 
 
@@ -232,8 +242,11 @@ def parse(text):
         if ww:
             nm_, fn_, inner = mw.groups()
             col_, ptext = inner[: ww.start()], inner[ww.end() :]
-            if not re.fullmatch(r"[ \t]*[^\s()]+", col_):
-                # §4.1: only WSP may pad the aggregated column, never U+00A0.
+            if not _is_ident(col_.lstrip(WSP)):
+                # §4.1: only WSP may pad the aggregated column, never U+00A0,
+                # and the column is an `ident`: a control or Cf character in
+                # it is a malformed declaration, not a name that resolves to
+                # no column.
                 raise Malformed(
                     f"line {n}: malformed declaration: {line.strip(WSP)!r}",
                     refusal="malformed-declaration",
@@ -254,6 +267,17 @@ def parse(text):
         m = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*(\w+)\([ \t]*([^\s()]*)[ \t]*\)[ \t]*$", line)
         if m:
             name, fn, arg = m.groups()
+            if not _is_ident(arg):
+                # §4.1: `arg = ident`, for `order := by(c)` as for an
+                # aggregate. The pattern above admits any character but
+                # whitespace and parentheses, and none at all, so a control or
+                # Cf character, or nothing, would otherwise become a name that
+                # resolves to no column: an aggregate of #REF!, or an order
+                # that is never checked.
+                raise Malformed(
+                    f"line {n}: malformed declaration: {line.strip(WSP)!r}",
+                    refusal="malformed-declaration",
+                )
         else:
             m2 = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*([\w.-]+)[ \t]*$", line)
             if not m2:
@@ -463,6 +487,13 @@ def _isnum(v):
 DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 
 
+def is_nonfinite_spelling(v):
+    """SPEC.md §9.10: `inf`, `nan` and `infinity`, in any case. These are text
+    by §4.1.6, so an order column of nothing else is a single type, and §9.10
+    refuses them in any row whatever the rest of the column holds."""
+    return v.lower() in ("inf", "nan", "infinity")
+
+
 def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
@@ -476,6 +507,12 @@ def column_type(col, rows):
             f"order column {col!r} has a blank cell; an ordering column must "
             f"have a single type across every row (§9.10), and blank is none "
             f"of number, date or text",
+            refusal="bad-order-column",
+        )
+    spelled = next((v for v in vals if is_nonfinite_spelling(v)), None)
+    if spelled is not None:
+        raise Malformed(
+            f"order column {col!r} holds the non-finite spelling {spelled!r} (§9.10)",
             refusal="bad-order-column",
         )
     if not vals:

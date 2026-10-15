@@ -219,3 +219,71 @@ the case's `WHY.md`.
   aggregate over its own column is refused although the column is on a
   cycle, with a known-function control
   (`parse/*-function-in-a-group-aggregate-over-itself-*`).
+- **The eighth batch** was written by an author who was not the author of
+  either implementation and did not read either, against SPEC.md at
+  `29edd7c` in a worktree of that commit, opening only SPEC.md, AGENTS.md,
+  CONTRIBUTING.md, the two case trees, the case-count floors in
+  `conformance/run_cases.py`, and the lines of README.md, ROADMAP.md and
+  CHANGELOG.md that state those counts. Its cases are these, named exactly:
+  - `delta(c)` in the first row: `rowrel/delta-first-row-on-a-blank-cell-is-ref`,
+    `rowrel/delta-first-row-on-a-text-cell-is-ref`,
+    `rowrel/delta-first-row-over-a-computed-div-zero-carries-it`,
+    `rowrel/delta-first-row-over-a-computed-number-is-blank` and
+    `rowrel/delta-first-row-over-an-unresolved-name-carries-it`.
+  - Trimming to ASCII space and tab: `eval/tab-padding-around-a-number-is-trimmed`,
+    `eval/em-space-padding-is-not-trimmed`,
+    `eval/ideographic-space-padding-is-not-trimmed`,
+    `eval/tab-padded-column-name-resolves`,
+    `parse/key-values-differing-by-tab-padding-are-duplicates-refused`,
+    `parse/key-value-with-a-trailing-no-break-space-refused`,
+    `parse/key-value-with-a-leading-em-space-refused`,
+    `parse/key-value-with-a-trailing-ideographic-space-refused`,
+    `parse/order-column-tab-padded-number-accepted`,
+    `parse/order-column-no-break-space-padded-number-mixes-types-refused`,
+    `parse/order-column-em-space-padded-number-mixes-types-refused`,
+    `parse/order-column-ideographic-space-padded-number-mixes-types-refused`,
+    `parse/column-name-with-a-trailing-no-break-space-refused`,
+    `parse/column-name-with-a-leading-em-space-refused` and
+    `parse/computed-column-name-with-an-ideographic-space-refused`.
+  - Line endings, for each of `line-separator`, `next-line`, `form-feed`
+    and `vertical-tab`: `eval/<char>-inside-a-cell-does-not-end-the-line`,
+    `eval/<char>-padding-is-not-trimmed` and
+    `eval/annotation-holding-a-<char>-stays-inert`; and
+    `parse/form-feed-after-the-closing-pipe-refused`,
+    `parse/vertical-tab-after-a-declaration-refused`,
+    `eval/tab-after-a-declaration-is-whitespace`,
+    `parse/lone-cr-ending-the-last-line-refused` and
+    `parse/lone-cr-inside-an-annotation-refused`.
+  - Order values §4.1.6 or §4.1.7 refuse:
+    `parse/order-column-leading-plus-mixes-types-refused`,
+    `parse/order-column-bare-leading-point-mixes-types-refused`,
+    `parse/order-column-bare-trailing-point-mixes-types-refused`,
+    `parse/order-column-non-ascii-digit-mixes-types-refused`,
+    `parse/order-date-non-ascii-digits-mixes-types-refused` and
+    `rowrel/order-column-of-number-like-text-sorts-by-code-point`.
+  - A declaration's argument:
+    `parse/declaration-argument-with-a-leading-nul-refused`,
+    `parse/declaration-argument-with-a-trailing-soh-refused`,
+    `parse/declaration-argument-with-a-leading-zero-width-space-refused`,
+    `parse/declaration-argument-with-a-trailing-zero-width-space-refused`
+    and `eval/declaration-argument-padded-with-space-and-tab`.
+  - Whitespace before a call's `(`:
+    `parse/prior-with-a-space-before-its-paren-refused`,
+    `parse/delta-with-a-tab-before-its-paren-refused`,
+    `parse/cumulative-with-a-space-before-its-paren-refused`,
+    `parse/declaration-sum-with-a-space-before-its-paren-refused` and
+    `parse/declaration-count-with-a-tab-before-its-paren-refused`.
+  - Empty or whitespace-only column names:
+    `parse/empty-stored-column-name-refused`,
+    `parse/whitespace-only-stored-column-name-refused`,
+    `parse/empty-computed-column-name-refused`,
+    `parse/whitespace-only-computed-column-name-refused`,
+    `parse/two-empty-stored-column-names-refused` and
+    `parse/two-empty-computed-column-names-refused`.
+  - A `#` in a header string literal:
+    `eval/hash-inside-a-string-literal-in-a-header-if` and
+    `eval/hash-inside-a-string-literal-in-a-header-where`.
+
+  Its CSV-profile cases are listed in `cases-csv/README.md`. It writes no
+  case for number or date recognition in the CSV profile, which §13 does
+  not define.

@@ -1,0 +1,7 @@
+| id | q |
+| --- | --: |
+| r_1 | 1 |
+
+# notemore
+key := id
+s := sum(q)

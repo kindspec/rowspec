@@ -169,12 +169,14 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **85 CSV-profile conformance cases** (#63, #94, #92, #118) in
+- **94 CSV-profile conformance cases** (#63, #94, #92, #118) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
-  repeated empty column name (#92), then 5 for how a name is trimmed (#118).
+  repeated empty column name (#92), then 5 for how a name is trimmed (#118),
+  then 9 for a header of only non-ASCII-space or empty names and for
+  U+2003, U+3000 and tab padding in names and key values.
   They run in CI as `just conform-csv`, in the `conformance` job and in the
-  release gate, with a floor of 85 cases.
+  release gate, with a floor of 94 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 
@@ -219,6 +221,19 @@ prose, and where the two disagree the suite wins.
   acceptance depends only on the formula's own bytes. A `min` control is
   accepted. The floor is now 521 cases.
 
+- **61 conformance cases for whitespace, line breaks and identifiers** in
+  `conformance/cases/`, written from SPEC.md without the implementation.
+  `delta(c)` in the first row over a computed `#REF!(/0)`, an unresolved
+  name inside `c`, and a blank or text `c`; cell values, key values, order
+  values and column names trimmed of ASCII space and tab only, against
+  U+00A0, U+2003 and U+3000; U+2028, U+0085, form feed and vertical tab as
+  line content, and a lone `CR` at the end of the file or inside an
+  annotation; order values a number or date would refuse; a control or
+  `Cf` character around a declaration's argument; whitespace between a
+  row-relative or aggregate name and its `(`; an empty or whitespace-only
+  column name; and a `#` inside a string literal in a header formula. The
+  floor is now 582 cases.
+
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break
   one of them: a dropped edge in the dependency graph (a row-relative column to
@@ -260,6 +275,32 @@ prose, and where the two disagree the suite wins.
   `| p = sum(n where c = "prior(x)") |` in a table with no `order` was
   refused as `rowrel-without-order`. It now skips string literals, and the
   formula is accepted, as `rowspec_alt` already did.
+
+- **An order column holding `inf`, `nan` or `infinity` in any case is
+  refused, even when it holds nothing else** (#168). SPEC.md §9.10 refuses
+  a non-finite spelling in an order column in any row. The reference read
+  those spellings as text, so it refused one beside a number as mixed types
+  but accepted a column of only `inf` and `nan`, or `nan` beside the text
+  `nan2`, which `rowspec_alt` refused. The reference now refuses each as
+  `bad-order-column`, and CSV mode reports `order-non-finite` for the same
+  columns under an `order` sidecar.
+
+- **A declaration argument that is not an `ident` is `malformed-declaration`**
+  (#156, #160). SPEC.md §4.1 writes `arg = ident`. The reference
+  implementation matched the argument as any run of characters but
+  whitespace and parentheses, or none, and never checked it. So a file whose
+  aggregate argument held any non-`ident` character was accepted with a
+  `#REF!` naming it: `t := sum(<U+0000>n)`, `t := sum(n<U+200B>)`,
+  `t := sum(a-b)`, `t := sum(n.x)`, `t := sum(n€)` and
+  `t := sum(n-m where c = "x")` among them; `t := sum()` gave `#REF!()`; and
+  `order := by()` was accepted and the rows kept their file order. Each is
+  now refused, as `rowspec_alt` already did. The check runs before any other
+  on the line, so some files already refused now report
+  `malformed-declaration` in place of another identifier that also applies:
+  `order := by(id-x)` was `bad-order-column`, `t := foo()` was
+  `unknown-aggregate`, `t<U+200B> := sum()` was `bad-identifier`, and
+  `t := sum()` or `order := by()` repeating a name already declared was
+  `duplicate-aggregate` or `duplicate-declaration`.
 
 - **WSP between a row-relative function name and its `(` is
   `malformed-formula`** (#157). SPEC.md §4.2 rule 4 recognises a function
