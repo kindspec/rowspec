@@ -9,6 +9,36 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **A signed non-finite spelling in an order column is refused** (§6,
+  §9.10). §9.10 listed `inf`, `nan` and `infinity` in any case and said
+  nothing about a sign, so `-inf`, `+nan` or `-Infinity` in an order column
+  was left unsettled: the reference read each as text and accepted it, and
+  `rowspec_alt` refused it. Decided by the project owner: one leading `+`
+  or `-` is refused like the bare spelling, as `bad-order-column`. Python's
+  `float()` reads every signed spelling as a number exactly as it reads the
+  bare one, so a host that reads the column would sort it differently from
+  rowspec, which is the reason the bare spellings are refused. §4.1.6 is unchanged:
+  a signed spelling is still text, and is refused only in an order column.
+
+- **SPEC.md §13 defines the CSV sidecar's `order`, `order_type`, `columns`
+  and `delimiter`** (#162). It defined only `key`, while `docs/csv.md`
+  documented all five and `rowspec check` enforced them. An order or typed
+  value is trimmed of ASCII space and tab only (§4.1.4), and is a number or
+  a date only if it matches §4.1.6's `number` or §4.1.7's `date`. An order
+  column follows §6 and §9.10: one type, no blank in any row, and none of
+  §9.10's non-finite spellings. `order_type` and a `columns` type are each
+  one of `number`, `date` or `text`, and a blank in a typed column is not
+  checked.
+  `order_type` without `order` is refused, as `order` without `key` is.
+  A sidecar names a column as §9.2 compares names, after trimming and NFC,
+  and a name naming no column is refused. `delimiter` is one Unicode scalar
+  value other than `"`, CR or LF, and defaults to a tab for a file named
+  `*.tsv` or `*.tab`, in any case, and a comma otherwise. Every other member
+  is refused, with no exception for an implementation's own. The sidecar is
+  UTF-8 JSON, and one that starts with a byte-order mark is refused, for
+  interoperability: RFC 8259 §8.1 says implementations MUST NOT add one.
+  The CSV profile still carries no §9 identifiers.
+
 - **SPEC.md states two rules directly that it reached only by inference**
   (§7, §9.16; #140). `prior(c)` over a text cell is `#REF!(c)`, a cell
   holding only a non-ASCII space included, and an empty identifier, such as
