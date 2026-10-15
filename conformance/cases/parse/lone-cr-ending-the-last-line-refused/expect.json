@@ -1,0 +1,8 @@
+{
+  "accept": false,
+  "kind": "parse",
+  "refusal": [
+    "lone-cr",
+    "malformed-declaration"
+  ]
+}
