@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 """SPEC.md §9.10: an order column is refused when it holds a non-finite
-spelling (`inf`, `nan`, `infinity`, any case) in any row (#168), including a
-column of nothing else, where every value is text and the column has one type.
+spelling (`inf`, `nan`, `infinity`, any case, bare or after one leading `+`
+or `-`) in any row (#168), including a column of nothing else, where every
+value is text and the column has one type.
 
 Unit tests of the reference implementation, not conformance cases: the cases
 for this rule come from an author who has not read `reference/`.
@@ -25,16 +26,53 @@ IMPLS = pytest.mark.parametrize("impl", [ref, alt], ids=["reference", "rowspec_a
 
 SPELLED = pytest.mark.parametrize(
     "cells",
-    [["inf", "nan"], ["INF", "Infinity"], ["nan", "nan2"], ["x", "NaN"], ["infinity"]],
-    ids=["inf-nan", "upper-and-mixed-case", "beside-text", "in-a-later-row", "one-row"],
+    [
+        ["inf", "nan"],
+        ["INF", "Infinity"],
+        ["nan", "nan2"],
+        ["x", "NaN"],
+        ["infinity"],
+        ["-inf", "+nan"],
+        ["-Infinity", "+INF"],
+        ["x", "-NaN"],
+        ["+infinity"],
+    ],
+    ids=[
+        "inf-nan",
+        "upper-and-mixed-case",
+        "beside-text",
+        "in-a-later-row",
+        "one-row",
+        "signed",
+        "signed-upper-and-mixed-case",
+        "signed-in-a-later-row",
+        "signed-one-row",
+    ],
 )
 
-# Text that is not one of the three spellings: a word that starts with one, and
-# fullwidth letters, which no case mapping turns into ASCII.
+# Text that is not one of the three spellings: a word that starts with one,
+# fullwidth letters, which no case mapping turns into ASCII, and signs that are
+# not a single leading `+` or `-` directly before the spelling.
 NOT_SPELLED = pytest.mark.parametrize(
     "cells",
-    [["nanny", "info"], ["ｉｎｆ", "x"], ["inf x", "y"]],
-    ids=["longer-words", "fullwidth", "inner-space"],
+    [
+        ["nanny", "info"],
+        ["ｉｎｆ", "x"],
+        ["inf x", "y"],
+        ["-info", "+nanny"],
+        ["--inf", "+-nan"],
+        ["- inf", "x"],
+        ["inf-", "nan+"],
+    ],
+    ids=[
+        "longer-words",
+        "fullwidth",
+        "inner-space",
+        "signed-longer-words",
+        "two-signs",
+        "space-after-sign",
+        "trailing-sign",
+    ],
 )
 
 
@@ -84,3 +122,7 @@ def test_csv_an_order_column_of_other_text_is_accepted(tmp_path, cells):
 
 def test_csv_a_spelling_beside_a_number_is_also_mixed_types(tmp_path):
     assert csv_rules(tmp_path, ["nan", "1"]) == ["order-mixed-types", "order-non-finite"]
+
+
+def test_csv_a_signed_spelling_beside_a_number_is_also_mixed_types(tmp_path):
+    assert csv_rules(tmp_path, ["-inf", "1"]) == ["order-mixed-types", "order-non-finite"]
