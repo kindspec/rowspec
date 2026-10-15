@@ -424,7 +424,7 @@ def _predicate(text, cols, computed, refusal):
     `refusal` is the §9 identifier for a predicate the grammar does not
     generate, which depends on where it is written: a header cell or a
     declaration line."""
-    preds = []
+    preds, unknown = [], None
     for part in [x.strip() for x in re.split(r"\s+and\s+", text)]:
         m = _PRED.fullmatch(part)
         if not m:
@@ -436,9 +436,11 @@ def _predicate(text, cols, computed, refusal):
                 # anywhere. Refusing would make the file's ACCEPTANCE depend on
                 # the header rather than on its own bytes -- §4.2 rule 7's
                 # argument, which it made for the aggregated column and which
-                # applies unchanged to the predicate's.
-                raise KeyError(c)
-            if c and c in computed:
+                # applies unchanged to the predicate's. Raised only after
+                # every part is checked: a refusal anywhere in the predicate
+                # outranks a #REF!, which is a value.
+                unknown = unknown or c
+            elif c and c in computed:
                 raise Malformed(
                     f"predicate names computed column {c!r} (§9.22): comparison is on "
                     f"cell text and a computed column has none, so the predicate would "
@@ -446,6 +448,8 @@ def _predicate(text, cols, computed, refusal):
                     refusal="computed-column-compared",
                 )
         preds.append((col, at, lit))
+    if unknown:
+        raise KeyError(unknown)  # the leftmost, per §8
     return preds
 
 

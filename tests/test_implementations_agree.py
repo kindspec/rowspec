@@ -66,3 +66,41 @@ def test_the_predicate_of_an_unknown_aggregated_column_is_still_checked(impl):
     with pytest.raises(impl.Malformed) as ex:
         impl.evaluate(src)
     assert ex.value.refusal == "computed-column-compared"
+
+
+HEADER = "| id | a | b = 1 + 1 | t = {f} |\n| -- | -- | -: | -: |\n| r_1 | x |  |  |\n"
+
+
+@IMPLS
+@pytest.mark.parametrize("col", ["nope", "a"])
+@pytest.mark.parametrize(
+    "pred, refusal",
+    [
+        ('zz = "x" and b = "x"', "computed-column-compared"),
+        ('zz = "x" and a = @b', "computed-column-compared"),
+        ('a = "x" and zz = "x" and b = "x"', "computed-column-compared"),
+        ('zz = "x" and a = 3', "malformed-formula"),
+    ],
+)
+def test_an_unknown_name_in_a_predicate_does_not_hide_a_later_refusal(impl, col, pred, refusal):
+    """A refusal anywhere in the predicate outranks the `#REF!` an unknown
+    name earlier in it would give: §9 refusals are about the bytes, and a
+    `#REF!` is a value."""
+    with pytest.raises(impl.Malformed) as ex:
+        impl.evaluate(HEADER.format(f=f"sum({col} where {pred})"))
+    assert ex.value.refusal == refusal
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "pred, refusal",
+    [
+        ('zz = "x" and b = "x"', "computed-column-compared"),
+        ('zz = "x" and a = 3', "malformed-declaration"),
+    ],
+)
+def test_an_unknown_name_in_a_declaration_predicate_does_not_hide_a_refusal(impl, pred, refusal):
+    src = HEADER.format(f="1") + f"\ng := sum(a where {pred})\n"
+    with pytest.raises(impl.Malformed) as ex:
+        impl.evaluate(src)
+    assert ex.value.refusal == refusal

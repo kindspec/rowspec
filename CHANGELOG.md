@@ -135,6 +135,15 @@ prose, and where the two disagree the suite wins.
   cell the grammar generates. The predicate's own refusals, such as
   `computed-column-compared`, still apply.
 
+- **A refusal anywhere in a `where` predicate is reported even after a name
+  that does not resolve** (#100). The reference stopped checking a predicate
+  at its first unknown name and gave `#REF!(name)`, so
+  `sum(a where zz = "x" and b = "x")`, with `b` computed, was accepted where
+  §9.22 refuses it, and so was a right-hand side the grammar does not
+  generate, such as `a = 3`. That held in header cells and in declarations.
+  Every part is now checked first, and the leftmost unknown name is reported
+  only if nothing is refused. `rowspec_alt` already did this.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI
