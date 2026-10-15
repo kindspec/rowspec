@@ -1245,16 +1245,25 @@ def evaluate(text):
     # row-relative, computed over the DERIVED order
     out = {}
     for nm, (fn, col, pred) in decls.items():
+        # Refusals first: a missing column is a #REF!, which is a value, and
+        # must not hide an unknown function or a predicate §9 refuses.
+        if fn not in ("sum", "count", "min", "max", "avg"):
+            raise Malformed(
+                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
+            )
+        try:
+            preds_ = _predicate(pred, cols, formulas, "malformed-declaration") if pred else None
+        except KeyError as e:
+            preds_ = e
+        # The leftmost name: the aggregated column precedes the predicate.
         if col not in cols:
             out[nm] = f"#REF!({col})"
             continue
+        if isinstance(preds_, KeyError):
+            out[nm] = f"#REF!({preds_.args[0]})"
+            continue
         rows_ = seq
         if pred:
-            try:
-                preds_ = _predicate(pred, cols, formulas, "malformed-declaration")
-            except KeyError as e:
-                out[nm] = f"#REF!({e.args[0]})"
-                continue
             rows_ = [
                 o
                 for o in seq
@@ -1264,10 +1273,6 @@ def evaluate(text):
                 )
             ]
         vals = [r.get(col) for r in rows_]
-        if fn not in ("sum", "count", "min", "max", "avg"):
-            raise Malformed(
-                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
-            )
         out[nm] = _agg(fn, vals, col)
 
     return seq, out

@@ -104,3 +104,28 @@ def test_an_unknown_name_in_a_declaration_predicate_does_not_hide_a_refusal(impl
     with pytest.raises(impl.Malformed) as ex:
         impl.evaluate(src)
     assert ex.value.refusal == refusal
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "decl, refusal",
+    [
+        ('g := sum(nope where b = "x")', "computed-column-compared"),
+        ('g := sum(nope where zz = "x" and b = "x")', "computed-column-compared"),
+        ("g := sum(nope where a = 3)", "malformed-declaration"),
+        ("g := foo(nope)", "unknown-aggregate"),
+    ],
+)
+def test_a_declaration_over_a_missing_column_is_still_refused(impl, decl, refusal):
+    """The `#REF!` for a missing aggregated column is a value, and must not
+    hide a refusal elsewhere on the line."""
+    with pytest.raises(impl.Malformed) as ex:
+        impl.evaluate(HEADER.format(f="1") + f"\n{decl}\n")
+    assert ex.value.refusal == refusal
+
+
+@IMPLS
+def test_a_declaration_over_a_missing_column_names_the_column_first(impl):
+    """§8's leftmost rule, on a declaration's right-hand side."""
+    _, aggs = impl.evaluate(HEADER.format(f="1") + '\ng := sum(nope1 where nope2 = "x")\n')
+    assert aggs == {"g": "#REF!(nope1)"}

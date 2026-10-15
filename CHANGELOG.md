@@ -144,6 +144,13 @@ prose, and where the two disagree the suite wins.
   Every part is now checked first, and the leftmost unknown name is reported
   only if nothing is refused. `rowspec_alt` already did this.
 
+- **A declaration over a missing column is still refused when the line
+  breaks a rule** (#100). The reference returned `#REF!(name)` for
+  `g := sum(nope ...)` before checking the function or the predicate, so
+  `g := foo(nope)` was accepted where §9.11 refuses it, and so was a
+  predicate §9.22 or §9.12 refuses. Both are now checked first.
+  `rowspec_alt` already did this.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI
