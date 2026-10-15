@@ -533,8 +533,8 @@ for r in seq:
     #
     # Only min and max die to a wrong value; sum and avg die by raising.
     "an-infinite-aggregate-operand-is-passed-on": (
-        "    if not all(math.isfinite(x) for x in nums):",
-        "    if False:",
+        "            if not math.isfinite(x):",
+        "            if False:",
     ),
     "a-header-group-aggregate-over-a-missing-column-is-refused": (
         "    if col not in cols:\n        missing = col",
