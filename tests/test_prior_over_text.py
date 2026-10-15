@@ -29,3 +29,19 @@ def test_prior_over_text_is_ref_and_poisons_count(impl):
     # r_2 follows text, r_3 follows text, r_4 follows a blank.
     assert got == ["", "#REF!(a)", "#REF!(a)", ""]
     assert str(aggs["n"]) == "#REF!(a)"
+
+
+COMPUTED_ERROR = (
+    "| id | a | t = 1 / a | p = prior(t) |\n| -- | -- | -- | -- |\n"
+    "| r_1 | 0 |  |  |\n| r_2 | 2 |  |  |\n| r_3 | 4 |  |  |\n\n"
+    "key := id\norder := by(id)\nn := count(p)\n"
+)
+
+
+@pytest.mark.parametrize("impl", IMPLS)
+def test_prior_over_a_computed_error_carries_that_error(impl):
+    # §8: the originating error, not #REF!(t) -- the text rule above is for a
+    # stored column only.
+    rows, aggs = importlib.import_module(impl).evaluate(COMPUTED_ERROR)
+    assert [str(r["p"]) for r in rows] == ["", "#REF!(/0)", "0.5"]
+    assert str(aggs["n"]) == "#REF!(/0)"

@@ -196,7 +196,7 @@ MUTANTS = {
 prev_ovf = False
 prev_err = None
 for r in seq:
-    raw = str(r.get(src, "")).strip()
+    raw = str(r.get(src, ""))
     try:
         v = num(raw)
     except (ValueError, TypeError):
@@ -234,7 +234,7 @@ for r in seq:
 prev_ovf = False
 prev_err = None
 for r in seq:
-    raw = str(r.get(src, "")).strip()
+    raw = str(r.get(src, ""))
     try:
         v = num(raw)
     except (ValueError, TypeError):

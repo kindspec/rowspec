@@ -403,7 +403,7 @@ DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
-    vals = [str(r.get(col, "")).strip() for r in rows]
+    vals = [str(r.get(col, "")) for r in rows]
     if any(v == "" for v in vals):
         # §6: blank is none of number/date/text, so a column mixing it with any
         # of them mixes types. Previously blanks were filtered out here and the
@@ -1155,7 +1155,7 @@ def evaluate(text):
         kind = column_type(order, rows)
 
         def typed(r):
-            v = str(r[order]).strip()
+            v = str(r[order])
             if kind == "number":
                 f = num(v)
                 if f != f or f in (float("inf"), float("-inf")):
@@ -1203,7 +1203,7 @@ def evaluate(text):
         prev_ovf = False
         prev_err = None
         for r in seq:
-            raw = str(r.get(src, "")).strip()
+            raw = str(r.get(src, ""))
             try:
                 v = num(raw)
             except (ValueError, TypeError):

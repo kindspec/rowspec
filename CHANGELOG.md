@@ -171,6 +171,14 @@ prose, and where the two disagree the suite wins.
   where it must be poisoned. `rowspec_alt` already gave `#REF!(c)`; a test
   now holds both to it. `prior` over a computed column is unchanged here.
 
+- **`prior`, `delta`, `cumulative` and an order column no longer trim
+  U+00A0 and other Unicode spaces from a cell** (part of #114). SPEC.md
+  §4.1.4 trims ASCII space and tab only. The reference trimmed again with
+  Python's `str.strip()`, so a cell holding only U+00A0 was blank and
+  `2<U+00A0>` was the number 2: `cumulative` summed it, an order column
+  sorted it as a number, and a text order key lost the character. Each is
+  now text, as in `rowspec_alt`.
+
 - **A blank value in the key column is `bad-identifier`** (#111). SPEC.md
   §4.1.9 makes a key value an `ident`, one or more characters, so a blank
   one is not. The reference implementation accepted a table with one blank
