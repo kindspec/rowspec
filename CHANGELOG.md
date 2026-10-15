@@ -9,6 +9,15 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **`delta(c)` carries this row's error when this row and the preceding row
+  both give one** (§7; #116). §7 now reads `delta(c)` as `c - prior(c)`, so
+  §8's leftmost rule decides. SPEC.md did not say, and the two implementations
+  disagreed: over a blank `c` after a stored cell beyond binary64, the
+  reference gave `#REF!(c)` and the second implementation `#REF!(overflow)`.
+  Both now give `#REF!(c)`. The reference also relabelled every error from a
+  computed `c` as `#REF!(c)`; `delta` now carries the error `c` originated,
+  such as `#REF!(/0)`, as §8 requires.
+
 - **`key := fn(col)` is `malformed-declaration`, whatever `fn` is** (§4.1.11,
   §9.12; #110). `key := col` is `key`'s only form. The grammar generates
   `key := by(id)`, and SPEC.md did not say whether it was refused. The
