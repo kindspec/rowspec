@@ -120,6 +120,13 @@ def _validate(obj, where):
             f"{where}: 'order' requires 'key'. Without a key, rows with the same "
             f"order value fall back to their position in the file, which is a coordinate"
         )
+    if "order_type" in obj and "order" not in obj:
+        # SPEC.md §13: a declared check with no column to run on is refused,
+        # since ignoring it would leave the author believing it ran.
+        raise Malformed(
+            f"{where}: 'order_type' requires 'order'. It declares the type of the "
+            f"order column, and with no 'order' there is no column to check"
+        )
     return obj
 
 
