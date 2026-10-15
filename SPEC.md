@@ -1598,9 +1598,12 @@ relaxation**, and the difference must be stated rather than discovered:
   does not hold for CSV key values either.
 - **the sidecar is one JSON object with four optional members: `key`,
   `order`, `order_type` and `columns`.** It sits beside the CSV, named for
-  it: `data.csv.rowspec.json` for `data.csv`. A sidecar that is not valid JSON, or not an object,
-  is refused, and so is a member repeated within one object, `columns`
-  included: JSON's last-one-wins is the silent overwrite §9.4 refuses. A
+  it: `data.csv.rowspec.json` for `data.csv`. **The sidecar is UTF-8 JSON
+  with no byte-order mark**: one that starts with a BOM, which RFC 8259 §8.1
+  says JSON text MUST NOT begin with, or that is not UTF-8, is refused, a
+  sidecar encoded as UTF-16 or UTF-32 included. So is a sidecar that is not
+  valid JSON, or not an object, and a member repeated within one object,
+  `columns` included: JSON's last-one-wins is the silent overwrite §9.4 refuses. A
   member the profile does not define is refused, because a misspelt `oder`
   would otherwise switch a check off without a word; an implementation may
   read further members of its own, provided it documents them, and the
@@ -1632,7 +1635,8 @@ relaxation**, and the difference must be stated rather than discovered:
   **`order_type` without `order` is refused**, as `order` without `key` is
   (§9.25): it declares a check with no column to run on, and ignoring it
   would leave the author believing the check ran.
-- **`columns` declares the type of other stored columns**: a JSON object
+- **`columns` declares the type of any stored column, the key and order
+  columns included**: a JSON object
   whose members map a column name to `number`, `date` or `text`. Any other
   type, a non-string included, is refused, and so is a `columns` that is not
   an object. Two members naming one column, such as `café` spelt NFC and
@@ -1645,8 +1649,8 @@ relaxation**, and the difference must be stated rather than discovered:
   `#REF!(overflow)` where it is used (§8), and nothing here sorts by it.
   **A blank value is not checked**, so a typed column may hold blanks: the
   blank rule above exists because an order needs a place for every row, and
-  a typed column orders nothing. `columns` does not require `key`, and it may
-  name the order column, in which case both checks apply.
+  a typed column orders nothing. `columns` does not require `key`. Where it
+  names the key or the order column, its check applies alongside theirs.
 - **record boundaries are RFC 4180's.** A quoted field runs to its closing
   quote, so a file that ends inside one is refused. This is the profile's
   reading of §9.6, and it applies whatever the field count: the grammar

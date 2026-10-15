@@ -159,8 +159,20 @@ SPEC.md §13 has since settled some of these, each in the direction the
 author read it or, where they wrote no case, by owner decision: all of 6 (an
 unterminated quote, and since #96 a bare quote inside an unquoted field and
 text after a closing quote, both refused), the blank line in 7, 11 (a marker
-line is refused inside a quoted field too), and 12. It also withdrew 3. The
-rest stand as the cases read them.
+line is refused inside a quoted field too), and 12. It also withdrew 3.
+
+§13's definition of the sidecar (#162) revised 2 and settled 5. On 2: the
+sidecar's `order` brings §9.10 (`bad-order-column`) and §9.25
+(`order-without-key`) into the profile, and a member repeated within the
+sidecar is refused for §9.4's reason. §9.12 still does not apply, since a
+sidecar is not a declaration line, but §13 refuses a sidecar name that names
+no column in its own right. On 5: §13 now states every failure the reading
+listed, and the case for a non-string `key` it left open: invalid JSON, a
+sidecar that is not an object, a repeated member, and a name that is not a
+string or names no column are each refused, by §13's text rather than by
+analogy. The cases already written still read as before.
+
+The rest stand as the cases read them.
 
 SPEC.md §9.14 has since been split: malformed UTF-8 is still §9.14
 (`bad-encoding`), and a leading BOM is now §9.26 (`leading-bom`). The cases'

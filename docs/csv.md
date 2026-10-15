@@ -97,7 +97,7 @@ profile: what it cannot apply, and how it reads §9.16, RFC 4180's records and
 | 7 | `alignment-field-count`: alignment row field count | | | ● |
 | 8 | `alignment-row-in-data`: alignment-style row among data | | | ● |
 | 9 | `rowrel-without-order`: row-relative operator, no order | | | ● |
-| 10 | `bad-order-column`: `order` column absent or mixed-type | | ● | |
+| 10 | `bad-order-column`: `order` column absent, mixed-type, blank or non-finite | | ● | |
 | 11 | `unknown-aggregate`: unknown aggregate function | | | ● |
 | 12 | `malformed-declaration`: malformed declaration | | ● | |
 | 13 | `no-table`: no table | ● | | |
