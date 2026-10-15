@@ -129,8 +129,8 @@ MUTANTS = {
         '    return "".join(out).replace("\\r\\n", "\\n")',
     ),
     "header-group-call-does-not-require-where": (
-        r'_GROUP = re.compile(r"(\w+)\(\s*(\w+)\s+where\s+(.+?)\s*\)\s*$")',
-        r'_GROUP = re.compile(r"(\w+)\(\s*(\w+)(?:\s+where\s+(.+?))?\s*\)\s*$")',
+        r'_GROUP = re.compile(r"(\w+)\([ \t]*(\w+)[ \t]+where[ \t]+(.+?)[ \t]*\)[ \t]*$")',
+        r'_GROUP = re.compile(r"(\w+)\([ \t]*(\w+)(?:[ \t]+where[ \t]+(.+?))?[ \t]*\)[ \t]*$")',
     ),
     # --- the four that were LIVE DIVERGENCES between the implementations ----
     # Each restores the behaviour one side actually had. A survivor here means

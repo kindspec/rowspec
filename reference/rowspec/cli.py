@@ -205,7 +205,7 @@ def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
     cells = [rid if c == key else "" if c in formulas else supplied.get(c, "") for c in cols]
     line = "| " + " | ".join(escape_cell(c) for c in cells) + " |"
     lines = split_lines(text, keepends=True)
-    last = max(i for i, ln in enumerate(lines) if ln.strip().startswith("|"))
+    last = max(i for i, ln in enumerate(lines) if ln.lstrip(" 	").startswith("|"))
     eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
     lines.insert(last + 1, line + eol)
     open(path, "w", encoding="utf-8", newline="").write("".join(lines))

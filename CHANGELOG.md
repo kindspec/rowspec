@@ -254,7 +254,23 @@ prose, and where the two disagree the suite wins.
   mode's conflict-marker scan now split on LF only, as `rowspec_alt` already
   did; a test now holds both to it. `add-row` splits the file itself as well,
   and with only `parse` fixed it would have inserted its row inside the last
-  line.
+  line. In CSV mode this also changes a marker run placed after a lone CR
+  rather than an LF: git does not start a line there, so it is no longer
+  reported as a conflict marker (§4.1.12 is about a line's first seven
+  characters), and the lone CR is still reported, as before.
+
+- **U+00A0 and other Unicode spaces are not `WSP` around a line, a header
+  cell or a declaration** (#143). SPEC.md §4.1 defines `WSP` as ASCII space
+  and tab only. The reference implementation trimmed lines, header names,
+  formulas and declarations with Python's `str.strip()` and matched them with
+  `\s`, which cover Unicode whitespace, so it accepted U+00A0 after a closing
+  pipe, before a leading pipe or a `#`, on a line of its own, around a header
+  name or a formula, and inside or after a declaration. It now trims and
+  matches ASCII space and tab only, and refuses each of those files as
+  `rowspec_alt` already did; a test now holds both to it. A declaration's
+  `where` is now separated by any run of space and tab, as §4.2 writes it
+  (`1*WSP "where" 1*WSP`): `sum(n \twhere c = "x")` and `sum(n where\tc = "x")`
+  were refused before, because only a single space was recognised.
 
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's

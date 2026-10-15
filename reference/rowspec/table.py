@@ -33,6 +33,9 @@ class Malformed(Exception):
 CONFLICT = ("<<<<<<<", "=======", ">>>>>>>", "|||||||")
 ROWREL = {"cumulative", "prior", "delta"}
 INF = float("inf")
+# §4.1: `WSP = SP / HTAB`, never the Unicode White_Space property. Every
+# trim and every regex the grammar writes with WSP uses this, not `\s`.
+WSP = " \t"
 BLANK = object()  # "the preceding row exists and is blank" -- not None
 
 
@@ -65,7 +68,8 @@ def split_row(line):
     # ASCII whitespace only when trimming: SPEC §8 names non-ASCII spaces among
     # the values that must not coerce, so stripping them would silently accept a
     # cell the spec requires to be #REF!.
-    body = line.strip()
+    # `structure` passes a line with its terminator, which is not WSP.
+    body = line.rstrip("\r\n").strip(WSP)
     if body.startswith("|"):
         body = body[1:]
     if body.endswith("|") and not body.endswith("\\|"):
@@ -114,7 +118,7 @@ def _check_ident(name, what):
             )
 
 
-_ANNOT = re.compile(r'"[^"]*"|\s#')
+_ANNOT = re.compile(r'"[^"]*"|[ \t]#')
 
 
 def _strip_annotation(line):
@@ -163,10 +167,10 @@ def parse(text):
             raise Malformed(f"line {n}: unresolved conflict marker", refusal="conflict-marker")
     tbl = []
     for line in lines:
-        if line.strip().startswith("|"):
-            if not line.strip().endswith("|"):
+        if line.strip(WSP).startswith("|"):
+            if not line.strip(WSP).endswith("|"):
                 raise Malformed(
-                    f"table line lacks its closing pipe: {line.strip()!r}. §4.1.3 "
+                    f"table line lacks its closing pipe: {line.strip(WSP)!r}. §4.1.3 "
                     f"requires both, because only the closing pipe reveals a row "
                     f"truncated inside its final cell",
                     refusal="malformed-table-line",
@@ -185,12 +189,12 @@ def parse(text):
     decls, order, key = {}, None, None
     order_seen = False
     for n, line in enumerate(lines, 1):
-        if line.lstrip().startswith("#"):
+        if line.lstrip(WSP).startswith("#"):
             continue  # SPEC §9: the ignorable channel, inert whatever it contains
         stripped = _strip_annotation(line)
         if ":=" not in stripped:
-            if stripped.strip() and line not in tbl_set:
-                if stripped.strip().startswith("|"):
+            if stripped.strip(WSP) and line not in tbl_set:
+                if stripped.strip(WSP).startswith("|"):
                     raise Malformed(
                         f"line {n}: this is a valid table line, but the table already "
                         f"ended above it. A table is a CONTIGUOUS run of lines beginning "
@@ -201,26 +205,35 @@ def parse(text):
                     )
                 raise Malformed(
                     f"line {n}: not a table line, an annotation, or a declaration: "
-                    f"{stripped.strip()!r}",
+                    f"{stripped.strip(WSP)!r}",
                     refusal="unclassified-line",
                 )
             continue
         line = stripped
-        if re.match(r"\s*key\s*:=\s*\w+\s*\(", line):
+        if re.match(r"[ \t]*key[ \t]*:=[ \t]*\w+[ \t]*\(", line):
             # §4.1.11: `key := col` is key's only form. Read as `key := col`,
             # `key := sum(id)` would key the table on `id`.
             raise Malformed(
-                f"line {n}: key takes a bare column name, not a function: {line.strip()!r}",
+                f"line {n}: key takes a bare column name, not a function: {line.strip(WSP)!r}",
                 refusal="malformed-declaration",
             )
-        mw = re.match(r"\s*([^\s:=]+)\s*:=\s*(\w+)\((.+)\)\s*$", line)
-        if mw and " where " in mw.group(3):
+        mw = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*(\w+)\((.+)\)[ \t]*$", line)
+        # §4.2: `arg = ident 1*WSP "where" 1*WSP pred`, so any run of space
+        # and tab separates `where`, never only a single space.
+        ww = re.search(r"[ \t]+where[ \t]+", mw.group(3)) if mw else None
+        if ww:
             nm_, fn_, inner = mw.groups()
-            col_, ptext = inner.split(" where ", 1)
+            col_, ptext = inner[: ww.start()], inner[ww.end() :]
+            if not re.fullmatch(r"[ \t]*[^\s()]+", col_):
+                # §4.1: only WSP may pad the aggregated column, never U+00A0.
+                raise Malformed(
+                    f"line {n}: malformed declaration: {line.strip(WSP)!r}",
+                    refusal="malformed-declaration",
+                )
             if "@" in ptext:
                 raise Malformed(
                     f"line {n}: `@` names THIS ROW's value, and a declaration has no "
-                    f"current row (SPEC §4.2 rule 5); {ptext.strip()!r} is malformed",
+                    f"current row (SPEC §4.2 rule 5); {ptext.strip(WSP)!r} is malformed",
                     refusal="malformed-declaration",
                 )
             _check_ident(nm_, "aggregate name")
@@ -228,16 +241,16 @@ def parse(text):
                 raise Malformed(
                     f"line {n}: duplicate aggregate name {nm_!r}", refusal="duplicate-aggregate"
                 )
-            decls[nm_] = (fn_, col_.strip(), ptext.strip())
+            decls[nm_] = (fn_, col_.strip(WSP), ptext.strip(WSP))
             continue
-        m = re.match(r"\s*([^\s:=]+)\s*:=\s*(\w+)\(\s*([^\s()]*)\s*\)\s*$", line)
+        m = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*(\w+)\([ \t]*([^\s()]*)[ \t]*\)[ \t]*$", line)
         if m:
             name, fn, arg = m.groups()
         else:
-            m2 = re.match(r"\s*([^\s:=]+)\s*:=\s*([\w.-]+)\s*$", line)
+            m2 = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*([\w.-]+)[ \t]*$", line)
             if not m2:
                 raise Malformed(
-                    f"line {n}: malformed declaration: {line.strip()!r}",
+                    f"line {n}: malformed declaration: {line.strip(WSP)!r}",
                     refusal="malformed-declaration",
                 )
             name, fn, arg = m2.group(1), None, m2.group(2)
@@ -279,9 +292,9 @@ def parse(text):
     for h in header:
         if "=" in h:
             nm, expr = h.split("=", 1)
-            nm = nm.strip()
+            nm = nm.strip(WSP)
             cols.append(nm)
-            formulas[nm] = expr.strip()
+            formulas[nm] = expr.strip(WSP)
         else:
             cols.append(h)
     for c in cols:
@@ -298,7 +311,7 @@ def parse(text):
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
-            if re.search(rf"\b{fn}\s*\(", expr):
+            if re.search(rf"\b{fn}[ \t]*\(", expr):
                 if order is None:
                     raise Malformed(
                         f"column {nm!r} uses row-relative {fn}() but the table "
@@ -314,7 +327,7 @@ def parse(text):
         raise Malformed("table has no alignment row", refusal="bad-alignment-row")
     if not is_align(tbl[1]):
         raise Malformed(
-            f"the second table line is not a valid alignment row: {tbl[1].strip()!r}. "
+            f"the second table line is not a valid alignment row: {tbl[1].strip(WSP)!r}. "
             f"Cells must be one of ---, :--, --:, :-:",
             refusal="bad-alignment-row",
         )
@@ -328,13 +341,13 @@ def parse(text):
         if is_align(line):
             raise Malformed(
                 f"alignment-style row among the data rows "
-                f"(wrong number of value fields): {line.strip()!r}",
+                f"(wrong number of value fields): {line.strip(WSP)!r}",
                 refusal="alignment-row-in-data",
             )
         v = split_row(line)
         if len(v) != len(cols):
             raise Malformed(
-                f"row has {len(v)} fields, header has {len(cols)}: {line.strip()!r}",
+                f"row has {len(v)} fields, header has {len(cols)}: {line.strip(WSP)!r}",
                 refusal="row-field-count",
             )
         row = dict(zip(cols, v, strict=False))
@@ -473,8 +486,8 @@ def column_type(col, rows):
     return kinds.pop()
 
 
-_GROUP = re.compile(r"(\w+)\(\s*(\w+)\s+where\s+(.+?)\s*\)\s*$")
-_PRED = re.compile(r'(\w+)\s*=\s*(?:@(\w+)|"([^"]*)")')
+_GROUP = re.compile(r"(\w+)\([ \t]*(\w+)[ \t]+where[ \t]+(.+?)[ \t]*\)[ \t]*$")
+_PRED = re.compile(r'(\w+)[ \t]*=[ \t]*(?:@(\w+)|"([^"]*)")')
 
 
 def _predicate(text, cols, computed, refusal):
@@ -484,7 +497,7 @@ def _predicate(text, cols, computed, refusal):
     generate, which depends on where it is written: a header cell or a
     declaration line."""
     preds, unknown = [], None
-    for part in [x.strip() for x in re.split(r"\s+and\s+", text)]:
+    for part in [x.strip(WSP) for x in re.split(r"[ \t]+and[ \t]+", text)]:
         m = _PRED.fullmatch(part)
         if not m:
             raise Malformed(f"unsupported predicate {part!r}", refusal=refusal)
@@ -615,7 +628,7 @@ def _ast(expr, where):
 
 
 _TOK = re.compile(
-    r"\s*(?:(?P<str>\"[^\"]*\")"
+    r"[ \t]*(?:(?P<str>\"[^\"]*\")"
     r"|(?P<word>[0-9]+\.[0-9]+|[^\W]+)"
     r"|(?P<op><=|>=|<>|==|!=|[-+*/(),<>=])"
     r"|(?P<bad>.))",
@@ -1276,8 +1289,8 @@ def _evaluate_columns(seq, cols, formulas):
     computed = frozenset(formulas)
     rowrel, groups, plain = {}, {}, {}
     for nm, expr in formulas.items():
-        m = re.fullmatch(r"\s*(\w+)\s*\(\s*(\w+)\s*\)\s*", expr)
-        g = _GROUP.fullmatch(expr.strip())
+        m = re.fullmatch(r"[ \t]*(\w+)[ \t]*\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
+        g = _GROUP.fullmatch(expr.strip(WSP))
         if m and m.group(1) in ROWREL:
             rowrel[nm] = m.groups()
         elif g:
@@ -1457,7 +1470,7 @@ def structure(text):
     text = unicodedata.normalize("NFC", text)
     lines = split_lines(text, keepends=True)
     cols, formulas, rows, decls, order, key = parse(text)
-    tbl_idx = [i for i, ln in enumerate(lines) if ln.strip().startswith("|")]
+    tbl_idx = [i for i, ln in enumerate(lines) if ln.strip(WSP).startswith("|")]
     header_raw = lines[tbl_idx[0]]
     align_raw = lines[tbl_idx[1]] if len(tbl_idx) > 1 and is_align(lines[tbl_idx[1]]) else None
     row_raws = [lines[i] for i in tbl_idx[2:]]
@@ -1507,7 +1520,7 @@ def canon(text):
     out = list(st["prefix"])
     out.append(row(hdr) + "\n")
     if st["align_raw"]:
-        aligns = [a.strip() for a in split_row(st["align_raw"])]
+        aligns = [a.strip(WSP) for a in split_row(st["align_raw"])]
         out.append(
             row(
                 [
