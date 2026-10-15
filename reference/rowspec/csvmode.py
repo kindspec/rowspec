@@ -298,10 +298,14 @@ def _name_row(rec, names, key_idx, n):
     the first field if there is no key; a record number only as a last resort,
     and labelled as a record so it is not mistaken for a line number -- a
     quoted field containing a newline makes those differ."""
-    if key_idx is not None and key_idx < len(rec) and rec[key_idx].strip():
-        return f"row {names[key_idx]}={_show(rec[key_idx].strip())}"
-    if rec and names and rec[0].strip():
-        return f"row {names[0]}={_show(rec[0].strip())}"
+    # §13: a key value is trimmed of ASCII space and tab only, so `a<U+00A0>`
+    # is named as itself and not as the row `a`.
+    key = rec[key_idx].strip(" \t") if key_idx is not None and key_idx < len(rec) else ""
+    if key:
+        return f"row {names[key_idx]}={_show(key)}"
+    first = rec[0].strip(" \t") if rec else ""
+    if first and names:
+        return f"row {names[0]}={_show(first)}"
     return f"record {n}"
 
 
@@ -479,7 +483,7 @@ def _duplicate_keys(body, names, key_idx):
     findings = []
     groups = {}
     for n, rec in enumerate(body, 1):
-        raw = rec[key_idx].strip() if key_idx < len(rec) else ""
+        raw = rec[key_idx].strip(" \t") if key_idx < len(rec) else ""
         groups.setdefault(unicodedata.normalize("NFC", raw), []).append((n, raw))
     key = names[key_idx]
     dups = [(k, v) for k, v in groups.items() if len(v) > 1]
@@ -517,7 +521,8 @@ def _duplicate_keys(body, names, key_idx):
 
 def _column_values(body, names, col):
     i = names.index(col)
-    return [(n, rec[i].strip()) for n, rec in enumerate(body, 1) if i < len(rec)]
+    # §13 / §4.1.4: ASCII space and tab only, so `<U+00A0>5` stays text.
+    return [(n, rec[i].strip(" \t")) for n, rec in enumerate(body, 1) if i < len(rec)]
 
 
 def _typed_columns(body, names, side, key_idx):
