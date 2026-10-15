@@ -890,9 +890,15 @@ def _number(name, env):
     if v == "":
         raise KeyError(name)
     try:
-        return num(v)
+        got = num(v)
     except (ValueError, TypeError):
         raise KeyError(name) from None
+    if got in (INF, -INF):
+        # §8: a stored cell whose decimal spelling is finite but whose binary64
+        # value is not is #REF!(overflow) wherever it is used as an operand.
+        # Passed on, it reached the output as `inf`, or as `nan` once two met.
+        raise KeyError("overflow")
+    return got
 
 
 def truth(c, env):
@@ -905,9 +911,16 @@ def truth(c, env):
             eq = unicodedata.normalize("NFC", str(lv)) == unicodedata.normalize("NFC", c.rhs)
             return eq if c.op == "=" else not eq
         eq = _number(c.lhs, env) == c.rhs
+        if c.rhs in (INF, -INF):
+            # A `signed` bound too long for binary64 is #REF!(overflow) like any
+            # other operand (§4.2 rule 2). The left-hand side goes first: its
+            # error is the leftmost (§8).
+            raise KeyError("overflow")
         return eq if c.op == "=" else not eq
     a = _number(c.lhs, env)
     b = c.rhs if c.kind == "num" else _number(c.rhs, env)
+    if b in (INF, -INF):
+        raise KeyError("overflow")
     if c.op == "<":
         return a < b
     if c.op == "<=":
@@ -919,6 +932,10 @@ def truth(c, env):
 
 def ev(node, env):
     if isinstance(node, Num):
+        if node.v in (INF, -INF):
+            # §4.2 rule 2 stores no infinity, and a `literal` of four hundred
+            # digits is one: `999...9 * 0` was `nan`.
+            raise KeyError("overflow")
         return node.v
     if isinstance(node, If):
         # ONLY the selected branch. Eager evaluation of both makes
@@ -1162,30 +1179,46 @@ def evaluate(text):
         # §8 forbids a stale value, and skipping a blank row produced exactly
         # one: `prior` reported a number true two rows ago, and `cumulative`
         # resumed as though the blank had not happened.
-        acc, prev, poisoned = 0.0, None, False
+        acc, prev, poisoned = 0.0, None, None
+        prev_ovf = False
         for r in seq:
             raw = str(r.get(src, "")).strip()
             try:
                 v = num(raw)
             except (ValueError, TypeError):
                 v = None
+            # §8: a stored cell whose binary64 value is infinite is
+            # #REF!(overflow) as an operand. Passed on, `delta` subtracted two
+            # infinities into `nan` and `prior` stored `inf`.
+            ovf = v in (INF, -INF)
             if fn == "prior":
                 # `prev` is None only before the first row; after that it is the
                 # preceding row's value, blank included.
-                r[nm] = "" if prev is None else prev
+                if prev is None:
+                    r[nm] = ""
+                else:
+                    r[nm] = "#REF!(overflow)" if prev_ovf else prev
             elif fn == "delta":
                 if prev is None:
                     r[nm] = ""
+                elif ovf:
+                    # An infinite `prev` needs no branch of its own: a finite
+                    # `v` minus it is an infinity, which the step below maps.
+                    r[nm] = "#REF!(overflow)"
                 elif v is None or not isinstance(prev, float):
                     r[nm] = f"#REF!({src})"
                 else:
                     d = v - prev
                     r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
             elif fn == "cumulative":
-                if v is None:
-                    poisoned = True
+                # The first bad CELL sets the label for the rest of the column.
+                # An overflow of the running total itself is not a bad cell: it
+                # is `acc` below, and a later blank still relabels it #REF!(c),
+                # as in `rowspec_alt`. SPEC.md does not order the two.
+                if poisoned is None and (v is None or ovf):
+                    poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
                 if poisoned:
-                    r[nm] = f"#REF!({src})"
+                    r[nm] = poisoned
                 else:
                     acc += v
                     # §8: `inf` is not a `number` under §4.1.6, so storing one
@@ -1193,6 +1226,7 @@ def evaluate(text):
                     # `canon` would not round-trip its own output.
                     r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             prev = raw if v is None else v
+            prev_ovf = ovf
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
     # One fixpoint over BOTH kinds. A group aggregate over a computed column
