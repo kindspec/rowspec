@@ -123,13 +123,17 @@ prose, and where the two disagree the suite wins.
   none. Such a header is now refused as a duplicate column, because §13 makes
   an empty header cell a column name and §9.2 refuses two of one name.
 
-- **`sum` and `avg` over a cell whose binary64 value is infinite are
-  `#REF!(overflow)`, not an exception** (#102). SPEC.md §8 makes such a cell
-  `#REF!(overflow)` wherever it is an operand. The reference implementation
-  passed it on, and `evaluate` raised `ValueError` when two infinities of
+- **An aggregate over a cell whose binary64 value is infinite is
+  `#REF!(overflow)`** (#102). SPEC.md §8 makes such a cell `#REF!(overflow)`
+  wherever it is an operand. The reference implementation passed it on. For
+  `sum` and `avg`, `evaluate` raised `ValueError` when two infinities of
   opposite sign met, or `OverflowError` when the finite operands' partial
-  sum also left binary64. `rowspec_alt` already returned `#REF!(overflow)`;
-  a test now holds both to it.
+  sum also left binary64. For `min` and `max` it returned a silently wrong
+  number whenever the result was finite: `min` over a positive infinity and
+  `1` was `1`, and so was `max` over a negative infinity and `1`, in a
+  declaration and in a header group aggregate alike. `count` is unchanged.
+  `rowspec_alt` already returned `#REF!(overflow)`; a test now holds both to
+  it.
 
 ## [0.3.0] — 2026-10-08
 

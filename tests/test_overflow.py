@@ -29,7 +29,7 @@ def table(values, decl):
 
 
 @pytest.mark.parametrize("impl", [ref, alt], ids=["reference", "rowspec_alt"])
-@pytest.mark.parametrize("fn", ["sum", "avg"])
+@pytest.mark.parametrize("fn", ["sum", "avg", "min", "max"])
 @pytest.mark.parametrize(
     "values",
     [
@@ -38,12 +38,29 @@ def table(values, decl):
         [BIG, NEAR, NEAR],
         # Two infinities of opposite sign.
         [HUGE, "-" + HUGE],
+        # Only a negative infinity, which `max` would otherwise skip past.
+        ["-" + HUGE, "1"],
+        # Only a positive infinity, which `min` would otherwise skip past.
+        [HUGE, "1"],
     ],
-    ids=["infinite-among-finite", "opposite-infinities"],
+    ids=["infinite-among-finite", "opposite-infinities", "negative-only", "positive-only"],
 )
 def test_an_infinite_operand_makes_the_aggregate_overflow(impl, fn, values):
+    """`min` and `max` included: they only compare their operands, but still
+    use them, and skipping the infinity would report the finite one."""
     _, aggs = impl.evaluate(table(values, f"s := {fn}(a)"))
     assert aggs == {"s": "#REF!(overflow)"}
+
+
+@pytest.mark.parametrize("impl", [ref, alt], ids=["reference", "rowspec_alt"])
+@pytest.mark.parametrize("fn", ["sum", "avg", "min", "max"])
+def test_a_header_group_aggregate_over_an_infinite_operand_overflows(impl, fn):
+    src = (
+        f"| id | g | a | t = {fn}(a where g = @g) |\n| -- | -- | -: | -: |\n"
+        f"| r_1 | x | {HUGE} |  |\n| r_2 | x | 1 |  |\n"
+    )
+    rows, _ = impl.evaluate(src)
+    assert [r["t"] for r in rows] == ["#REF!(overflow)", "#REF!(overflow)"]
 
 
 @pytest.mark.parametrize("impl", [ref, alt], ids=["reference", "rowspec_alt"])
