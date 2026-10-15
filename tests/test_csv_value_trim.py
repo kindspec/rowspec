@@ -69,3 +69,12 @@ def test_ascii_space_and_tab_are_trimmed(tmp_path, body, side, want):
     """The same values padded with ASCII space and tab are trimmed, so the
     findings above are about the character and not about padding."""
     assert rules(check(tmp_path, body, side)) == want
+
+
+def test_without_a_key_a_row_is_named_by_its_untrimmed_first_field(tmp_path):
+    """`_name_row` falls back to the first field when the sidecar declares no
+    key, and trims it of ASCII space and tab only, like a key value."""
+    side = {"columns": {"n": "number"}}
+    found = check(tmp_path, "id,n\na,1\na ,x\n", side)
+    assert rules(found) == ["column-type"]
+    assert "row id='a ' has n='x'" in str(found[0])
