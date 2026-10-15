@@ -1,0 +1,7 @@
+| id | overflow | z | c = overflow / z |
+| --- | --- | --: | --: |
+| r_1 | x | 1 |  |
+| r_2 | 1 | 0 |  |
+
+key := id
+s := sum(c)

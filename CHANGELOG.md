@@ -151,11 +151,12 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **80 CSV-profile conformance cases** (#63, #94, #92) in
+- **85 CSV-profile conformance cases** (#63, #94, #92, #118) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
-  repeated empty column name (#92). They run in CI as `just conform-csv`, in
-  the `conformance` job and in the release gate, with a floor of 80 cases.
+  repeated empty column name (#92), then 5 for how a name is trimmed (#118).
+  They run in CI as `just conform-csv`, in the `conformance` job and in the
+  release gate, with a floor of 85 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 
@@ -172,6 +173,14 @@ prose, and where the two disagree the suite wins.
   leftmost unknown name in a predicate, predicate refusals behind a cycle or a
   missing aggregated column, and `cumulative` across opposite infinities. The
   floor is now 451 cases.
+
+- **32 conformance cases for the spec rulings and reference fixes** (#110,
+  #111, #114, #115, #116, #117, #126) in `conformance/cases/`, written from
+  SPEC.md without the implementation: `key :=` in function form, the ranking
+  of several `#REF!` values in one aggregate with row-swapped twins, `delta`
+  with errors in both rows, overlong literals and header errors, blank key
+  values, `prior` over text, and stored text spelled like an error. The floor
+  is now 483 cases.
 
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
@@ -209,6 +218,13 @@ prose, and where the two disagree the suite wins.
   evaluated once the columns it names hold their values, and each reads them
   as numbers and errors. `rowspec_alt` already gave every one of these
   answers; a test now holds both to them.
+
+- **A computed cell holding only U+00A0 or another Unicode space is
+  `value-in-computed-cell`** (#137). SPEC.md §4.1.4 trims a cell of ASCII
+  space and tab only, so such a cell holds a value, and §9.17 refuses a value
+  in a computed cell. The reference implementation trimmed the cell again
+  with Python's `str.strip()` and accepted it as empty. `rowspec_alt` already
+  refused it; a test now holds both to it.
 
 - **A stored cell spelled like an error value is text** (#126). SPEC.md §4.1
   rule 6 makes a cell that is not a `number` text, `#REF!(c)` as an operand

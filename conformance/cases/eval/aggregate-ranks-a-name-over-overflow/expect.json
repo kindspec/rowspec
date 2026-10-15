@@ -1,0 +1,9 @@
+{
+  "aggregates": {
+    "hi": "#REF!(a)",
+    "lo": "#REF!(a)",
+    "m": "#REF!(a)",
+    "s": "#REF!(a)"
+  },
+  "kind": "eval"
+}
