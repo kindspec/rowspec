@@ -117,6 +117,12 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **CSV mode no longer crashes on a header whose only repeated name is
+  empty** (#92). The grouped-header check counted empty names, then took its
+  label from the non-empty ones, and raised `IndexError` when there were
+  none. Such a header is now refused as a duplicate column, because §13 makes
+  an empty header cell a column name and §9.2 refuses two of one name.
+
 - **`rowspec_alt` refuses an order column that is blank in every row** (#100),
   as `bad-order-column`. SPEC.md §9.10 refuses one that "is blank in any
   row"; `rowspec_alt` refused blank only when it was mixed with a value.

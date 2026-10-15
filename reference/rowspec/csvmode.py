@@ -222,6 +222,10 @@ def _grouped_header(names, second):
     if len(set(below)) != len(below) or sum(1 for c in below if c) < len(below) - 1:
         return None
     repeated = sorted({n for n in names if names.count(n) > 1 and n})
+    if not repeated:
+        # Only empty names repeat. SPEC.md §13 makes an empty header cell a
+        # column name, so this is §9.2's duplicate column, not a group label.
+        return None
     return Finding(
         "grouped-header",
         f"the first row is not a row of column names: {_show(repeated[0])} and "
