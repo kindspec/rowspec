@@ -27,7 +27,7 @@ def _run(impl, body):
 @pytest.mark.parametrize("impl", IMPLS)
 def test_an_nbsp_only_cell_is_text_not_blank(impl):
     got, n = _run(impl, f"| r_1 | {N} |  |  |  |\n| r_2 | 1 |  |  |  |\n")
-    assert got == [["", "", "#REF!(a)"], ["#REF!(a)", "#REF!(a)", "#REF!(a)"]]
+    assert got == [["", "#REF!(a)", "#REF!(a)"], ["#REF!(a)", "#REF!(a)", "#REF!(a)"]]
     assert n == "#REF!(a)"
 
 

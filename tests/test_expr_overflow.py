@@ -84,8 +84,8 @@ def test_an_infinite_literal_is_overflow(impl, formula):
 @pytest.mark.parametrize(
     "formula, values, want",
     [
-        ("delta(a)", [BIG, BIG], ["", OVF]),
-        ("delta(a)", ["x", BIG], ["", OVF]),
+        ("delta(a)", [BIG, BIG], [OVF, OVF]),
+        ("delta(a)", ["x", BIG], ["#REF!(a)", OVF]),
         ("prior(a)", [BIG, "1", "2"], ["", OVF, 1.0]),
         ("cumulative(a)", [BIG, "-" + BIG, "1"], [OVF, OVF, OVF]),
         ("cumulative(a)", [BIG, ""], [OVF, OVF]),

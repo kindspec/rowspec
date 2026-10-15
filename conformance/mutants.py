@@ -217,7 +217,7 @@ for r in seq:
             r[nm] = "#REF!(overflow)" if prev_ovf else prev
     elif fn == "delta":
         if prev is None:
-            r[nm] = ""
+            r[nm] = err or ""
         elif err or prev_err:
             r[nm] = err or prev_err
         else:
@@ -255,7 +255,7 @@ for r in seq:
             r[nm] = "#REF!(overflow)" if prev_ovf else prev
     elif fn == "delta":
         if prev is None:
-            r[nm] = ""
+            r[nm] = err or ""
         elif err or prev_err:
             r[nm] = err or prev_err
         else:
@@ -400,7 +400,7 @@ for r in seq:
         'if fn == "prior":\n    r[nm] = ""',
     ),
     "delta-first-row-is-the-value": (
-        'if prev is None:\n    r[nm] = ""\nelif err or prev_err:',
+        'if prev is None:\n    r[nm] = err or ""\nelif err or prev_err:',
         "if prev is None:\n    r[nm] = err or v\nelif err or prev_err:",
     ),
     "delta-is-negated": (

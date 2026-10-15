@@ -9,6 +9,15 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **In the first row, `delta(c)` carries `c`'s error when `c` gives one**
+  (§7; #142). SPEC.md read `delta(c)` as `c - prior(c)` but did not say what
+  the first row gives, which has no preceding row. It is blank only when `c`
+  is a number there; otherwise it is the error `c` gives, a blank or text
+  `c` included, as in every later row. Both implementations used to give a
+  blank in the first row whatever `c` held, so `delta(a)` with `a = v / 0`
+  was blank there and `#REF!(/0)` from the second row on. Both now follow
+  the rule.
+
 - **A numeric literal beyond binary64 range is `#REF!(overflow)`, like a
   stored cell** (§8; #117). §8 covered only a stored cell, so a formula such as
   `| b = 1000…0 |` with four hundred digits had no defined value, and nothing
