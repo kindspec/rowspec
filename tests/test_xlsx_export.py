@@ -193,6 +193,13 @@ def test_the_coordinate_check_can_fail():
             "key := id\n",
             "significant digits",
         ),
+        ("| id | a |\n| - | - |\n| r_1 | a\x0cb |\n\nkey := id\n", "C0 control"),
+        ("| id | a |\n| - | - |\n| r_1 | a\x0bb |\n\nkey := id\n", "C0 control"),
+        ("| id | a |\n| - | - |\n| r_1 | a\x00b |\n\nkey := id\n", "C0 control"),
+        (
+            '| id | g | t = if(g = "x\x0c", 1, 0) |\n| - | - | - |\n| r_1 | y |  |\n\nkey := id\n',
+            "C0 control",
+        ),
     ],
     ids=[
         "row-relative",
@@ -202,6 +209,10 @@ def test_the_coordinate_check_can_fail():
         "case",
         "empty",
         "literal",
+        "form-feed-cell",
+        "vertical-tab-cell",
+        "nul-cell",
+        "form-feed-string-literal",
     ],
 )
 def test_what_a_spreadsheet_cannot_say_is_refused(table, why):
@@ -308,3 +319,10 @@ def test_the_module_entry_point_refuses_what_it_cannot_say(tmp_path):
     assert r.returncode == 1, r.stdout + r.stderr
     assert "not exported" in r.stderr and "case" in r.stderr
     assert not dst.exists(), "a refused export wrote a file"
+
+
+def test_tab_in_a_cell_is_exported():
+    """Tab is the one C0 control a stored cell can hold that XML keeps, so the
+    refusal of the others must not reach it."""
+    wb = to_workbook("| id | a |\n| - | - |\n| r_1 | a\tb |\n\nkey := id\n")
+    assert wb.active["B2"].value == "a\tb"

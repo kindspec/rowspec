@@ -252,6 +252,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **The xlsx export refuses a C0 control character instead of crashing**
+  (#166). Since #144, a stored cell or string literal can hold a form feed,
+  vertical tab or other C0 control, and the XML an `.xlsx` is made of has
+  no character for any of them except tab, LF and CR. The exporter passed
+  the text to openpyxl, which raised `IllegalCharacterError`. It now raises
+  `NotExpressible`, as it does for anything else a spreadsheet cannot say.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also

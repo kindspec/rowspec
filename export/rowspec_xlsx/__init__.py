@@ -44,7 +44,10 @@ approximating** (`NotExpressible`, and nothing is written):
 - two column names that differ only by case, which a spreadsheet table header
   cannot hold;
 - a numeric literal with more significant digits than a spreadsheet formula
-  keeps, and a table with no rows, which a spreadsheet table cannot be.
+  keeps, and a table with no rows, which a spreadsheet table cannot be;
+- a C0 control character other than tab, LF and CR, such as a form feed in a
+  stored cell or a string literal: §4.1 allows one, and the XML an `.xlsx` is
+  made of cannot hold it.
 
 **The workbook recalculates under spreadsheet arithmetic, not this format's,
 and it can disagree with `rowspec eval` by more than the last digit.** A
@@ -108,6 +111,15 @@ class NotExpressible(Exception):
     """The table is valid, and a spreadsheet cannot say what it says."""
 
 
+# The C0 controls XML 1.0 has no character for: every one but tab, LF and CR.
+_NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _expressible(text):
+    if _NOT_XML.search(text):
+        raise NotExpressible(f"{text!r}: no spreadsheet cell can hold a C0 control character")
+
+
 def _value(v):
     """Numbers arrive as numbers, everything else as text, blanks as blank.
 
@@ -148,6 +160,9 @@ def _append(ws, values):
 
     The formulas this module writes go through `_formula`, never through here.
     """
+    for v in values:
+        if isinstance(v, str):
+            _expressible(v)
     ws.append(values)
     for cell in ws[ws.max_row]:
         if isinstance(cell.value, str):
@@ -155,6 +170,7 @@ def _append(ws, values):
 
 
 def _formula(cell, text):
+    _expressible(text)
     cell.value = "=" + text
     cell.data_type = "f"
 
