@@ -36,6 +36,19 @@ INF = float("inf")
 BLANK = object()  # "the preceding row exists and is blank" -- not None
 
 
+class _Text(str):
+    """A stored cell spelled like an error value, such as `#REF!(zz)`.
+
+    An error is a computed value; a stored cell is a number or text (§4.1 rule
+    6). Computed errors are strings too, so a stored cell that merely spells
+    one is marked, and nothing that asks "is this an error?" mistakes it.
+    """
+
+
+def _is_ref(v):
+    return isinstance(v, str) and v.startswith("#REF!") and not isinstance(v, _Text)
+
+
 _UNESCAPED_PIPE = re.compile(r"(?<!\\)\|")
 
 
@@ -301,6 +314,9 @@ def parse(text):
                 refusal="row-field-count",
             )
         row = dict(zip(cols, v, strict=False))
+        for c, cell in row.items():
+            if cell.startswith("#REF!"):
+                row[c] = _Text(cell)
         for c in formulas:
             if str(row.get(c, "")).strip() != "":
                 raise Malformed(
@@ -498,7 +514,7 @@ def _exact(nums, divisor):
 
 
 def _agg(fn, vals, what):
-    bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]
+    bad = [v for v in vals if _is_ref(v)]
     if bad:
         return bad[0]
     # `count` counts rows and never coerces: it is poisoned by a #REF! already
@@ -884,7 +900,7 @@ def _cell(name, env):
     v = env[name]
     if v is None:
         v = ""
-    if isinstance(v, str) and v.startswith("#REF!(") and v.endswith(")"):
+    if _is_ref(v) and v.startswith("#REF!(") and v.endswith(")"):
         raise KeyError(v[6:-1])
     return v
 
