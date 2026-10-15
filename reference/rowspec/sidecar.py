@@ -104,6 +104,17 @@ def _validate(obj, where):
                 f"{where}: column {name!r} declares type {t!r}, not one of "
                 f"{', '.join(TYPES)}{_suggest(str(t), TYPES)}"
             )
+    named = {}
+    for name in cols:
+        # SPEC.md §13: two members naming one column are refused as a repeated
+        # member is, or the last of them would silently win.
+        col = column_name(name)
+        if col in named:
+            raise Malformed(
+                f"{where}: 'columns' names column {col!r} twice, "
+                f"as {ascii(named[col])} and {ascii(name)}"
+            )
+        named[col] = name
     if "order" in obj and "key" not in obj:
         raise Malformed(
             f"{where}: 'order' requires 'key'. Without a key, rows with the same "
@@ -148,14 +159,21 @@ def find(data_path):
     return None
 
 
+def column_name(name):
+    """SPEC.md §13: a sidecar names a column as §9.2 compares names in CSV
+    mode, after trimming ASCII space and tab only and after NFC. So `" id"`
+    names `id`, and `""` names a column whose header cell is empty."""
+    return unicodedata.normalize("NFC", name.strip(" \t"))
+
+
 def _build(path, obj):
-    norm = {k: unicodedata.normalize("NFC", v) for k, v in obj.items() if isinstance(v, str)}
-    cols = {unicodedata.normalize("NFC", n): t for n, t in (obj.get("columns") or {}).items()}
+    names = {k: column_name(obj[k]) for k in ("key", "order") if k in obj}
+    cols = {column_name(n): t for n, t in (obj.get("columns") or {}).items()}
     return Sidecar(
         path,
-        key=norm.get("key"),
-        order=norm.get("order"),
-        order_type=norm.get("order_type"),
+        key=names.get("key"),
+        order=names.get("order"),
+        order_type=obj.get("order_type"),
         columns=cols,
         delimiter=obj.get("delimiter"),
     )
