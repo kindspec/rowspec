@@ -1,0 +1,6 @@
+{
+  "aggregates": {
+    "s": "#REF!(cycle)"
+  },
+  "kind": "eval"
+}

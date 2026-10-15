@@ -138,7 +138,7 @@ was split. `parse/order-unrecognised-construct-refused` gained
 
 ## Cases written without the implementation
 
-Three later batches were written by authors who were not the author of
+Four later batches were written by authors who were not the author of
 `reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
 Each author derived every expected outcome from SPEC.md, read the existing
 case tree for its format, and recorded the passage the outcome rests on in
@@ -178,3 +178,16 @@ the case's `WHY.md`.
   and `cumulative` across a positive then a negative infinite cell.
   It writes no case for `cumulative` from an infinite cell into a blank,
   which SPEC.md does not settle.
+- **The fourth batch**, by the same author, was written against SPEC.md at
+  `32466e0`, which holds the rulings on #110, #115, #116, #117 and #118,
+  opening only SPEC.md, the two case trees, and the case-count floors in
+  `conformance/run_cases.py`. It covers `key :=` in function form
+  (`parse/key-in-*`); the ranking of several `#REF!` values in one
+  aggregate, with each order-independence claim made by a row-swapped twin
+  (`eval/aggregate-ranks-*`); `delta` when both rows give an error, and over
+  a computed `#REF!(/0)`; an overlong literal, header errors against row
+  errors, and `1 / 0` in an `if` branch (`rowrel/overlong-literal-*`,
+  `rowrel/*header-error*`, `rowrel/division-by-zero-*`); a blank key value;
+  `prior` over a stored text cell and over a cell of U+00A0; an order column
+  holding a U+00A0 cell; and a stored cell spelled like an error. Its
+  CSV-profile cases are in `cases-csv/columns/`.
