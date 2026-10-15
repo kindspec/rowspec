@@ -123,6 +123,14 @@ prose, and where the two disagree the suite wins.
   tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
   `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
 
+### Fixed
+
+- **CSV mode no longer crashes on a header whose only repeated name is
+  empty** (#92). The grouped-header check counted empty names, then took its
+  label from the non-empty ones, and raised `IndexError` when there were
+  none. Such a header is now refused as a duplicate column, because §13 makes
+  an empty header cell a column name and §9.2 refuses two of one name.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI
