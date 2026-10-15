@@ -93,6 +93,14 @@ _IDENT_EXTRA = set("_")
 
 
 def _check_ident(name, what):
+    if not name:
+        # §4.1: `ident = 1*( ... )`. A name of no characters has no bad
+        # character for the loops below to find, and would key a column ''.
+        raise Malformed(
+            f"{what} is empty; §4.1.9 makes an identifier one or more letters, "
+            f"marks, digits or underscores",
+            refusal="bad-identifier",
+        )
     for ch in name:
         if ch in _STRUCTURAL or (
             not (ch.isalnum() or unicodedata.category(ch).startswith("M"))
@@ -335,7 +343,9 @@ def parse(text):
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
-            if re.search(rf"\b{fn}[ \t]*\(", expr):
+            # §4.2 rule 4: a function name touches its `(`. `prior (n)` is
+            # not a row-relative call, and is refused as a formula below.
+            if re.search(rf"\b{fn}\(", expr):
                 if order is None:
                     raise Malformed(
                         f"column {nm!r} uses row-relative {fn}() but the table "
@@ -642,7 +652,9 @@ def _agg(fn, vals, what):
 
 
 def _ast(expr, where):
-    if "#" in expr:
+    # §4.2 rule 8 refuses a `#` outside the grammar. Inside a `string` it is a
+    # character like any other (rule 6), so `if(a = "#4", 1, 2)` is a formula.
+    if "#" in re.sub(r'"[^"]*"', "", expr):
         raise Malformed(
             f"column {where!r}: '#' is not a comment inside a formula (§4.1.10); "
             f"a whole-line annotation goes outside the table",
@@ -1313,7 +1325,9 @@ def _evaluate_columns(seq, cols, formulas):
     computed = frozenset(formulas)
     rowrel, groups, plain = {}, {}, {}
     for nm, expr in formulas.items():
-        m = re.fullmatch(r"[ \t]*(\w+)[ \t]*\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
+        # §4.2: `rowrel-call = rowrel-fn "(" ...`, with no WSP before `(`
+        # (rule 4). Admitting it here read `prior (n)` as `prior(n)`.
+        m = re.fullmatch(r"[ \t]*(\w+)\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
         g = _GROUP.fullmatch(expr.strip(WSP))
         if m and m.group(1) in ROWREL:
             rowrel[nm] = m.groups()

@@ -424,7 +424,10 @@ def test_order_column_must_exist(tmp_path):
 
 
 def test_non_finite_order_value(tmp_path):
-    f = write(tmp_path, "o.csv", b"id,n\nr_01,1\nr_02,1e999\n", {"key": "id", "order": "n"})
+    # §4.1.6 makes `1e999` text, so the non-finite number is a digit string
+    # that matches `number` and is beyond binary64.
+    big = b"9" * 400
+    f = write(tmp_path, "o.csv", b"id,n\nr_01,1\nr_02," + big + b"\n", {"key": "id", "order": "n"})
     assert "order-non-finite" in rules(check_file(f))
 
 

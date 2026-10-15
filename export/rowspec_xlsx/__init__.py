@@ -44,7 +44,11 @@ approximating** (`NotExpressible`, and nothing is written):
 - two column names that differ only by case, which a spreadsheet table header
   cannot hold;
 - a numeric literal with more significant digits than a spreadsheet formula
-  keeps, and a table with no rows, which a spreadsheet table cannot be.
+  keeps, and a table with no rows, which a spreadsheet table cannot be;
+- a character XML 1.0 has no place for, such as a form feed in a stored cell
+  or a string literal: every C0 control but tab, LF and CR, and U+FFFE and
+  U+FFFF. §4.1 allows them, and the XML an `.xlsx` is made of cannot hold
+  them.
 
 **The workbook recalculates under spreadsheet arithmetic, not this format's,
 and it can disagree with `rowspec eval` by more than the last digit.** A
@@ -108,6 +112,17 @@ class NotExpressible(Exception):
     """The table is valid, and a spreadsheet cannot say what it says."""
 
 
+# What XML 1.0's `Char` leaves out: every C0 control but tab, LF and CR, the
+# surrogates, and U+FFFE and U+FFFF. openpyxl refuses only the C0 controls and
+# writes the others into a file no reader can parse.
+_NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
+
+
+def _expressible(text):
+    if _NOT_XML.search(text):
+        raise NotExpressible(f"{text!r}: holds a character no spreadsheet file can hold")
+
+
 def _value(v):
     """Numbers arrive as numbers, everything else as text, blanks as blank.
 
@@ -148,6 +163,9 @@ def _append(ws, values):
 
     The formulas this module writes go through `_formula`, never through here.
     """
+    for v in values:
+        if isinstance(v, str):
+            _expressible(v)
     ws.append(values)
     for cell in ws[ws.max_row]:
         if isinstance(cell.value, str):
@@ -155,6 +173,7 @@ def _append(ws, values):
 
 
 def _formula(cell, text):
+    _expressible(text)
     cell.value = "=" + text
     cell.data_type = "f"
 
@@ -328,6 +347,7 @@ def to_workbook(text, sheet_title="table"):
     # compute every formula when the file opens.
     wb.calculation = CalcProperties(fullCalcOnLoad=True)
     ws = wb.active
+    _expressible(sheet_title)
     ws.title = sheet_title
     _append(ws, list(cols))
     for row in rows:
