@@ -209,7 +209,10 @@ prose, and where the two disagree the suite wins.
   pipe, before a leading pipe or a `#`, on a line of its own, around a header
   name or a formula, and inside or after a declaration. It now trims and
   matches ASCII space and tab only, and refuses each of those files as
-  `rowspec_alt` already did; a test now holds both to it.
+  `rowspec_alt` already did; a test now holds both to it. A declaration's
+  `where` is now separated by any run of space and tab, as §4.2 writes it
+  (`1*WSP "where" 1*WSP`): `sum(n \twhere c = "x")` and `sum(n where\tc = "x")`
+  were refused before, because only a single space was recognised.
 
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's

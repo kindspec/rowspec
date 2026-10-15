@@ -201,9 +201,12 @@ def parse(text):
                 refusal="malformed-declaration",
             )
         mw = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*(\w+)\((.+)\)[ \t]*$", line)
-        if mw and " where " in mw.group(3):
+        # §4.2: `arg = ident 1*WSP "where" 1*WSP pred`, so any run of space
+        # and tab separates `where`, never only a single space.
+        ww = re.search(r"[ \t]+where[ \t]+", mw.group(3)) if mw else None
+        if ww:
             nm_, fn_, inner = mw.groups()
-            col_, ptext = inner.split(" where ", 1)
+            col_, ptext = inner[: ww.start()], inner[ww.end() :]
             if not re.fullmatch(r"[ \t]*[^\s()]+", col_):
                 # §4.1: only WSP may pad the aggregated column, never U+00A0.
                 raise Malformed(

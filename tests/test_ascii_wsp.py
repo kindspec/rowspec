@@ -74,3 +74,32 @@ def test_space_and_tab_are_wsp(impl, case):
     src, _ = CASES[case]
     rows, _ = importlib.import_module(impl).evaluate(src.replace("{}", " \t"))
     assert [r["id"] for r in rows] == ["r_1"]
+
+
+W = "| id | n | c |\n| -- | -- | -- |\n| r_1 | 1 | x |\n| r_2 | 2 | y |\n\nkey := id\n"
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "decl",
+    [
+        'g := sum(n  where c = "x")',
+        'g := sum(n\t where c = "x")',
+        'g := sum(n \twhere c = "x")',
+        'g := sum(n where\tc = "x")',
+        'g := sum(n where  c = "x")',
+        'g := sum(n\twhere\tc = "x"\tand id = "r_1")',
+    ],
+    ids=[
+        "two-spaces-before",
+        "tab-space-before",
+        "space-tab-before",
+        "tab-after",
+        "two-after",
+        "tabs",
+    ],
+)
+def test_any_wsp_run_separates_where_in_a_declaration(impl, decl):
+    """§4.2: `1*WSP "where" 1*WSP` -- a run of space and tab, not one space."""
+    _, aggs = importlib.import_module(impl).evaluate(W + decl + "\n")
+    assert aggs["g"] == 1.0
