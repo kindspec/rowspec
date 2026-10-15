@@ -209,8 +209,10 @@ prose, and where the two disagree the suite wins.
   holding one as `row-field-count` rather than `value-in-computed-cell`,
   `canon` and `add-row` refused the file, and CSV mode reported a conflict
   marker after one inside a quoted field. `parse`, `canon`, `add-row` and CSV
-  mode's conflict-marker scan now split on LF only; `add-row` split the file
-  itself too, and would otherwise have inserted its row inside the last line. `rowspec_alt` already did; a test now holds both to it.
+  mode's conflict-marker scan now split on LF only, as `rowspec_alt` already
+  did; a test now holds both to it. `add-row` splits the file itself as well,
+  and with only `parse` fixed it would have inserted its row inside the last
+  line.
 
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's
