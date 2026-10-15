@@ -188,3 +188,12 @@ Nine cases (`columns/all-non-ascii-space-names-accepted`,
 who was not the author of `csvmode.py` and did not read it, from SPEC.md at
 `29edd7c` and the case trees. `cases/README.md` records that batch's other
 cases.
+
+Four cases (`columns/vertical-tab-only-name-accepted`,
+`columns/form-feed-only-name-accepted`,
+`columns/no-break-space-suffix-in-a-data-row-under-a-label-and-empty-header-accepted`
+and
+`columns/no-break-space-suffix-in-a-data-row-under-two-empty-names-refused`)
+were written by an author who was not the author of `csvmode.py` and did not
+read it, from SPEC.md at `7652865` and the case trees. `cases/README.md`
+records that batch's other cases.
