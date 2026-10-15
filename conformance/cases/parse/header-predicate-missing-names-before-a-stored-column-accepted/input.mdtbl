@@ -1,0 +1,6 @@
+| id | a | b = a * 2 | t = sum(nope where zz = "x" and a = "x") |
+| --- | --: | --: | --: |
+| r_1 | 1 |  |  |
+| r_2 | 2 |  |  |
+
+key := id

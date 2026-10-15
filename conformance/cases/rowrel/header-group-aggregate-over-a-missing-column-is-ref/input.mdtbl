@@ -1,0 +1,7 @@
+| id | a | t = sum(nope where a = "x") |
+| --- | --- | --: |
+| r_1 | x |  |
+| r_2 | y |  |
+
+key := id
+g := sum(t)
