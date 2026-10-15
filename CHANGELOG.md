@@ -212,8 +212,8 @@ prose, and where the two disagree the suite wins.
   `order` with blank, non-finite, overflowing and signed non-finite
   values; `order_type`; typed `columns`, on the key and order columns
   too; and `delimiter`, including a leading U+FEFF when it is the
-  delimiter. 15 of the 118 fail against the reference CSV mode.
-  They run in CI as `just conform-csv`, in the `conformance` job and in the
+  delimiter. The reference CSV mode passes them after #185, #186, #187
+  and #189. They run in CI as `just conform-csv`, in the `conformance` job and in the
   release gate, with a floor of 216 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
