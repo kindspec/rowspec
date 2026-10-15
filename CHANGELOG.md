@@ -207,10 +207,10 @@ prose, and where the two disagree the suite wins.
   breaks on VT, FF, U+001C to U+001E, NEL, U+2028 and U+2029. So a stored
   cell holding one was refused as `malformed-table-line`, a computed cell
   holding one as `row-field-count` rather than `value-in-computed-cell`,
-  `canon` refused the file, `add-row` inserted its row inside the last line,
-  and CSV mode reported a conflict marker after one inside a quoted field.
-  `parse`, `canon`, `add-row` and CSV mode's conflict-marker scan now split
-  on LF only. `rowspec_alt` already did; a test now holds both to it.
+  `canon` and `add-row` refused the file, and CSV mode reported a conflict
+  marker after one inside a quoted field. `parse`, `canon`, `add-row` and CSV
+  mode's conflict-marker scan now split on LF only; `add-row` split the file
+  itself too, and would otherwise have inserted its row inside the last line. `rowspec_alt` already did; a test now holds both to it.
 
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's
