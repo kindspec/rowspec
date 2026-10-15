@@ -1105,24 +1105,172 @@ def _header_error(node, known):
     return None
 
 
-def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozenset()):
-    """Evaluate ordinary column formulas by DEPENDENCY, per row.
+def _plain_column(nm, tree, err, seq):
+    """An ordinary formula, row by row. Every column it names already holds its
+    values: `_evaluate_columns` reaches it only after them."""
+    for r in seq:
+        if err:
+            # §4.2 rule 10: a header error is the same answer in every row.
+            r[nm] = err
+            continue
+        try:
+            r[nm] = ev(tree, r)
+        except KeyError as e:
+            r[nm] = f"#REF!({e.args[0]})"
 
-    Called twice -- before and after the row-relative and group passes -- so a
-    column may depend on `cumulative` or on a group aggregate, and those may
-    depend on ordinary computed columns. Header order is never an input (§4.2
-    rule 9).
+
+def _rowrel_column(nm, fn, src, seq, formulas, cols):
+    """`prior`, `delta` or `cumulative` over the DERIVED order (§6, §7).
+
+    `src` already holds its values, as the types they were computed as: a
+    computed number is a float and is never re-read through its printed form,
+    which §4.1.6's cell grammar would refuse (`1e-05`), and a computed error
+    carries the name it originated with (§8).
+    """
+    if src not in cols:
+        # §4.2 rule 10: whether `src` resolves is a property of the header,
+        # so it is #REF!(src) in every row, the first included.
+        for r in seq:
+            r[nm] = f"#REF!({src})"
+        return
+    # Each operator depends on a DIFFERENT thing, and collapsing them into
+    # one "is this row's cell a number?" guard got two of the three wrong:
+    #   prior       needs only the PRECEDING row's value -- not this one
+    #   delta       needs both, as numbers
+    #   cumulative  needs every value so far, so one bad cell poisons the
+    #               rest of the column rather than being stepped over
+    # §8 forbids a stale value, and skipping a blank row produced exactly
+    # one: `prior` reported a number true two rows ago, and `cumulative`
+    # resumed as though the blank had not happened.
+    acc, prev, poisoned = 0.0, None, None
+    prev_ovf = False
+    prev_err = None
+    for r in seq:
+        raw = r.get(src, "")
+        try:
+            v = num(raw)
+        except (ValueError, TypeError):
+            v = None
+        # §8: a stored cell whose binary64 value is infinite is
+        # #REF!(overflow) as an operand. Passed on, `delta` subtracted two
+        # infinities into `nan` and `prior` stored `inf`.
+        ovf = v in (INF, -INF)
+        # This row's value as an operand: its own error, or None. A
+        # computed source carries the error it originated, not #REF!(src).
+        if _is_ref(raw):
+            err = raw
+        elif ovf:
+            err = "#REF!(overflow)"
+        elif v is None:
+            err = f"#REF!({src})"
+        else:
+            err = None
+        if fn == "prior":
+            # `prev` is None only before the first row; after that it is the
+            # preceding row's value, blank included.
+            if prev is None:
+                r[nm] = ""
+            else:
+                r[nm] = "#REF!(overflow)" if prev_ovf else prev
+        elif fn == "delta":
+            # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule
+            # this row's error wins over the preceding row's.
+            if prev is None:
+                r[nm] = ""
+            elif err or prev_err:
+                r[nm] = err or prev_err
+            else:
+                d = v - prev
+                r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
+        elif fn == "cumulative":
+            # The first bad CELL sets the error for the rest of the column,
+            # and it is that cell's own error (§8). An overflow of the
+            # running total itself is not a bad cell: it is `acc` below,
+            # and a later blank still makes it #REF!(c), as in `rowspec_alt`.
+            # SPEC.md does not order the two.
+            if poisoned is None and (v is None or ovf):
+                poisoned = err
+            if poisoned:
+                r[nm] = poisoned
+            else:
+                acc += v
+                # §8: `inf` is not a `number` under §4.1.6, so storing one
+                # writes a file this implementation could not read back and
+                # `canon` would not round-trip its own output.
+                r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
+        prev = raw if v is None else v
+        if v is None and raw != "" and src not in formulas:
+            # §4.2 rule 10: a computed value is a number or an error, so
+            # stored text that will not coerce is #REF!(src) (§8), never
+            # the text itself -- which `count` would then count as a value.
+            prev = f"#REF!({src})"
+        prev_ovf = ovf
+        prev_err = err
+
+
+def _group_column(nm, fn, col, ptext, seq, formulas, cols):
+    """A per-row group aggregate (§7). `col` already holds its values: a
+    computed one is aggregated by what it evaluated to, never by its (always
+    empty) stored cells (§4.2 rule 5)."""
+    try:
+        preds, missing = _predicate(ptext, cols, formulas, "malformed-formula"), None
+    except KeyError as e:
+        preds, missing = None, e.args[0]
+    if col not in cols:
+        # §8: a name that does not resolve is #REF!(name), not a
+        # refusal -- §4.2 rule 7's argument -- and the aggregated
+        # column is leftmost, ahead of any name in the predicate.
+        missing = col
+    if missing:
+        for r in seq:
+            r[nm] = f"#REF!({missing})"
+        return
+    for r in seq:
+
+        def hit(o, r=r, preds=preds):
+            return all(
+                str(o.get(pc, "")) == (str(r.get(at, "")) if at else lit) for pc, at, lit in preds
+            )
+
+        r[nm] = _agg(fn, [o.get(col) for o in seq if hit(o)], col)
+
+
+def _evaluate_columns(seq, cols, formulas):
+    """Every computed column, by DEPENDENCY over one graph (§4.2 rule 9).
+
+    Ordinary formulas, row-relative columns and group aggregates are nodes of
+    the same graph, and a column is evaluated, for every row at once, only
+    when every computed column it names already holds its values. So header
+    order is never an input to a value, and what is left once nothing more is
+    ready is on a cycle or depends on one -- through a `prior` or a group
+    aggregate as much as through arithmetic. Evaluated in passes by kind
+    instead, a row-relative column read a later one, or a group aggregate,
+    before it had a value.
 
     Readiness is decided from the STATIC name set, not from whether an
     evaluation happens to raise. With `if` that distinction is load-bearing:
     a lazy branch can compute a value without ever touching a column the
     formula still depends on, and a trial-and-error fixpoint would then commit
-    that value before finding out the column was on a cycle.
+    that value before finding out the column was on a cycle. And a blank is
+    never read as "not computed yet": `prior`'s first row is blank by
+    definition.
     """
-    # Parsed once per table rather than once per cell per row: the trees are
-    # pure, and re-parsing was the evaluator's dominant cost. It also means a
-    # malformed formula is refused on a table with no rows, which it must be --
-    # §9.20 is about the bytes, and acceptance may not depend on the data.
+    computed = frozenset(formulas)
+    rowrel, groups, plain = {}, {}, {}
+    for nm, expr in formulas.items():
+        m = re.fullmatch(r"\s*(\w+)\s*\(\s*(\w+)\s*\)\s*", expr)
+        g = _GROUP.fullmatch(expr.strip())
+        if m and m.group(1) in ROWREL:
+            rowrel[nm] = m.groups()
+        elif g:
+            groups[nm] = g.groups()
+        else:
+            plain[nm] = expr
+    # Refusals first, all of them static. Parsed once per table rather than
+    # once per cell per row: the trees are pure, and re-parsing was the
+    # evaluator's dominant cost. It also means a malformed formula is refused
+    # on a table with no rows, which it must be -- §9.20 is about the bytes,
+    # and acceptance may not depend on the data.
     trees = {nm: _ast(expr, nm) for nm, expr in plain.items()}
     for nm, t in trees.items():
         for c in sorted(str_cmp_lhs(t) & computed):
@@ -1135,8 +1283,18 @@ def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozen
                 f"numeric literal instead",
                 refusal="computed-column-compared",
             )
-    ordered = {nm: names_of(t) for nm, t in trees.items()}
-    deps = {nm: set(v) for nm, v in ordered.items()}
+    for nm, (fn, _col, ptext) in groups.items():
+        if fn not in ("sum", "count", "min", "max", "avg"):
+            raise Malformed(
+                f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
+            )
+        # The predicate here, ahead of any value: it depends only on the
+        # header, and a refusal in it must fire whether or not the aggregate
+        # ever gets a value -- a source on a cycle included.
+        try:
+            _predicate(ptext, cols, computed, "malformed-formula")
+        except KeyError:
+            pass  # a name that does not resolve is a value, given below
     # §4.2 rule 10: whether a name RESOLVES is a property of the header, so it
     # is the same answer in every row -- including a row whose `if` selects the
     # other branch. Otherwise a merge that adds the first row taking that branch
@@ -1144,49 +1302,41 @@ def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozen
     # formula or a header.
     # A literal too long for binary64 is the same kind of error (§8): its cause
     # is in the header, so it is #REF!(overflow) in every row too.
-    unresolved = {}
-    if cols:
-        known = set(cols)
-        for nm, t in trees.items():
-            # §8: the LEFTMOST such error in the formula text, not the
-            # alphabetically first and not whichever one evaluation reached
-            # first -- rule 9 makes evaluation strategy a free choice, so the
-            # error must not be a function of it.
-            err = _header_error(t, known)
-            if err:
-                unresolved[nm] = err
-    for r in seq:
-        pending = set(plain)
-        deferred = set()
-        while pending:
-            progressed = False
-            for nm in sorted(pending):
-                d = deps[nm]
-                if d & (later | deferred):
-                    # A row-relative or group column computes in a later pass.
-                    # Writing #REF! now would poison it before that pass runs,
-                    # and a real cycle would then surface as a broken reference
-                    # instead of #REF!(cycle).
-                    deferred.add(nm)
-                    pending.discard(nm)
-                    progressed = True
-                    continue
-                if d & pending:
-                    continue  # waits on a pending column, itself included
-                if nm in unresolved:
-                    r[nm] = unresolved[nm]
-                    pending.discard(nm)
-                    progressed = True
-                    continue
-                try:
-                    r[nm] = ev(trees[nm], r)
-                except KeyError as e:
-                    r[nm] = f"#REF!({e.args[0]})"
-                pending.discard(nm)
-                progressed = True
-            if not progressed:
-                break
-        for nm in pending:
+    known = set(cols)
+    # §8: the LEFTMOST such error in the formula text, not the alphabetically
+    # first and not whichever one evaluation reached first -- rule 9 makes
+    # evaluation strategy a free choice, so the error must not be a function
+    # of it.
+    unresolved = {nm: _header_error(t, known) for nm, t in trees.items()}
+    # One graph. Dependency and cycle analysis is over the whole formula, both
+    # branches of every `if` included (§4.2 rule 10), and a row-relative or
+    # group column depends on the column it reads. A group predicate names
+    # stored columns only (§9.22), so it adds no edge.
+    deps = {nm: names_of(t) for nm, t in trees.items()}
+    for nm, (_fn, src) in rowrel.items():
+        deps[nm] = [src]
+    for nm, (_fn, col, _ptext) in groups.items():
+        deps[nm] = [col]
+    deps = {nm: set(d) & computed for nm, d in deps.items()}
+    pending = set(formulas)
+    while pending:
+        progressed = False
+        for nm in sorted(pending):
+            if deps[nm] & pending:
+                continue  # waits on a pending column, itself included
+            if nm in trees:
+                _plain_column(nm, trees[nm], unresolved[nm], seq)
+            elif nm in rowrel:
+                _rowrel_column(nm, *rowrel[nm], seq, formulas, cols)
+            else:
+                _group_column(nm, *groups[nm], seq, formulas, cols)
+            pending.discard(nm)
+            progressed = True
+        if not progressed:
+            break
+    # §4.2 rule 9: what never became ready is on a cycle or depends on one.
+    for nm in pending:
+        for r in seq:
             r[nm] = "#REF!(cycle)"
 
 
@@ -1227,150 +1377,8 @@ def evaluate(text):
         seq = sorted(rows, key=lambda r: (typed(r), str(r.get(key, ""))))
     else:
         seq = rows
-    plain = {
-        n: e
-        for n, e in formulas.items()
-        if not any(re.fullmatch(rf"\s*{f}\s*\(\s*\w+\s*\)\s*", e) for f in ROWREL)
-        and not _GROUP.fullmatch(e.strip())
-    }
-    _eval_plain(
-        seq,
-        plain,
-        later=frozenset(formulas) - frozenset(plain),
-        computed=frozenset(formulas),
-        cols=frozenset(cols),
-    )
-    for nm, expr in formulas.items():
-        m = re.fullmatch(r"\s*(\w+)\s*\(\s*(\w+)\s*\)\s*", expr)
-        if not (m and m.group(1) in ROWREL):
-            continue
-        fn, src = m.groups()
-        # Each operator depends on a DIFFERENT thing, and collapsing them into
-        # one "is this row's cell a number?" guard got two of the three wrong:
-        #   prior       needs only the PRECEDING row's value -- not this one
-        #   delta       needs both, as numbers
-        #   cumulative  needs every value so far, so one bad cell poisons the
-        #               rest of the column rather than being stepped over
-        # §8 forbids a stale value, and skipping a blank row produced exactly
-        # one: `prior` reported a number true two rows ago, and `cumulative`
-        # resumed as though the blank had not happened.
-        acc, prev, poisoned = 0.0, None, None
-        prev_ovf = False
-        prev_err = None
-        for r in seq:
-            raw = str(r.get(src, ""))
-            try:
-                v = num(raw)
-            except (ValueError, TypeError):
-                v = None
-            # §8: a stored cell whose binary64 value is infinite is
-            # #REF!(overflow) as an operand. Passed on, `delta` subtracted two
-            # infinities into `nan` and `prior` stored `inf`.
-            ovf = v in (INF, -INF)
-            # This row's value as an operand: its own error, or None. A
-            # computed source carries the error it originated, not #REF!(src).
-            if src in formulas and raw.startswith("#REF!"):
-                err = raw
-            elif ovf:
-                err = "#REF!(overflow)"
-            elif v is None:
-                err = f"#REF!({src})"
-            else:
-                err = None
-            if fn == "prior":
-                # `prev` is None only before the first row; after that it is the
-                # preceding row's value, blank included.
-                if prev is None:
-                    r[nm] = ""
-                else:
-                    r[nm] = "#REF!(overflow)" if prev_ovf else prev
-            elif fn == "delta":
-                # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule
-                # this row's error wins over the preceding row's.
-                if prev is None:
-                    r[nm] = ""
-                elif err or prev_err:
-                    r[nm] = err or prev_err
-                else:
-                    d = v - prev
-                    r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
-            elif fn == "cumulative":
-                # The first bad CELL sets the label for the rest of the column.
-                # An overflow of the running total itself is not a bad cell: it
-                # is `acc` below, and a later blank still relabels it #REF!(c),
-                # as in `rowspec_alt`. SPEC.md does not order the two.
-                if poisoned is None and (v is None or ovf):
-                    poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
-                if poisoned:
-                    r[nm] = poisoned
-                else:
-                    acc += v
-                    # §8: `inf` is not a `number` under §4.1.6, so storing one
-                    # writes a file this implementation could not read back and
-                    # `canon` would not round-trip its own output.
-                    r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
-            prev = raw if v is None else v
-            if v is None and raw != "" and src not in formulas:
-                # §4.2 rule 10: a computed value is a number or an error, so
-                # stored text that will not coerce is #REF!(src) (§8), never
-                # the text itself -- which `count` would then count as a value.
-                prev = f"#REF!({src})"
-            prev_ovf = ovf
-            prev_err = err
-
-    groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
-    # One fixpoint over BOTH kinds. A group aggregate over a computed column
-    # must see that column's VALUES, not its (always empty) stored cells.
-    for _round in range(len(formulas) + 2):
-        progressed = False
-        for nm, expr in list(groups.items()):
-            m = _GROUP.fullmatch(expr.strip())
-            fn, col, ptext = m.groups()
-            if fn not in ("sum", "count", "min", "max", "avg"):
-                raise Malformed(
-                    f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
-                )
-            # The predicate first: it depends only on the header, and a
-            # refusal in it must fire whether or not the aggregate ever gets
-            # a value -- a missing column, or a source on a cycle, included.
-            try:
-                preds, missing = _predicate(ptext, cols, formulas, "malformed-formula"), None
-            except KeyError as e:
-                preds, missing = None, e.args[0]
-            if col not in cols:
-                # §8: a name that does not resolve is #REF!(name), not a
-                # refusal -- §4.2 rule 7's argument -- and the aggregated
-                # column is leftmost, ahead of any name in the predicate.
-                missing = col
-            elif col in formulas and any(r.get(col) in (None, "") for r in seq):
-                continue  # its source is not computed yet
-            if missing:
-                for r in seq:
-                    r[nm] = f"#REF!({missing})"
-                del groups[nm]
-                progressed = True
-                continue
-            for r in seq:
-
-                def hit(o, r=r, preds=preds):
-                    return all(
-                        str(o.get(pc, "")) == (str(r.get(at, "")) if at else lit)
-                        for pc, at, lit in preds
-                    )
-
-                r[nm] = _agg(fn, [o.get(col) for o in seq if hit(o)], col)
-            del groups[nm]
-            progressed = True
-        if groups and not progressed:
-            for nm in groups:
-                for r in seq:
-                    r[nm] = "#REF!(cycle)"
-            break
-        if not groups:
-            break
-
-    _eval_plain(seq, plain, computed=frozenset(formulas), cols=frozenset(cols))
-    # row-relative, computed over the DERIVED order
+    _evaluate_columns(seq, cols, formulas)
+    # table-level aggregates, once every column holds its values
     out = {}
     for nm, (fn, col, pred) in decls.items():
         # Refusals first: a missing column is a #REF!, which is a value, and
