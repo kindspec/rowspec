@@ -176,6 +176,13 @@ def parse(text):
                 )
             continue
         line = stripped
+        if re.match(r"\s*key\s*:=\s*\w+\s*\(", line):
+            # §4.1.11: `key := col` is key's only form. Read as `key := col`,
+            # `key := sum(id)` would key the table on `id`.
+            raise Malformed(
+                f"line {n}: key takes a bare column name, not a function: {line.strip()!r}",
+                refusal="malformed-declaration",
+            )
         mw = re.match(r"\s*([^\s:=]+)\s*:=\s*(\w+)\((.+)\)\s*$", line)
         if mw and " where " in mw.group(3):
             nm_, fn_, inner = mw.groups()
