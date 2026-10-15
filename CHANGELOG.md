@@ -9,6 +9,19 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **An aggregate whose operands hold several different `#REF!` values
+  carries one chosen by shape, then by name, never by row position** (§8;
+  #115). The ranking is `cycle`, a name, `/0`, `empty`, `overflow`; among
+  names, the one that sorts first by code point. A value that will not coerce
+  is a name, so it outranks a stored cell beyond binary64. SPEC.md did not
+  say, and both implementations carried the error of the first row in some
+  cases, so swapping two lines changed an aggregate: `sum(c)` over a computed
+  `#REF!(overflow)` and `#REF!(/0)` gave whichever came first, and the second
+  implementation's `sum(a)` over a text cell and a cell beyond binary64 did
+  the same. Both now follow the ranking, in table-level and per-row group
+  aggregates. The ranking reads a `#REF!` as spelled, so a broken reference
+  to a column named `cycle`, `empty` or `overflow` ranks as that shape.
+
 - **`delta(c)` carries this row's error when this row and the preceding row
   both give one** (§7; #116). §7 now reads `delta(c)` as `c - prior(c)`, so
   §8's leftmost rule decides. SPEC.md did not say, and the two implementations
