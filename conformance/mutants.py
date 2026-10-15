@@ -523,6 +523,43 @@ for r in seq:
         'if col not in cols:\n    out[nm] = f"#REF!({col})"\n    continue',
         'if False:\n    out[nm] = f"#REF!({col})"\n    continue',
     ),
+    # --- §8 overflow, §9.12 key, and the §8 order of a predicate's errors ----
+    # Each undoes one fix, restoring what the reference did before it. The
+    # same fixes' other guards have no mutant here yet: the tree does not kill
+    # one, so each waits, as CSV_MUTANTS' survivors did, for a case from an
+    # author who has not read table.py.
+    #
+    # Only min and max die to a wrong value; sum and avg die by raising.
+    "an-infinite-aggregate-operand-is-passed-on": (
+        "    if not all(math.isfinite(x) for x in nums):",
+        "    if False:",
+    ),
+    "a-header-group-aggregate-over-a-missing-column-is-refused": (
+        "    if col not in cols:\n        missing = col",
+        "    if col not in cols:\n"
+        '        raise Malformed(f"column {nm!r} aggregates unknown column {col!r}", '
+        'refusal="malformed-formula")',
+    ),
+    "a-predicate-stops-at-its-first-unknown-name": (
+        "                unknown = unknown or c",
+        "                raise KeyError(c)",
+    ),
+    "a-key-naming-no-column-is-accepted": (
+        "        if key not in cols:",
+        "        if False:",
+    ),
+    "a-key-naming-a-computed-column-is-accepted": (
+        "        if key in formulas:",
+        "        if False:",
+    ),
+    "an-infinite-cell-is-a-number-in-a-row-expression": (
+        '    if got in (INF, -INF):\n        raise KeyError("overflow")\n    return got',
+        "    return got",
+    ),
+    "prior-of-an-infinite-cell-is-the-infinity": (
+        '            r[nm] = "#REF!(overflow)" if prev_ovf else prev',
+        "            r[nm] = prev",
+    ),
 }
 
 
