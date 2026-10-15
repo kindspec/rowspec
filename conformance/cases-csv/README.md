@@ -42,8 +42,9 @@ it as `input.csv.rowspec.json`, a JSON object:
 declared key, and refusal 5 cannot apply.
 
 §13 defines three more members, each optional: `order` names the column
-that orders the rows, `order_type` declares its type, and `columns` maps
-column names to a declared type. A case uses them as it uses `key`:
+that orders the rows and needs `key`, `order_type` declares its type and
+needs `order`, and `columns` maps column names to a declared type. A case
+uses them as it uses `key`:
 
 ```json
 { "key": "id", "order": "joined", "order_type": "date",

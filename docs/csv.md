@@ -23,14 +23,15 @@ Five lines of JSON next to the file buy the rest.
 {
   "key":   "code",          // the column holding the row identifier
   "order": "joined",        // the column that determines row order
-  "order_type": "date",     // optional: number | date | text
+  "order_type": "date",     // optional, needs "order": number | date | text
   "columns": { "population": "number" },   // optional
   "delimiter": ","          // optional; .tsv is inferred
 }
 ```
 
-Everything is optional and the file itself is optional. Its only job is to say
-what a CSV has nowhere to say.
+Everything is optional and the file itself is optional, except that `order`
+needs `key` and `order_type` needs `order`: each is refused without the
+other. Its only job is to say what a CSV has nowhere to say.
 
 SPEC.md §13 defines `key`, `order`, `order_type` and `columns` as part of the
 CSV profile: how a value is trimmed and typed, and what each one refuses.

@@ -1628,8 +1628,10 @@ relaxation**, and the difference must be stated rather than discovered:
   `number`, `date` or `text`, and anything else, a non-string included, is
   refused. Every trimmed value of the order column must then be of that type,
   so a column of numbers declared `text` is refused even though it has a
-  single type. Declaring the type turns §6's inference into a check. Without
-  `order` it has no column to check, and checks nothing.
+  single type. Declaring the type turns §6's inference into a check.
+  **`order_type` without `order` is refused**, as `order` without `key` is
+  (§9.25): it declares a check with no column to run on, and ignoring it
+  would leave the author believing the check ran.
 - **`columns` declares the type of other stored columns**: a JSON object
   whose members map a column name to `number`, `date` or `text`. Any other
   type, a non-string included, is refused, and so is a `columns` that is not

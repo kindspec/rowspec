@@ -17,6 +17,7 @@ prose, and where the two disagree the suite wins.
   follows §6 and §9.10: one type, no blank in any row, and none of §9.10's
   non-finite spellings. `order_type` and a `columns` type are each one of
   `number`, `date` or `text`, and a blank in a typed column is not checked.
+  `order_type` without `order` is refused, as `order` without `key` is.
   A sidecar names a column as §9.2 compares names, after trimming and NFC,
   and a name naming no column, or a member the profile does not define, is
   refused. The CSV profile still carries no §9 identifiers.
