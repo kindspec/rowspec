@@ -15,9 +15,9 @@ prose, and where the two disagree the suite wins.
   was left unsettled: the reference read each as text and accepted it, and
   `rowspec_alt` refused it. Decided by the project owner: one leading `+`
   or `-` is refused like the bare spelling, as `bad-order-column`. Python's
-  `float()` and pandas read `-inf` as a number exactly as they read `inf`,
-  so a host that reads the column would sort it differently from rowspec,
-  which is the reason the bare spellings are refused. §4.1.6 is unchanged:
+  `float()` reads every signed spelling as a number exactly as it reads the
+  bare one, so a host that reads the column would sort it differently from
+  rowspec, which is the reason the bare spellings are refused. §4.1.6 is unchanged:
   a signed spelling is still text, and is refused only in an order column.
 
 - **SPEC.md states two rules directly that it reached only by inference**

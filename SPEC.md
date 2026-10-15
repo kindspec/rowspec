@@ -958,10 +958,11 @@ all four. Every failure was silent.
 - Non-finite numbers in `c` are refused, and so is a non-finite **spelling**
   (§9.10): `inf`, `nan` or `infinity` in any case, bare or after one leading
   `+` or `-`. Each is text under §4.1.6, signed or not, but Python's `float()`
-  and pandas' `read_csv` read every one of them as a number, so a host that
-  reads the column would sort it differently from rowspec. A sign changes
-  nothing about that: `-inf` is read as a number exactly as `inf` is, so it is
-  refused on the same ground.
+  reads every one of them as a number, so a host that reads the column would
+  sort it differently from rowspec. A sign changes nothing about that:
+  `float()` reads `-inf` as a number exactly as it reads `inf`, so it is
+  refused on the same ground. pandas' `read_csv` reads the `inf` and
+  `infinity` forms the same way, signed or not.
 - **A blank cell in `c` is refused** (§9.10). Blank is none of `number`, `date`
   or `text`, so a column mixing blanks with any of them mixes types.
   **[CHOICE]** against admitting it and sorting blanks first: the order is what
