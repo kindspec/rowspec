@@ -25,7 +25,7 @@ with a GitHub Action.
     294 passed, 2 skipped     just test
     20 passed                 just test-xlsx
     1 passed                  just test-libreoffice
-    248 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
+    260 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
                                 pytest tests/test_xlsx_libreoffice.py -q -s
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
