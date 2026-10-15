@@ -252,6 +252,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **An empty column name is `bad-identifier`** (#130). SPEC.md §4.1 makes
+  an `ident` one or more characters. The reference implementation checked
+  each character of a name and so passed a name with none: a header cell
+  that is empty or holds only space and tab, or a computed cell such as
+  `|  = 1 |`, gave a column keyed `''`. It is now refused, as `rowspec_alt`
+  already did.
+
 - **CSV mode reads a header of U+00A0 and other Unicode spaces as column
   names** (#154). SPEC.md §13 trims a column name of ASCII space and tab
   only, so a header cell holding U+00A0 is a non-empty name. The check for
