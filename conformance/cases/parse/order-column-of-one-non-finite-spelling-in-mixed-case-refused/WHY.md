@@ -10,8 +10,9 @@ row.
 
 §9.10 (`bad-order-column`) refuses "`order := by(c)` where `c` is not a stored
 column, is computed, mixes types, **is blank in any row**, or holds a
-non-finite spelling (`inf`, `nan`, `infinity`, any case) in any row (§6)". §6:
-"Non-finite numbers in `c` are refused."
+non-finite spelling (`inf`, `nan`, `infinity`, any case, bare or after one
+leading `+` or `-`) in any row (§6)". §6: "Non-finite numbers in `c` are
+refused, and so is a non-finite **spelling** (§9.10)".
 
 The refusal is on the spelling, not on the column's type. §9.10 says "any
 case", so an upper- or mixed-case spelling is refused as the lower-case one
