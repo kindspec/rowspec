@@ -132,8 +132,11 @@ prose, and where the two disagree the suite wins.
   an opposite infinity. A numeric literal too long for binary64 — in
   arithmetic, as an `if` branch, or as a comparison bound — is
   `#REF!(overflow)` the same way. `count` over a computed column holding
-  that error is now poisoned by it, as §7 requires. `rowspec_alt` already
-  gave `#REF!(overflow)` in every one; a test now holds both to it.
+  that error is now poisoned by it, as §7 requires. Because the infinite
+  operand is now an error where it is read, §8's leftmost rule can pick it:
+  `a + x` with `a` infinite and `x` blank was `#REF!(x)` and is now
+  `#REF!(overflow)`, and so is `if(a > x, …)`. `rowspec_alt` already gave
+  `#REF!(overflow)` in every one; a test now holds both to it.
 
 ## [0.3.0] — 2026-10-08
 

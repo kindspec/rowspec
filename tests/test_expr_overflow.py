@@ -95,3 +95,31 @@ def test_count_over_a_column_holding_the_overflow_is_poisoned(impl):
     )
     _, aggs = impl.evaluate(src)
     assert aggs == {"n": OVF}
+
+
+def two_columns(impl, formula, a, x):
+    src = (
+        f"| id | a | x | b = {formula} |\n| -- | -: | -: | -: |\n| r_1 | {a} | {x} |  |\n\n"
+        "key := id\n"
+    )
+    out, _ = impl.evaluate(src)
+    return out[0]["b"]
+
+
+@IMPLS
+@pytest.mark.parametrize(
+    "formula, want",
+    [
+        ("a + x", OVF),
+        ("x + a", "#REF!(x)"),
+        ("if(a > x, 1, 2)", OVF),
+        ("if(x > a, 1, 2)", "#REF!(x)"),
+        (f"if(x = {BIG}, 1, 2)", "#REF!(x)"),
+        (f"if(x > {BIG}, 1, 2)", "#REF!(x)"),
+    ],
+    ids=["a-plus-x", "x-plus-a", "a-above-x", "x-above-a", "x-equals-big", "x-above-big"],
+)
+def test_the_leftmost_error_wins_over_an_infinite_operand(impl, formula, want):
+    """§8: of two errors, the leftmost in the formula text. `a` is infinite and
+    `x` is blank, so each is an error and only position decides between them."""
+    assert two_columns(impl, formula, BIG, "") == want

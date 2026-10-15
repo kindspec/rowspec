@@ -1200,6 +1200,10 @@ def evaluate(text):
                     d = v - prev
                     r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
             elif fn == "cumulative":
+                # The first bad CELL sets the label for the rest of the column.
+                # An overflow of the running total itself is not a bad cell: it
+                # is `acc` below, and a later blank still relabels it #REF!(c),
+                # as in `rowspec_alt`. SPEC.md does not order the two.
                 if poisoned is None and (v is None or ovf):
                     poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
                 if poisoned:
