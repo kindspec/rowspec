@@ -193,6 +193,9 @@ prose, and where the two disagree the suite wins.
   missing or cyclic argument to a row-relative call, in the first row too.
   The floor is now 517 cases.
 
+- **2 conformance cases ranking `/0` above `empty`** (#115) in one aggregate,
+  with the data lines swapped in the second. The floor is now 519 cases.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
