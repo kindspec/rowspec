@@ -301,7 +301,14 @@ that contain them.
 
 **11. Declarations.** `name := fn(arg)`, with optional `WSP` anywhere `*WSP`
 appears in the grammar; `key := col` is the sole bare form, because `key` names
-a column rather than computing one. A declaration is malformed (§9.12) if it
+a column rather than computing one. **It is also `key`'s only form:
+`key := fn(col)` is malformed (§9.12), whatever `fn` is** — `by`, an aggregate
+function or any other `ident`, with or without a `where`. The `declaration`
+production generates it, because `rhs` does not tie the function form to the
+left-hand name, so the rule is stated here rather than left to the grammar.
+Read as `key := col`, `key := sum(id)` would silently key the table on `id`;
+like a third `order` spelling, it is refused rather than degraded into the form
+it resembles. A declaration is malformed (§9.12) if it
 contains `:=` and does not match `declaration` — including a non-`key` name with
 no function, an unclosed parenthesis, an unrecognised `order` construct such as
 `order := none()`, and any `ident` violating rule 9. **`key := col` is malformed
@@ -702,7 +709,9 @@ because the answer is a value.
 named `cycle` would be. The collision is accepted rather than dodged with a
 spelling outside `ident`, as `#REF!(/0)` uses: both readings are error values,
 both poison every aggregate over the column identically under §8, and no
-computed value anywhere branches on which of the two it is. The collision costs
+computed value anywhere branches on which of the two it is — §8's ranking of
+several errors in one aggregate reads a `#REF!` as spelled, so it ranks the two
+alike. The collision costs
 a diagnostic and never a number, and closing it would change the output of a
 conforming implementation for no gain.
 
@@ -979,6 +988,17 @@ past a blank produces exactly a stale value, and a plausible one — the reader
 sees a number that was true two rows ago and nothing says so. `cumulative(c)`
 is `#REF!(c)` from the blank row onward, by ordinary propagation.
 
+**`delta(c)` is read as `c - prior(c)`, so §8's leftmost rule decides which
+error it carries: when this row's `c` and the preceding row's both give an
+error, a blank included, `delta(c)` carries this row's.** A blank `c` here
+beside a stored cell beyond binary64 in the row before is `#REF!(c)`, and the
+same two rows the other way round are `#REF!(overflow)`. Each operand carries the error it originated,
+so a computed `c` holding `#REF!(/0)` here makes `delta(c)` `#REF!(/0)`, not a
+relabelled `#REF!(c)`. **[CHOICE]** — either row would satisfy §6, because the
+preceding row is fixed by the declared order and not by file position. This
+row's is chosen because §7 already defines `delta` as `c` minus `prior(c)`, and
+reading it that way leaves no second rule for a reader to find.
+
 **Per-row group aggregates.** `@c` means *this row's* value of `c`:
 
     | region_total = sum(amount where region = @region) |
@@ -1215,6 +1235,36 @@ not a relabelled `#REF!(v)`. It is the originating-error rule above applied to
 an aggregate: relabelling at the boundary sends a reader to inspect a
 well-formed aggregate instead of the cell that divided by zero.
 
+**When its operands hold several different `#REF!` values, an aggregate carries
+the one whose shape ranks first: `cycle`, then a name, then `/0`, then `empty`,
+then `overflow`. Among several names it carries the one that sorts first by
+code point over the NFC name, as §4.1.8 orders text.** Never the first by row,
+in the file or in the declared order: §6 makes a row's position no input to any
+computation, and an aggregate is defined on the multiset of its operands (§7).
+The leftmost rule cannot decide this, because the formula names one column. A
+value that will not coerce counts as a name, so `sum(a)` over a cell `x` and a
+stored cell beyond binary64 is `#REF!(a)` whichever line comes first, and
+`sum(c)` over a computed `#REF!(overflow)` and `#REF!(/0)` is `#REF!(/0)`.
+`count` coerces nothing, so only the `#REF!` values actually present compete
+in it.
+
+**[CHOICE]** The ranking is the order a reader should fix things in. `cycle`
+comes first because the precedence above already puts it ahead of a name:
+nothing in a cycle's reach can be computed until it is broken. A name comes
+next: a reference that does not resolve, or a value that is not a number,
+means the inputs are not what the formula needs, and an arithmetic outcome
+computed beside them says little until they are fixed. `/0`, `empty` and
+`overflow` are outcomes of arithmetic over values that are present, and
+nothing makes one more basic than another, so they keep the order the list of
+shapes below gives them.
+
+**The ranking reads a `#REF!` as it is spelled.** `#REF!(cycle)`,
+`#REF!(empty)` and `#REF!(overflow)` rank as those shapes whatever produced
+them, a broken reference to a column named `cycle`, `empty` or `overflow`
+included. Those names collide with the shapes (§4.2 rule 9, and below), and
+ranking by spelling is what keeps the collision from reaching a value: two
+readers that disagree about which reading a `#REF!` is still rank it alike.
+
 **An aggregate whose result is not finite is `#REF!(overflow)`**, on the same
 ground as §4.2 rule 2: `inf` is not a `number` under §4.1.6, so an
 implementation that returned one would write a file it could not read back and
@@ -1241,9 +1291,11 @@ This paragraph said *three* while rule 2 already required `overflow`, and later
 rule is added in one section and counted in another. The count is now asserted
 by a conformance case rather than only claimed here. Note that `overflow` and
 `empty` are well-formed `ident`s and therefore collide with a broken reference
-to a column actually named that, exactly as `cycle` does and unlike `/0`; §4.2 rule 9's argument for accepting that
-collision — both readings are errors, both poison every aggregate identically,
-and no computed value branches on which it is — applies here unchanged.
+to a column actually named that, exactly as `cycle` does and unlike `/0`; §4.2
+rule 9's argument for accepting that collision — both readings are errors, both
+poison every aggregate identically, and no computed value branches on which it
+is — applies here unchanged, the ranking of several errors above included,
+because it reads a `#REF!` as spelled.
 
 A broken reference never evaluates to zero, empty, or a stale value. A blank
 cell is not zero. A value that will not coerce to a number is `#REF!`, not a
@@ -1290,9 +1342,9 @@ An implementation MUST refuse:
     words
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
-    that does not match `declaration`, or a `key := col` whose `col` is not a
-    stored column of the table: no column of that name, or a computed one
-    (§4.1.11)
+    that does not match `declaration`, a `key :=` in function form such as
+    `key := by(id)`, or a `key := col` whose `col` is not a stored column of
+    the table: no column of that name, or a computed one (§4.1.11)
 13. `no-table`: a file containing no table
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
@@ -1492,6 +1544,13 @@ relaxation**, and the difference must be stated rather than discovered:
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
   header cell. Only a `Cf` format character in a column name is still refused,
   and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  **A name is trimmed of ASCII space and tab only before §9.2 compares it**, as
+  a key value is (§4.1.4): `a` with spaces or tabs around it and `a` are one
+  name, and so are a header cell of spaces, one of a tab and an empty one, so
+  any two of them are a duplicate. A leading or trailing non-ASCII space, such
+  as U+00A0, is part of the name, as it is part of a key value, so `a` and
+  `a<U+00A0>` are two names: a look-alike of the kind the next sentence says is
+  not refused.
   **§3's guarantee that two identifiers cannot render identically does not
   hold for CSV column names**: other look-alikes, such as a non-ASCII space in
   place of an ASCII one, are not refused.

@@ -1,0 +1,6 @@
+| id | a | t = sum(a where zz = "x" and yy = "y") |
+| --- | --: | --: |
+| r_1 | 1 |  |
+| r_2 | 2 |  |
+
+key := id

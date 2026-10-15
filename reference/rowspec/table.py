@@ -189,6 +189,13 @@ def parse(text):
                 )
             continue
         line = stripped
+        if re.match(r"\s*key\s*:=\s*\w+\s*\(", line):
+            # §4.1.11: `key := col` is key's only form. Read as `key := col`,
+            # `key := sum(id)` would key the table on `id`.
+            raise Malformed(
+                f"line {n}: key takes a bare column name, not a function: {line.strip()!r}",
+                refusal="malformed-declaration",
+            )
         mw = re.match(r"\s*([^\s:=]+)\s*:=\s*(\w+)\((.+)\)\s*$", line)
         if mw and " where " in mw.group(3):
             nm_, fn_, inner = mw.groups()
@@ -327,6 +334,15 @@ def parse(text):
         rows.append(row)
     if key:
         for r in rows:
+            if str(r.get(key, "")) == "":
+                # §4.1.9: an ident is one or more characters, so a blank key
+                # is not one -- and it must not fall through to §9.5, where
+                # two blanks would be called duplicates of each other.
+                raise Malformed(
+                    f"row key {key}= is blank; a row id is an ident of one or "
+                    f"more letters, marks, digits or underscores (§4.1.9)",
+                    refusal="bad-identifier",
+                )
             _check_ident(str(r.get(key, "")), f"row key {key}=")
         ids = [r.get(key) for r in rows]
         if len(set(ids)) != len(ids):
@@ -403,7 +419,7 @@ DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
-    vals = [str(r.get(col, "")).strip() for r in rows]
+    vals = [str(r.get(col, "")) for r in rows]
     if any(v == "" for v in vals):
         # §6: blank is none of number/date/text, so a column mixing it with any
         # of them mixes types. Previously blanks were filtered out here and the
@@ -513,30 +529,40 @@ def _exact(nums, divisor):
         return float("inf")  # the caller maps a non-finite result to #REF!(overflow)
 
 
+# §8: of several #REF! among one aggregate's operands, the first by shape in
+# this order, then the name that sorts first. Never the first row's.
+_REF_RANK = {"cycle": 0, "/0": 2, "empty": 3, "overflow": 4}
+
+
+def _first_ref(errs):
+    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))
+
+
 def _agg(fn, vals, what):
     bad = [v for v in vals if _is_ref(v)]
-    if bad:
-        return bad[0]
     # `count` counts rows and never coerces: it is poisoned by a #REF! already
-    # present (handled above) but not by a value that merely is not a number,
-    # because it never uses one as an operand.
+    # present but not by a value that merely is not a number, because it never
+    # uses one as an operand.
+    if fn != "count":
+        for v in vals:
+            if v in ("", None) or v in bad:
+                continue
+            try:
+                x = num(v)
+            except (ValueError, TypeError):
+                bad.append(f"#REF!({what})")
+                continue
+            if not math.isfinite(x):
+                # §8: a stored cell whose binary64 value is infinite is
+                # #REF!(overflow) wherever it is an operand. `fsum` raises on
+                # inf + -inf, and `_exact` cannot take an infinity's integer
+                # ratio, so it must not reach them.
+                bad.append("#REF!(overflow)")
+    if bad:
+        return _first_ref(bad)
     if fn == "count":
         return len(vals)
-    try:
-        for v in vals:
-            if v not in ("", None):
-                num(v)
-    except (ValueError, TypeError):
-        return f"#REF!({what})"
-    try:
-        nums = [num(v) for v in vals if v not in ("", None)]
-    except (ValueError, TypeError):
-        return f"#REF!({what})"
-    if not all(math.isfinite(x) for x in nums):
-        # §8: a stored cell whose binary64 value is infinite is #REF!(overflow)
-        # wherever it is an operand. `fsum` raises on inf + -inf, and `_exact`
-        # cannot take an infinity's integer ratio, so it must not reach them.
-        return "#REF!(overflow)"
+    nums = [num(v) for v in vals if v not in ("", None)]
     if fn == "sum":
         got = _exact(nums, 1)
     elif fn == "avg":
@@ -1155,7 +1181,7 @@ def evaluate(text):
         kind = column_type(order, rows)
 
         def typed(r):
-            v = str(r[order]).strip()
+            v = str(r[order])
             if kind == "number":
                 f = num(v)
                 if f != f or f in (float("inf"), float("-inf")):
@@ -1201,8 +1227,9 @@ def evaluate(text):
         # resumed as though the blank had not happened.
         acc, prev, poisoned = 0.0, None, None
         prev_ovf = False
+        prev_err = None
         for r in seq:
-            raw = str(r.get(src, "")).strip()
+            raw = str(r.get(src, ""))
             try:
                 v = num(raw)
             except (ValueError, TypeError):
@@ -1211,6 +1238,16 @@ def evaluate(text):
             # #REF!(overflow) as an operand. Passed on, `delta` subtracted two
             # infinities into `nan` and `prior` stored `inf`.
             ovf = v in (INF, -INF)
+            # This row's value as an operand: its own error, or None. A
+            # computed source carries the error it originated, not #REF!(src).
+            if src in formulas and raw.startswith("#REF!"):
+                err = raw
+            elif ovf:
+                err = "#REF!(overflow)"
+            elif v is None:
+                err = f"#REF!({src})"
+            else:
+                err = None
             if fn == "prior":
                 # `prev` is None only before the first row; after that it is the
                 # preceding row's value, blank included.
@@ -1219,14 +1256,12 @@ def evaluate(text):
                 else:
                     r[nm] = "#REF!(overflow)" if prev_ovf else prev
             elif fn == "delta":
+                # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule
+                # this row's error wins over the preceding row's.
                 if prev is None:
                     r[nm] = ""
-                elif ovf:
-                    # An infinite `prev` needs no branch of its own: a finite
-                    # `v` minus it is an infinity, which the step below maps.
-                    r[nm] = "#REF!(overflow)"
-                elif v is None or not isinstance(prev, float):
-                    r[nm] = f"#REF!({src})"
+                elif err or prev_err:
+                    r[nm] = err or prev_err
                 else:
                     d = v - prev
                     r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
@@ -1246,7 +1281,13 @@ def evaluate(text):
                     # `canon` would not round-trip its own output.
                     r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             prev = raw if v is None else v
+            if v is None and raw != "" and src not in formulas:
+                # §4.2 rule 10: a computed value is a number or an error, so
+                # stored text that will not coerce is #REF!(src) (§8), never
+                # the text itself -- which `count` would then count as a value.
+                prev = f"#REF!({src})"
             prev_ovf = ovf
+            prev_err = err
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
     # One fixpoint over BOTH kinds. A group aggregate over a computed column
