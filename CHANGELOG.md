@@ -151,11 +151,12 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **80 CSV-profile conformance cases** (#63, #94, #92) in
+- **85 CSV-profile conformance cases** (#63, #94, #92, #118) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
-  repeated empty column name (#92). They run in CI as `just conform-csv`, in
-  the `conformance` job and in the release gate, with a floor of 80 cases.
+  repeated empty column name (#92), then 5 for how a name is trimmed (#118).
+  They run in CI as `just conform-csv`, in the `conformance` job and in the
+  release gate, with a floor of 85 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 
@@ -165,6 +166,14 @@ prose, and where the two disagree the suite wins.
   aggregates and row expressions, the refusal of a `key :=` naming no stored
   column, a header group aggregate over a missing column, and predicate
   refusals behind an unknown name. The floor is now 438 cases.
+
+- **32 conformance cases for the spec rulings and reference fixes** (#110,
+  #111, #114, #115, #116, #117, #126) in `conformance/cases/`, written from
+  SPEC.md without the implementation: `key :=` in function form, the ranking
+  of several `#REF!` values in one aggregate with row-swapped twins, `delta`
+  with errors in both rows, overlong literals and header errors, blank key
+  values, `prior` over text, and stored text spelled like an error. The floor
+  is now 483 cases.
 
 - **The mutation gate covers those fixes** (#100, #102, #107). Eleven new
   mutants each undo one fix, and the cases kill every one of them on at least
