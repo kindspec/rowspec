@@ -466,14 +466,11 @@ for r in seq:
     # EDGE: an ordinary formula that does not wait for the row-relative or
     # group column it names reads that column's empty stored cells.
     #
-    # Only the GROUP half of this mutant is caught. Dropping just the edge to
-    # a row-relative column survives the tree: `_evaluate_columns` visits
-    # `sorted(pending)`, and in every case that has an ordinary formula over a
-    # row-relative column the source's name happens to sort first, so it is
-    # evaluated first without the edge. The gap waits for a case, from an
-    # author who has not read table.py, whose dependent column sorts before
-    # its row-relative source. `tests/test_dependency_order.py` covers it for
-    # the two implementations in the meantime.
+    # Both halves are caught. The row-relative half dies to the cases whose
+    # dependent column sorts before its `cumulative` source
+    # (`formula-over-a-later-sorting-cumulative-dependent-*`), and
+    # `a-formula-has-no-edge-to-a-row-relative-column` below drops that edge
+    # on its own.
     "plain-pass-runs-only-once": (
         "    deps = {nm: names_of(t) for nm, t in trees.items()}",
         "    deps = {nm: [n for n in names_of(t) if n in trees] for nm, t in trees.items()}",
@@ -629,6 +626,10 @@ for r in seq:
         "        deps[nm] = [col]",
         "        deps[nm] = [col] if col != nm else []",
     ),
+    # The check predates the graph; the graph moved it here, ahead of any
+    # value. Moving it back into `_group_column`, so it runs only for a
+    # column that gets evaluated, survives the tree: a group aggregate over
+    # itself with an unknown function is then #REF!(cycle), not refused.
     "a-group-aggregate-function-is-not-checked": (
         '        if fn not in ("sum", "count", "min", "max", "avg"):\n'
         "            raise Malformed(\n"
@@ -658,14 +659,21 @@ for r in seq:
         "        return _header_error(node.r, known) or _header_error(node.l, known)",
     ),
     # --- §8: which of several #REF! an aggregate carries ---------------------
+    "div-by-zero-and-empty-rank-swapped": (
+        '_REF_RANK = {"cycle": 0, "/0": 2, "empty": 3, "overflow": 4}',
+        '_REF_RANK = {"cycle": 0, "/0": 3, "empty": 2, "overflow": 4}',
+    ),
     "a-name-ranks-after-every-shape": (
         "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
         "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 5), e[6:-1]))",
     ),
     "names-rank-in-reverse-code-point-order": (
         "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
-        "    return min(errs, key=lambda e: "
-        "(_REF_RANK.get(e[6:-1], 1), [-ord(ch) for ch in e[6:-1]]))",
+        "    return max(\n"
+        "        (e for e in errs\n"
+        "         if _REF_RANK.get(e[6:-1], 1) == min(_REF_RANK.get(x[6:-1], 1) for x in errs)),\n"
+        "        key=lambda e: e[6:-1],\n"
+        "    )",
     ),
     "the-first-error-by-row-wins": (
         "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",

@@ -17,10 +17,10 @@ with a GitHub Action.
     519 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
     0 failures, second impl   just conform-alt
-    97 killed, 0 survived     just mutants
+    98 killed, 0 survived     just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
-    99 distinct mutations     just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
+    100 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
     548 passed, 2 skipped     just test
     20 passed                 just test-xlsx

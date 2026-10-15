@@ -197,14 +197,16 @@ prose, and where the two disagree the suite wins.
   with the data lines swapped in the second. The floor is now 519 cases.
 
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
-  ranking** (#115, #117, #133, #134). Eleven new mutants each break one of
-  them: a dropped edge in the dependency graph (row-relative to its source, a
-  formula to a row-relative column, a `prior` or a group aggregate over
-  itself), an unchecked function in a group call, an overlong literal found
-  per row, a data error outranking a header error, the rightmost header error
-  winning, and an aggregate's `#REF!` chosen with names last, names in
-  reverse code-point order, or by row position. The cases kill every one of
-  them on a wrong answer. `just mutants` reports 97 killed, 0 survived, 2
+  ranking** (#115, #117, #132, #133, #134). Twelve new mutants each break one
+  of them: a dropped edge in the dependency graph (a row-relative column to
+  its source, a formula to a row-relative column, a `prior`, `delta` or
+  `cumulative` column over itself, a group aggregate over itself), the
+  unknown-function check on a group call (older than the graph, which moved it
+  ahead of any value), an overlong literal found per row, a data error
+  outranking a header error, the rightmost header error winning, and an
+  aggregate's `#REF!` chosen with `/0` and `empty` swapped, names last, names
+  in reverse code-point order, or by row position. The cases kill every one
+  of them on a wrong answer. `just mutants` reports 98 killed, 0 survived, 2
   equivalent.
 
 - **The exported workbook is checked against LibreOffice** (#36).
