@@ -243,6 +243,17 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **CSV mode trims key, order and typed column values of ASCII space and
+  tab only** (#145). SPEC.md §13 trims a key value of ASCII space and tab
+  only (§4.1.4). CSV mode trimmed values with Python's `str.strip()`, which
+  also removes U+00A0 and the other Unicode spaces, so an order column
+  holding `<U+00A0>5` beside `6` was accepted, a column declared `number`
+  accepted `<U+00A0>5`, and key values `a` and `a<U+00A0>` were reported as
+  a duplicate on top of the whitespace finding for `a<U+00A0>`. Each is now
+  read as written: the order column mixes types, the value is not a number,
+  and the two keys are different values. A finding now names the row
+  `id='a<U+00A0>'` rather than `id='a'`.
+
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's
   operands the values those columns evaluate to, whatever order the header
