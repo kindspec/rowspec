@@ -17,9 +17,14 @@ duplicate." The two empty names are a duplicate, and §9.2
 nowhere of a header spanning records — so the second line is data and does
 not rescue the first. A reader that treats an all-empty first line as a group
 row and takes its names from the second line sees `a` and `a<U+00A0>`, which
-§13 makes two names, and accepts the file.
+§13 makes two names, and accepts the file. This case goes red for that
+reader.
 
 No sidecar is supplied and both lines have two fields, so §9.2 is the only
-refusal that applies, which `refusal_contains: ""` requires. The accepted
-twin is
+refusal SPEC.md gives this file. The CSV tree asserts only that a file is
+refused, never which refusal (§13: "its conformance cases assert only that a
+file is refused"), so this case does not prove §9.2 is the one that fired: a
+reader that refused it for another reason would pass too.
+
+The accepted twin is
 `columns/no-break-space-suffix-in-a-data-row-under-a-label-and-empty-header-accepted`.
