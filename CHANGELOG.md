@@ -114,6 +114,13 @@ prose, and where the two disagree the suite wins.
   column, a header group aggregate over a missing column, and predicate
   refusals behind an unknown name. The floor is now 438 cases.
 
+- **The mutation gate covers those fixes** (#100, #102, #107). Eleven new
+  mutants each undo one fix, and the cases kill every one of them on at least
+  one wrong answer. Thirteen more cases from the same kind of author pin the
+  leftmost unknown name in a predicate, predicate refusals behind a cycle or a
+  missing aggregated column, and `cumulative` across opposite infinities. The
+  floor is now 451 cases.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell
