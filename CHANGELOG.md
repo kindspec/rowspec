@@ -199,16 +199,22 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **98 CSV-profile conformance cases** (#63, #94, #92, #118) in
+- **216 CSV-profile conformance cases** (#63, #94, #92, #118, #162) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
   repeated empty column name (#92), then 5 for how a name is trimmed (#118),
   then 9 for a header of only non-ASCII-space or empty names and for
   U+2003, U+3000 and tab padding in names and key values, then 4 for a
   name of one vertical tab or form feed and for a U+00A0 suffix in a data
-  row under a header with empty names.
+  row under a header with empty names, then 118 for the sidecar §13
+  defines: its structure, encoding and repeated or undefined members; how
+  a name is trimmed, normalised and matched to an empty header cell;
+  `order` with blank, non-finite, overflowing and signed non-finite
+  values; `order_type`; typed `columns`, on the key and order columns
+  too; and `delimiter`, including a leading U+FEFF when it is the
+  delimiter. 15 of the 118 fail against the reference CSV mode.
   They run in CI as `just conform-csv`, in the `conformance` job and in the
-  release gate, with a floor of 98 cases.
+  release gate, with a floor of 216 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 

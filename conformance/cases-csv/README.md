@@ -223,3 +223,119 @@ and
 were written by an author who was not the author of `csvmode.py` and did not
 read it, from SPEC.md at `7652865` and the case trees. `cases/README.md`
 records that batch's other cases.
+
+These cases were written by an author who was not the author of `csvmode.py`
+and did not read it, against SPEC.md at `e2b121a` in a worktree of that
+commit, opening only SPEC.md, AGENTS.md, CONTRIBUTING.md, the two case
+trees, the case-count floors in `conformance/run_cases.py`, the `justfile`,
+the test names in `tests/test_conformance.py`, and the lines of README.md,
+ROADMAP.md and CHANGELOG.md that state those counts. They cover every member
+and rule of the sidecar §13 defines, and are named exactly:
+
+- The sidecar's structure, encoding and members, and how `key` names a
+  column: `sidecar/empty-object-accepted`,
+  `sidecar/undefined-member-refused`,
+  `sidecar/member-name-in-another-case-refused`,
+  `sidecar/repeated-order-member-refused`,
+  `sidecar/repeated-member-spelled-with-an-escape-refused`,
+  `sidecar/repeated-columns-member-refused`,
+  `sidecar/repeated-name-inside-columns-refused`,
+  `sidecar/repeated-delimiter-member-refused`, `sidecar/array-refused`,
+  `sidecar/string-refused`, `sidecar/null-refused`,
+  `sidecar/empty-file-refused`, `sidecar/leading-bom-refused`,
+  `sidecar/utf16le-with-bom-refused`, `sidecar/utf32be-refused`,
+  `sidecar/non-utf8-byte-in-a-name-refused`,
+  `sidecar/key-name-padded-with-space-and-tab-accepted`,
+  `sidecar/key-name-padded-with-space-and-tab-applies-refused`,
+  `sidecar/key-name-with-a-trailing-no-break-space-refused`,
+  `sidecar/key-name-in-nfd-names-an-nfc-header-accepted`,
+  `sidecar/key-name-in-nfc-names-an-nfd-header-accepted`,
+  `sidecar/empty-key-name-names-an-empty-header-cell-accepted`,
+  `sidecar/empty-key-name-names-an-empty-header-cell-applies-refused`,
+  `sidecar/empty-key-name-with-no-empty-header-cell-refused`,
+  `sidecar/tab-key-name-names-a-header-cell-of-spaces-accepted`,
+  `sidecar/key-not-a-string-refused` and `sidecar/key-null-refused`.
+- `order` and `order_type`, signed non-finite spellings included:
+  `order/number-column-accepted`, `order/without-key-refused`,
+  `order/names-no-column-refused`, `order/not-a-string-refused`,
+  `order/name-padded-accepted`, `order/empty-cell-refused`,
+  `order/cell-of-spaces-refused`, `order/cell-of-a-tab-refused`,
+  `order/no-break-space-cell-beside-text-accepted`,
+  `order/no-break-space-padded-number-beside-numbers-refused`,
+  `order/space-and-tab-padded-number-beside-numbers-accepted`,
+  `order/numbers-and-text-refused`, `order/numbers-and-dates-refused`,
+  `order/dates-in-both-separators-accepted`,
+  `order/uncalendared-date-beside-dates-accepted`,
+  `order/exponent-beside-numbers-refused`,
+  `order/leading-plus-beside-numbers-refused`,
+  `order/arabic-indic-digit-beside-numbers-refused`,
+  `order/mixed-separator-date-beside-dates-refused`,
+  `order/inf-beside-text-refused`, `order/nan-in-every-row-refused`,
+  `order/four-hundred-digit-number-refused`,
+  `order/negative-four-hundred-digit-number-refused`,
+  `order/three-hundred-digit-number-accepted`, `order/header-only-accepted`,
+  `order/only-minus-inf-refused`,
+  `order/text-column-with-one-minus-inf-cell-refused`,
+  `order/only-plus-nan-refused`,
+  `order/text-column-with-one-plus-nan-cell-refused`,
+  `order/only-minus-infinity-mixed-case-refused`,
+  `order/text-column-with-one-minus-infinity-mixed-case-cell-refused`,
+  `order/only-plus-inf-upper-case-refused`,
+  `order/text-column-with-one-plus-inf-upper-case-cell-refused`,
+  `order/text-column-with-a-double-minus-inf-cell-accepted`,
+  `order/text-column-with-a-plus-minus-nan-cell-accepted`,
+  `order/text-column-with-a-minus-info-cell-accepted`,
+  `order/text-column-with-a-minus-space-inf-cell-accepted`,
+  `order/order-type-number-accepted`,
+  `order/order-type-date-over-dates-accepted`,
+  `order/order-type-text-over-text-accepted`,
+  `order/order-type-text-over-numbers-refused`,
+  `order/order-type-number-over-dates-refused`,
+  `order/order-type-unknown-string-refused`,
+  `order/order-type-capitalised-refused`,
+  `order/order-type-not-a-string-refused` and
+  `order/order-type-without-order-refused`.
+- `columns`: `types/number-column-accepted`,
+  `types/number-column-with-text-refused`,
+  `types/number-column-with-a-trailing-point-refused`,
+  `types/number-column-with-inf-refused`,
+  `types/number-column-with-signed-inf-refused`,
+  `types/number-column-with-a-no-break-space-padded-number-refused`,
+  `types/text-column-with-a-number-refused`,
+  `types/text-column-with-a-date-refused`,
+  `types/date-column-with-mixed-separators-refused`,
+  `types/date-column-with-a-number-refused`,
+  `types/text-column-with-inf-accepted`,
+  `types/date-column-in-both-separators-accepted`,
+  `types/number-column-with-blanks-accepted`,
+  `types/number-column-with-a-four-hundred-digit-number-accepted`,
+  `types/number-column-with-a-space-and-tab-padded-number-accepted`,
+  `types/columns-not-an-object-refused`, `types/unknown-type-refused`,
+  `types/type-not-a-string-refused`, `types/names-no-column-refused`,
+  `types/two-names-for-one-column-nfc-and-nfd-refused`,
+  `types/two-names-for-one-column-padded-and-bare-refused`,
+  `types/name-padded-accepted`,
+  `types/empty-name-names-an-empty-header-cell-accepted`,
+  `types/empty-name-with-no-empty-header-cell-refused`,
+  `types/empty-columns-object-accepted`,
+  `types/key-column-typed-number-accepted`,
+  `types/key-column-typed-number-with-text-ids-refused`,
+  `types/order-column-typed-text-over-numbers-refused` and
+  `types/order-column-typed-number-accepted`.
+- `delimiter`: `delimiter/semicolon-accepted`,
+  `delimiter/semicolon-applies-refused`, `delimiter/tab-accepted`,
+  `delimiter/non-ascii-accepted`, `delimiter/astral-scalar-accepted`,
+  `delimiter/astral-scalar-as-a-surrogate-pair-escape-accepted`,
+  `delimiter/double-quote-refused`, `delimiter/cr-refused`,
+  `delimiter/lf-refused`, `delimiter/empty-string-refused`,
+  `delimiter/two-scalars-refused`, `delimiter/combining-sequence-refused`,
+  `delimiter/not-a-string-refused`,
+  `delimiter/lone-surrogate-escape-refused`,
+  `delimiter/not-nfc-normalised-accepted` and
+  `delimiter/feff-leading-is-a-bom-warns`.
+
+Every fixture here is named `input.csv`, so §13's default of a tab for a
+file named `.tsv` or `.tab` cannot be reached by this tree, and no case
+tests it. Each refusing case's `WHY.md` says which rule is the only one the
+file breaks, and what the bare `refusal_contains: ""` assertion does not
+pin. `cases/README.md` records that batch's other cases.
