@@ -196,6 +196,11 @@ prose, and where the two disagree the suite wins.
 - **2 conformance cases ranking `/0` above `empty`** (#115) in one aggregate,
   with the data lines swapped in the second. The floor is now 519 cases.
 
+- **2 conformance cases for an unknown function in a group aggregate over
+  itself**: it is refused even though the column is on a cycle, since
+  acceptance depends only on the formula's own bytes. A `min` control is
+  accepted. The floor is now 521 cases.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell

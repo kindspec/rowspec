@@ -138,7 +138,7 @@ was split. `parse/order-unrecognised-construct-refused` gained
 
 ## Cases written without the implementation
 
-Six later batches were written by authors who were not the author of
+Seven later batches were written by authors who were not the author of
 `reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
 Each author derived every expected outcome from SPEC.md, read the existing
 case tree for its format, and recorded the passage the outcome rests on in
@@ -213,3 +213,9 @@ the case's `WHY.md`.
   `conformance/run_cases.py`. It puts `#REF!(/0)` against `#REF!(empty)` in
   one aggregate, with a row-swapped twin
   (`eval/aggregate-ranks-div-zero-over-empty*`).
+- **The seventh batch**, by the same author, was written against SPEC.md at
+  `7514d04`, opening only SPEC.md, this tree, and the case-count floor in
+  `conformance/run_cases.py`. It pins that an unknown function in a group
+  aggregate over its own column is refused although the column is on a
+  cycle, with a known-function control
+  (`parse/*-function-in-a-group-aggregate-over-itself-*`).
