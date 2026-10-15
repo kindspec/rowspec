@@ -337,6 +337,15 @@ prose, and where the two disagree the suite wins.
   `\ud800`, was used as the separator on every version. Each is now
   refused as a malformed sidecar.
 
+- **A blank cell in a CSV sidecar's `order` column is refused** (#180).
+  SPEC.md §13 applies §6's order rules to the column a sidecar's `order`
+  names, and refuses it when it is blank in any row, a cell of spaces or
+  tabs included, since blank is none of the three types. CSV mode dropped
+  blank values before typing the column, so `id,n / a,1 / b,` was
+  accepted. It now reports `order-blank`, naming the row. A file with no
+  data rows is still not refused on `order`, and a cell holding only a
+  non-ASCII space such as U+00A0 is text, not blank.
+
 - **A CSV sidecar's `order_type` without `order` is refused** (#184).
   SPEC.md §13 refuses it as `order` without `key` is (§9.25): it declares
   a check with no column to run on, and ignoring it would leave the author
