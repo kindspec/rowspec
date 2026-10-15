@@ -545,7 +545,7 @@ def _agg(fn, vals, what):
     # uses one as an operand.
     if fn != "count":
         for v in vals:
-            if v in ("", None) or v in bad:
+            if v in ("", None) or _is_ref(v):
                 continue
             try:
                 x = num(v)
