@@ -164,3 +164,9 @@ three quoting faults of 6, the single and double trailing empty line, key
 values trimmed of ASCII space and tab only, a quoted field after a lone CR,
 and marker runs that do or do not start a line. Their `WHY.md` files record
 no new open question.
+
+The `columns/*-empty-name*` cases (#92) were written by an author who was not the author of
+`csvmode.py` and did not read it, from SPEC.md and the case tree, on a branch
+from `d51f27a`: an empty column name repeated, including in the grouped
+header shape `,x,,,,`, is a duplicate column (§9.2), and a single empty name
+is accepted. `cases/README.md` records that batch's other cases.
