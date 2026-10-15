@@ -326,6 +326,17 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A sidecar `delimiter` of `"`, CR, LF or a lone surrogate is refused**
+  (#178). SPEC.md §13 admits one Unicode scalar value other than those
+  three, which RFC 4180 reserves for quoting and for ending a record. CSV
+  mode checked only that the delimiter was one character, so `"`, CR and
+  LF reached Python's `csv.reader`. On Python 3.11 and 3.12 it used them
+  as the separator, so the file was silently misread and accepted; on
+  3.13 it raised an uncaught `ValueError`, so the file was neither
+  accepted nor refused. A lone surrogate, written as the JSON escape
+  `\ud800`, was used as the separator on every version. Each is now
+  refused as a malformed sidecar.
+
 - **A blank cell in a CSV sidecar's `order` column is refused** (#180).
   SPEC.md §13 applies §6's order rules to the column a sidecar's `order`
   names, and refuses it when it is blank in any row, a cell of spaces or

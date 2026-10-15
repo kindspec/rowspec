@@ -93,8 +93,17 @@ def _validate(obj, where):
             f"{where}: order_type {obj['order_type']!r} is not one of "
             f"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}"
         )
-    if "delimiter" in obj and len(obj["delimiter"]) != 1:
-        raise Malformed(f"{where}: delimiter must be a single character, not {obj['delimiter']!r}")
+    if "delimiter" in obj:
+        d = obj["delimiter"]
+        # SPEC.md §13: one Unicode scalar value, so not a lone surrogate, which
+        # JSON's `\ud800` escape produces as a one-character Python string.
+        if len(d) != 1 or 0xD800 <= ord(d) <= 0xDFFF:
+            raise Malformed(f"{where}: delimiter must be one Unicode scalar value, not {d!r}")
+        if d in '"\r\n':
+            raise Malformed(
+                f"{where}: delimiter {d!r} is reserved: RFC 4180 uses it to quote a field "
+                f"or to end a record, so the record boundaries would be undefined"
+            )
     cols = obj.get("columns", {})
     if not isinstance(cols, dict):
         raise Malformed(f"{where}: 'columns' must be a JSON object of name -> type")
