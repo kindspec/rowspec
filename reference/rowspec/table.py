@@ -318,6 +318,15 @@ def parse(text):
         rows.append(row)
     if key:
         for r in rows:
+            if str(r.get(key, "")) == "":
+                # §4.1.9: an ident is one or more characters, so a blank key
+                # is not one -- and it must not fall through to §9.5, where
+                # two blanks would be called duplicates of each other.
+                raise Malformed(
+                    f"row key {key}= is blank; a row id is an ident of one or "
+                    f"more letters, marks, digits or underscores (§4.1.9)",
+                    refusal="bad-identifier",
+                )
             _check_ident(str(r.get(key, "")), f"row key {key}=")
         ids = [r.get(key) for r in rows]
         if len(set(ids)) != len(ids):
@@ -1217,6 +1226,7 @@ def evaluate(text):
         # resumed as though the blank had not happened.
         acc, prev, poisoned = 0.0, None, None
         prev_ovf = False
+        prev_err = None
         for r in seq:
             raw = str(r.get(src, "")).strip()
             try:
@@ -1227,6 +1237,16 @@ def evaluate(text):
             # #REF!(overflow) as an operand. Passed on, `delta` subtracted two
             # infinities into `nan` and `prior` stored `inf`.
             ovf = v in (INF, -INF)
+            # This row's value as an operand: its own error, or None. A
+            # computed source carries the error it originated, not #REF!(src).
+            if src in formulas and raw.startswith("#REF!"):
+                err = raw
+            elif ovf:
+                err = "#REF!(overflow)"
+            elif v is None:
+                err = f"#REF!({src})"
+            else:
+                err = None
             if fn == "prior":
                 # `prev` is None only before the first row; after that it is the
                 # preceding row's value, blank included.
@@ -1235,14 +1255,12 @@ def evaluate(text):
                 else:
                     r[nm] = "#REF!(overflow)" if prev_ovf else prev
             elif fn == "delta":
+                # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule
+                # this row's error wins over the preceding row's.
                 if prev is None:
                     r[nm] = ""
-                elif ovf:
-                    # An infinite `prev` needs no branch of its own: a finite
-                    # `v` minus it is an infinity, which the step below maps.
-                    r[nm] = "#REF!(overflow)"
-                elif v is None or not isinstance(prev, float):
-                    r[nm] = f"#REF!({src})"
+                elif err or prev_err:
+                    r[nm] = err or prev_err
                 else:
                     d = v - prev
                     r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
@@ -1263,6 +1281,7 @@ def evaluate(text):
                     r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             prev = raw if v is None else v
             prev_ovf = ovf
+            prev_err = err
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}
     # One fixpoint over BOTH kinds. A group aggregate over a computed column

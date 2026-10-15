@@ -194,6 +194,7 @@ MUTANTS = {
         # over the whole prefix, rounded once at the end.
         """acc, prev, poisoned = 0.0, None, None
 prev_ovf = False
+prev_err = None
 for r in seq:
     raw = str(r.get(src, "")).strip()
     try:
@@ -201,6 +202,14 @@ for r in seq:
     except (ValueError, TypeError):
         v = None
     ovf = v in (INF, -INF)
+    if src in formulas and raw.startswith("#REF!"):
+        err = raw
+    elif ovf:
+        err = "#REF!(overflow)"
+    elif v is None:
+        err = f"#REF!({src})"
+    else:
+        err = None
     if fn == "prior":
         if prev is None:
             r[nm] = ""
@@ -209,10 +218,8 @@ for r in seq:
     elif fn == "delta":
         if prev is None:
             r[nm] = ""
-        elif ovf:
-            r[nm] = "#REF!(overflow)"
-        elif v is None or not isinstance(prev, float):
-            r[nm] = f"#REF!({src})"
+        elif err or prev_err:
+            r[nm] = err or prev_err
         else:
             d = v - prev
             r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
@@ -225,6 +232,7 @@ for r in seq:
             acc += v""",
         """acc, prev, poisoned, _seen = 0.0, None, None, []
 prev_ovf = False
+prev_err = None
 for r in seq:
     raw = str(r.get(src, "")).strip()
     try:
@@ -232,6 +240,14 @@ for r in seq:
     except (ValueError, TypeError):
         v = None
     ovf = v in (INF, -INF)
+    if src in formulas and raw.startswith("#REF!"):
+        err = raw
+    elif ovf:
+        err = "#REF!(overflow)"
+    elif v is None:
+        err = f"#REF!({src})"
+    else:
+        err = None
     if fn == "prior":
         if prev is None:
             r[nm] = ""
@@ -240,10 +256,8 @@ for r in seq:
     elif fn == "delta":
         if prev is None:
             r[nm] = ""
-        elif ovf:
-            r[nm] = "#REF!(overflow)"
-        elif v is None or not isinstance(prev, float):
-            r[nm] = f"#REF!({src})"
+        elif err or prev_err:
+            r[nm] = err or prev_err
         else:
             d = v - prev
             r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
@@ -383,8 +397,8 @@ for r in seq:
         'if fn == "prior":\n    r[nm] = ""',
     ),
     "delta-first-row-is-the-value": (
-        'if prev is None:\n    r[nm] = ""\nelif ovf:',
-        'if False:\n    r[nm] = ""\nelif ovf:',
+        'if prev is None:\n    r[nm] = ""\nelif err or prev_err:',
+        "if prev is None:\n    r[nm] = err or v\nelif err or prev_err:",
     ),
     "delta-is-negated": (
         "    d = v - prev",
