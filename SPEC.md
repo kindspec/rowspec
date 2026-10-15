@@ -994,7 +994,9 @@ error, a blank included, `delta(c)` carries this row's.** A blank `c` here
 beside a stored cell beyond binary64 in the row before is `#REF!(c)`, and the
 same two rows the other way round are `#REF!(overflow)`. Each operand carries the error it originated,
 so a computed `c` holding `#REF!(/0)` here makes `delta(c)` `#REF!(/0)`, not a
-relabelled `#REF!(c)`. **[CHOICE]** — either row would satisfy §6, because the
+relabelled `#REF!(c)`. In the first row, which has no preceding row, `delta(c)`
+is blank only when `c` is a number, and otherwise carries the error `c` gives
+there, a blank included, as it does in every later row. **[CHOICE]** — either row would satisfy §6, because the
 preceding row is fixed by the declared order and not by file position. This
 row's is chosen because §7 already defines `delta` as `c` minus `prior(c)`, and
 reading it that way leaves no second rule for a reader to find.

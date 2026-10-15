@@ -1553,7 +1553,13 @@ class Evaluator:
             return BLANK if p == 0 else vals[p - 1]
         if fn == "delta":
             if p == 0:
-                return BLANK
+                # §7: in the first row there is no preceding row, so
+                # `delta(c)` is blank only when `c` is a number; otherwise it
+                # carries `c`'s error, a blank included, by the leftmost rule.
+                v = vals[0]
+                if isinstance(v, Ref):
+                    return v
+                return Ref(name) if v is BLANK else BLANK
             # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule this
             # row's error, a blank included, wins over the preceding row's.
             a, b = vals[p], vals[p - 1]
