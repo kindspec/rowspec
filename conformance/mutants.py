@@ -140,8 +140,8 @@ MUTANTS = {
         "prev = prev if v is None else v",
     ),
     "cumulative-resumes-after-a-blank": (
-        "                    poisoned = True",
-        "                    poisoned = poisoned",
+        "if poisoned is None and (v is None or ovf):",
+        "poisoned = None\nif v is None or ovf:",
     ),
     "order-column-accepts-a-blank-cell": (
         '    if any(v == "" for v in vals):',
@@ -192,52 +192,66 @@ MUTANTS = {
         # also not the alternative reading -- that is what a binary64
         # addition already does. The reading §7 rejects is an exact sum
         # over the whole prefix, rounded once at the end.
-        """acc, prev, poisoned = 0.0, None, False
+        """acc, prev, poisoned = 0.0, None, None
+prev_ovf = False
 for r in seq:
     raw = str(r.get(src, "")).strip()
     try:
         v = num(raw)
     except (ValueError, TypeError):
         v = None
+    ovf = v in (INF, -INF)
     if fn == "prior":
-        r[nm] = "" if prev is None else prev
+        if prev is None:
+            r[nm] = ""
+        else:
+            r[nm] = "#REF!(overflow)" if prev_ovf else prev
     elif fn == "delta":
         if prev is None:
             r[nm] = ""
+        elif ovf:
+            r[nm] = "#REF!(overflow)"
         elif v is None or not isinstance(prev, float):
             r[nm] = f"#REF!({src})"
         else:
             d = v - prev
             r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
     elif fn == "cumulative":
-        if v is None:
-            poisoned = True
+        if poisoned is None and (v is None or ovf):
+            poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
         if poisoned:
-            r[nm] = f"#REF!({src})"
+            r[nm] = poisoned
         else:
             acc += v""",
-        """acc, prev, poisoned, _seen = 0.0, None, False, []
+        """acc, prev, poisoned, _seen = 0.0, None, None, []
+prev_ovf = False
 for r in seq:
     raw = str(r.get(src, "")).strip()
     try:
         v = num(raw)
     except (ValueError, TypeError):
         v = None
+    ovf = v in (INF, -INF)
     if fn == "prior":
-        r[nm] = "" if prev is None else prev
+        if prev is None:
+            r[nm] = ""
+        else:
+            r[nm] = "#REF!(overflow)" if prev_ovf else prev
     elif fn == "delta":
         if prev is None:
             r[nm] = ""
+        elif ovf:
+            r[nm] = "#REF!(overflow)"
         elif v is None or not isinstance(prev, float):
             r[nm] = f"#REF!({src})"
         else:
             d = v - prev
             r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
     elif fn == "cumulative":
-        if v is None:
-            poisoned = True
+        if poisoned is None and (v is None or ovf):
+            poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
         if poisoned:
-            r[nm] = f"#REF!({src})"
+            r[nm] = poisoned
         else:
             _seen.append(v)
             acc = _exact(_seen, 1)""",
@@ -320,7 +334,7 @@ for r in seq:
         "if bad:\n    return 0.0",
     ),
     "off-by-one-cumulative": (
-        'if poisoned:\n    r[nm] = f"#REF!({src})"\nelse:\n    acc += v',
+        "if poisoned:\n    r[nm] = poisoned\nelse:\n    acc += v",
         'if fn == "cumulative":\n    r[nm] = acc\n    acc += v',
     ),
     "render-drops-tail": (
@@ -361,12 +375,16 @@ for r in seq:
     ),
     # --- two of the three row-relative operators are never exercised -----------
     "prior-always-blank": (
-        'if fn == "prior":\n    r[nm] = "" if prev is None else prev',
+        'if fn == "prior":\n'
+        "    if prev is None:\n"
+        '        r[nm] = ""\n'
+        "    else:\n"
+        '        r[nm] = "#REF!(overflow)" if prev_ovf else prev',
         'if fn == "prior":\n    r[nm] = ""',
     ),
     "delta-first-row-is-the-value": (
-        'if prev is None:\n    r[nm] = ""\nelif v is None or not isinstance(prev, float):',
-        'if False:\n    r[nm] = ""\nelif v is None or not isinstance(prev, float):',
+        'if prev is None:\n    r[nm] = ""\nelif ovf:',
+        'if False:\n    r[nm] = ""\nelif ovf:',
     ),
     "delta-is-negated": (
         "    d = v - prev",
