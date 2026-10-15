@@ -243,6 +243,14 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A `#` inside a string literal in a header formula is data** (#131).
+  SPEC.md §4.2 rule 6's `string` may contain `#`, and rule 8 refuses a `#`
+  only outside the grammar. The reference implementation refused any header
+  formula containing `#`, so `t = if(a = "#4", 1, 2)` was `malformed-formula`
+  and a stored `#4` could not be compared in an `if`. It now skips string
+  literals before looking for `#`, as `rowspec_alt` already did; a `#`
+  outside a string, such as `a * 2 #note`, is still refused.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also
