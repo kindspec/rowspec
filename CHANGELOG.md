@@ -252,6 +252,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **WSP between a row-relative function name and its `(` is
+  `malformed-formula`** (#157). SPEC.md §4.2 rule 4 recognises a function
+  name only immediately before `(`. The reference implementation admitted
+  space or tab there, so `p = prior (n)`, `p = delta<TAB>(n)` and
+  `p = cumulative (n)` were evaluated as `prior(n)`, `delta(n)` and
+  `cumulative(n)`, and with no `order` declared were refused as
+  `rowrel-without-order`. Each is now `malformed-formula`, as `rowspec_alt`
+  already gave.
+
 - **A `#` inside a string literal in a header formula is data** (#131).
   SPEC.md §4.2 rule 6's `string` may contain `#`, and rule 8 refuses a `#`
   only outside the grammar. The reference implementation refused any header
