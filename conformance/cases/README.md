@@ -219,3 +219,23 @@ the case's `WHY.md`.
   aggregate over its own column is refused although the column is on a
   cycle, with a known-function control
   (`parse/*-function-in-a-group-aggregate-over-itself-*`).
+- **The eighth batch** was written by an author who was not the author of
+  either implementation and did not read either, against SPEC.md at
+  `29edd7c` in a worktree of that commit, opening only SPEC.md, AGENTS.md,
+  CONTRIBUTING.md, the two case trees, the case-count floors in
+  `conformance/run_cases.py`, and the lines of README.md, ROADMAP.md and
+  CHANGELOG.md that state those counts. It covers `delta(c)` in the first
+  row when `c` is an error (`rowrel/delta-first-row-*`); trimming of cell
+  values, key values, order values and column names against U+00A0, U+2003
+  and U+3000 (`*-padding-*`, `*-padded-*`, `key-value-with-a-*`,
+  `column-name-with-a-*`); U+2028, U+0085, form feed and vertical tab
+  inside a line, and a lone `CR` ending the file or inside an annotation;
+  order values that §4.1.6 or §4.1.7 refuse as a number or date
+  (`parse/order-*-mixes-types-refused`, with a text-column control); a
+  control or `Cf` character around a declaration's argument; whitespace
+  between a row-relative or aggregate name and its `(`; an empty or
+  whitespace-only column name, stored and computed; and a `#` inside a
+  string literal in a header formula. Its CSV-profile cases are in
+  `cases-csv/columns/`, `cases-csv/ident/` and `cases-csv/identity/`. It
+  writes no case for number or date recognition in the CSV profile, which
+  §13 does not define.

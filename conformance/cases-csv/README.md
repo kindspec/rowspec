@@ -176,3 +176,11 @@ The cases on how a column name is trimmed before §9.2 compares it (#118:
 were written by an author who was not the author of `csvmode.py` and did not
 read it, from SPEC.md at `32466e0` and the case trees. `cases/README.md`
 records that batch's other cases.
+
+Nine cases (`columns/all-*`, `columns/em-space-*`, `columns/ideographic-*`,
+`columns/tab-padded-*`, `columns/repeated-non-ascii-space-name-refused`,
+`ident/key-value-leading-em-space-refused` and
+`identity/duplicate-id-after-tab-trim-refused`) were written by an author
+who was not the author of `csvmode.py` and did not read it, from SPEC.md at
+`29edd7c` and the case trees. `cases/README.md` records that batch's other
+cases.

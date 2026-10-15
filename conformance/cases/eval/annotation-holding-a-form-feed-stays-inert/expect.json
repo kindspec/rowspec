@@ -1,0 +1,7 @@
+{
+  "aggregates": {
+    "n": 2,
+    "s": 3
+  },
+  "kind": "eval"
+}

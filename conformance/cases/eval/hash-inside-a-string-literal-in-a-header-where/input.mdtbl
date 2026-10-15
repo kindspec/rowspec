@@ -1,0 +1,9 @@
+| id | r | v | t = sum(v where r = "x #y") |
+| --- | --- | --: | --: |
+| r_1 | x #y | 5 |  |
+| r_2 | x | 7 |  |
+| r_3 | x #y | 11 |  |
+
+key := id
+g := max(t)
+n := count(t)
