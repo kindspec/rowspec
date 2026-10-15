@@ -22,6 +22,13 @@ prose, and where the two disagree the suite wins.
   gave `#REF!(c)`, and `1000…0 + nope` gave `#REF!(nope)`. Both now follow the
   rule.
 
+- **`key := fn(col)` is `malformed-declaration`, whatever `fn` is** (§4.1.11,
+  §9.12; #110). `key := col` is `key`'s only form. The grammar generates
+  `key := by(id)`, and SPEC.md did not say whether it was refused. The
+  reference read `key := by(id)` and `key := sum(id)` as `key := id`, and read
+  `key := sum(id where g = "a")` as an aggregate named `key`; the second
+  implementation refused all three. The reference now refuses them too.
+
 - **A CSV column name is trimmed of ASCII space and tab only before §9.2
   compares names** (§13; #118), as a key value is (§4.1.4). §13 did not say
   how a name was trimmed. CSV mode trimmed every Unicode whitespace character,
