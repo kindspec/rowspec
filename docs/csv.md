@@ -33,10 +33,10 @@ Everything is optional and the file itself is optional, except that `order`
 needs `key` and `order_type` needs `order`: each is refused without the
 other. Its only job is to say what a CSV has nowhere to say.
 
-SPEC.md §13 defines `key`, `order`, `order_type` and `columns` as part of the
-CSV profile: how a value is trimmed and typed, and what each one refuses.
-`delimiter` is rowspec's own member, outside the profile, like the directory
-form below.
+SPEC.md §13 defines all five members as part of the CSV profile: how a value
+is trimmed and typed, and what each one refuses. `delimiter` is one
+character other than `"`, CR or LF. Any other member is refused, so a
+misspelt `oder` cannot switch a check off without a word.
 
 **Why JSON and not TOML.** The sidecar is read by every independent
 implementation of this spec, and JSON is in more standard libraries than TOML

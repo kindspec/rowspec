@@ -1596,8 +1596,8 @@ relaxation**, and the difference must be stated rather than discovered:
   look-alikes such as `∕` (U+2215) for `/` or `‐` (U+2010) for `-` are not
   refused, so §3's guarantee that two identifiers cannot render identically
   does not hold for CSV key values either.
-- **the sidecar is one JSON object with four optional members: `key`,
-  `order`, `order_type` and `columns`.** It sits beside the CSV, named for
+- **the sidecar is one JSON object with five optional members: `key`,
+  `order`, `order_type`, `columns` and `delimiter`.** It sits beside the CSV, named for
   it: `data.csv.rowspec.json` for `data.csv`. **The sidecar is UTF-8 JSON
   with no byte-order mark**: one that starts with a BOM, which RFC 8259 §8.1
   says JSON text MUST NOT begin with, or that is not UTF-8, is refused, a
@@ -1605,9 +1605,14 @@ relaxation**, and the difference must be stated rather than discovered:
   valid JSON, or not an object, and a member repeated within one object,
   `columns` included: JSON's last-one-wins is the silent overwrite §9.4 refuses. A
   member the profile does not define is refused, because a misspelt `oder`
-  would otherwise switch a check off without a word; an implementation may
-  read further members of its own, provided it documents them, and the
-  reference reads `delimiter`.
+  would otherwise switch a check off without a word.
+  **A fifth optional member, `delimiter`, names the field separator**: a
+  string of exactly one Unicode scalar value other than `"`, CR or LF.
+  Anything else is refused: a non-string, an empty string, a longer one, and
+  those three, which RFC 4180 reserves for quoting and for ending a record,
+  so a delimiter equal to one of them leaves the record boundaries
+  undefined. Without `delimiter`, the separator is a tab for a file whose
+  name ends in `.tsv` or `.tab`, in any case, and a comma otherwise.
   **A sidecar names a column as §9.2 compares names in this profile**: after
   trimming ASCII space and tab only, and after NFC. So `" joined"` names the
   column `joined`, and `""` names a column whose header cell is empty. A

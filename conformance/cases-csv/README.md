@@ -41,19 +41,20 @@ it as `input.csv.rowspec.json`, a JSON object:
 `key` names the column holding the row id. Without a sidecar there is no
 declared key, and refusal 5 cannot apply.
 
-§13 defines three more members, each optional: `order` names the column
+§13 defines four more members, each optional: `order` names the column
 that orders the rows and needs `key`, `order_type` declares its type and
-needs `order`, and `columns` maps column names to a declared type. A case
-uses them as it uses `key`:
+needs `order`, `columns` maps column names to a declared type, and
+`delimiter` names the field separator, one character other than `"`, CR or
+LF, which defaults to a comma for `input.csv`. A case uses them as it uses
+`key`:
 
 ```json
 { "key": "id", "order": "joined", "order_type": "date",
   "columns": { "population": "number" } }
 ```
 
-A member §13 does not define is refused, unless the implementation documents
-it as its own. rowspec's CSV mode reads a `delimiter` member that way, so a
-case that needs an undefined member must not spell it `delimiter`.
+A member §13 does not define is refused, with no exception an
+implementation may claim, so a case may assert that refusal portably.
 
 **The per-file sidecar is the only form this profile uses.** rowspec's own
 CSV mode also reads a directory-level `.rowspec.json` that maps filename globs
