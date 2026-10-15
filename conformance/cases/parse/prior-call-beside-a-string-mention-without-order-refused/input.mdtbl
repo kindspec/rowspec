@@ -1,0 +1,8 @@
+| id | note | amt | t = sum(amt where note = "prior(amt)") | p = prior(amt) |
+| --- | --- | --: | --: | --: |
+| r_01 | prior(amt) | 5 |  |  |
+| r_02 | x | 7 |  |  |
+| r_03 | prior(amt) | 11 |  |  |
+
+key := id
+g := max(t)

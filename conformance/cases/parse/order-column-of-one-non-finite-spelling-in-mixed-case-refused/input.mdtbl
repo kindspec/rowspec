@@ -1,0 +1,9 @@
+| id | o | amt |
+| --- | --- | --: |
+| r_01 | INFINITY | 5 |
+| r_02 | iNfInItY | 7 |
+| r_03 | InFiNiTy | 11 |
+
+key := id
+order := by(o)
+g := sum(amt)

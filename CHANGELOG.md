@@ -188,14 +188,16 @@ prose, and where the two disagree the suite wins.
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
 
-- **94 CSV-profile conformance cases** (#63, #94, #92, #118) in
+- **98 CSV-profile conformance cases** (#63, #94, #92, #118) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
   CSV mode: 57 first, then 20 for the behaviours #94 listed, then 3 for a
   repeated empty column name (#92), then 5 for how a name is trimmed (#118),
   then 9 for a header of only non-ASCII-space or empty names and for
-  U+2003, U+3000 and tab padding in names and key values.
+  U+2003, U+3000 and tab padding in names and key values, then 4 for a
+  name of one vertical tab or form feed and for a U+00A0 suffix in a data
+  row under a header with empty names.
   They run in CI as `just conform-csv`, in the `conformance` job and in the
-  release gate, with a floor of 94 cases.
+  release gate, with a floor of 98 cases.
   `conformance/cases-csv/README.md` records what each author was given and
   the questions the first left open.
 
@@ -252,6 +254,17 @@ prose, and where the two disagree the suite wins.
   row-relative or aggregate name and its `(`; an empty or whitespace-only
   column name; and a `#` inside a string literal in a header formula. The
   floor is now 582 cases.
+
+- **22 conformance cases for declaration arguments, non-finite order
+  spellings and row-relative names in strings** in `conformance/cases/`,
+  written from SPEC.md without the implementation. A declaration whose
+  argument is empty (`by()`, `sum()`, `count()`) or holds `-` or `.`, with
+  and without a `where`; an order column of only `inf`, `nan` and
+  `infinity` spellings in any case, and one such cell among ordinary text,
+  against a column of look-alikes that is accepted; and `prior(`, `delta(`
+  or `cumulative(` inside a string literal in a header `where` or `if` with
+  no order declared, against a real call that is refused. The floor is now
+  604 cases.
 
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break
