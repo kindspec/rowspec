@@ -1,0 +1,5 @@
+| id | k | c = median(c where k = @k) |
+| --- | --- | --: |
+| r_1 | x |  |
+
+key := id
