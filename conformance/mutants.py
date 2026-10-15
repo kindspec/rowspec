@@ -740,6 +740,46 @@ for r in seq:
         "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
         "    return errs[0]",
     ),
+    # --- reference fixes: each mutant restores the defect one fix removed ---
+    # §4.1 `arg = ident` (#156, #160): the function-form pattern admits any
+    # character but whitespace and parentheses, and none at all.
+    "a-declaration-argument-need-not-be-an-ident": (
+        "            if not _is_ident(arg):",
+        "            if False:",
+    ),
+    "a-where-column-need-not-be-an-ident": (
+        "            if not _is_ident(col_.lstrip(WSP)):",
+        '            if not re.fullmatch(r"[ \\t]*[^\\s()]+", col_):',
+    ),
+    # §4.1 `ident = 1*( ... )` (#130): a header cell of no characters.
+    "an-empty-column-name-is-an-ident": (
+        "    if not name:",
+        "    if False:",
+    ),
+    # §4.2 rule 4 (#157): a row-relative name touches its `(`.
+    "a-row-relative-call-admits-wsp-before-its-paren": (
+        r'        m = re.fullmatch(r"[ \t]*(\w+)\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)',
+        r'        m = re.fullmatch(r"[ \t]*(\w+)[ \t]*\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)',
+    ),
+    # §4.2 rule 6 (#172): a string literal is a value, not an operator.
+    "a-row-relative-name-in-a-string-needs-an-order": (
+        '            if re.search(rf"\\b{fn}\\(", bare):',
+        '            if re.search(rf"\\b{fn}\\(", expr):',
+    ),
+    # §4.2 rule 8 (#131): `#` inside a string is a character like any other.
+    "a-hash-inside-a-string-is-a-comment": (
+        '    if "#" in re.sub(r\'"[^"]*"\', "", expr):',
+        '    if "#" in expr:',
+    ),
+    # §9.10 (#168): inf, nan and infinity, in any case, in any row.
+    "a-non-finite-spelling-is-case-sensitive": (
+        '    return v.lower() in ("inf", "nan", "infinity")',
+        '    return v in ("inf", "nan", "infinity")',
+    ),
+    "an-order-column-may-hold-a-non-finite-spelling": (
+        "    if spelled is not None:",
+        "    if False:",
+    ),
 }
 
 
@@ -765,6 +805,15 @@ CSV_EQUIVALENT = {
         "unobservable choice of diagnostic. Not quite true today: where the only "
         "repeated name is empty (`,,,,,a`) the original crashes and the mutant "
         "refuses, which is kindspec/rowspec#92. Re-check this claim when #92 is fixed"
+    ),
+    "csv-grouped-header-trims-unicode-spaces": (
+        "the trim only decides whether the row below a header of repeated names "
+        "holds distinct names. A file that reaches it has six or more columns and "
+        "repeated names, so when the mutant reads `a` and `a<U+00A0>` as one name "
+        "and drops the grouped-header finding, the file is refused as duplicate "
+        "columns instead, and where only empty names repeat both report duplicate "
+        "columns. The same file is refused, and §13's CSV cases assert only that "
+        "a file is refused, not which finding refuses it"
     ),
 }
 
@@ -915,6 +964,21 @@ CSV_MUTANTS = {
     "csv-marker-needs-space-or-end-of-line": (
         r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")',
         r'_MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})(?: |$)")',
+    ),
+    # --- reference fixes: each mutant restores the defect one fix removed ---
+    # §13 trims a name of ASCII space and tab only (#154). The first is
+    # refused either way: see CSV_EQUIVALENT.
+    "csv-grouped-header-trims-unicode-spaces": (
+        '    below = [c.strip(" \\t") for c in second]',
+        "    below = [c.strip() for c in second]",
+    ),
+    "csv-header-check-trims-unicode-spaces": (
+        '    if not records or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
+        "    if not records or not any(any(c.strip() for c in r) for r in records[:1]):",
+    ),
+    "csv-empty-file-check-trims-vt-and-ff": (
+        '    if not raw.strip(b" \\t\\r\\n"):',
+        "    if not raw.strip():",
     ),
     # --- CONTROL: must be killed, or the CSV harness is broken ----------------
     "CONTROL-csv-reports-nothing": (
