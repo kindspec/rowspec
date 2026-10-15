@@ -484,6 +484,13 @@ def _isnum(v):
 DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 
 
+def is_nonfinite_spelling(v):
+    """SPEC.md §9.10: `inf`, `nan` and `infinity`, in any case. These are text
+    by §4.1.6, so an order column of nothing else is a single type, and §9.10
+    refuses them in any row whatever the rest of the column holds."""
+    return v.lower() in ("inf", "nan", "infinity")
+
+
 def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
@@ -497,6 +504,12 @@ def column_type(col, rows):
             f"order column {col!r} has a blank cell; an ordering column must "
             f"have a single type across every row (§9.10), and blank is none "
             f"of number, date or text",
+            refusal="bad-order-column",
+        )
+    spelled = next((v for v in vals if is_nonfinite_spelling(v)), None)
+    if spelled is not None:
+        raise Malformed(
+            f"order column {col!r} holds the non-finite spelling {spelled!r} (§9.10)",
             refusal="bad-order-column",
         )
     if not vals:

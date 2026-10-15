@@ -252,6 +252,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **An order column holding `inf`, `nan` or `infinity` in any case is
+  refused, even when it holds nothing else** (#168). SPEC.md §9.10 refuses
+  a non-finite spelling in an order column in any row. The reference read
+  those spellings as text, so it refused one beside a number as mixed types
+  but accepted a column of only `inf` and `nan`, or `nan` beside the text
+  `nan2`, which `rowspec_alt` refused. The reference now refuses each as
+  `bad-order-column`, and CSV mode reports `order-non-finite` for the same
+  columns under an `order` sidecar.
+
 - **A declaration argument that is not an `ident` is `malformed-declaration`**
   (#156, #160). SPEC.md §4.1 writes `arg = ident`. The reference
   implementation matched the argument as any run of characters but
