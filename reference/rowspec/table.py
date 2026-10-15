@@ -1230,6 +1230,11 @@ def evaluate(text):
                     # `canon` would not round-trip its own output.
                     r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             prev = raw if v is None else v
+            if v is None and raw != "" and src not in formulas:
+                # §4.2 rule 10: a computed value is a number or an error, so
+                # stored text that will not coerce is #REF!(src) (§8), never
+                # the text itself -- which `count` would then count as a value.
+                prev = f"#REF!({src})"
             prev_ovf = ovf
 
     groups = {n: e for n, e in formulas.items() if _GROUP.fullmatch(e.strip())}

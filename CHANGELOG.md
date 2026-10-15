@@ -133,6 +133,14 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`prior(c)` over a stored text cell is `#REF!(c)`** (#114). SPEC.md §4.2
+  rule 10 leaves a computed value two kinds, a number and an error, and §8
+  makes a value that will not coerce `#REF!`; blank is the one non-number §7
+  lets `prior` carry. The reference implementation stored the text itself in
+  the computed column, so `count` over that column counted it as a value
+  where it must be poisoned. `rowspec_alt` already gave `#REF!(c)`; a test
+  now holds both to it. `prior` over a computed column is unchanged here.
+
 - **CSV mode no longer crashes on a header whose only repeated name is
   empty** (#92). The grouped-header check counted empty names, then took its
   label from the non-empty ones, and raised `IndexError` when there were
