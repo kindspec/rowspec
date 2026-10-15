@@ -263,6 +263,17 @@ prose, and where the two disagree the suite wins.
   `NotExpressible`, as it does for anything else a spreadsheet cannot say,
   and checks the sheet title the same way.
 
+- **CSV mode reads numbers and dates by §4.1.6 and §4.1.7** (#155). CSV
+  mode had regexes of its own, which matched any Unicode decimal digit,
+  accepted a leading `+`, exponent notation, `.5` and `5.`, accepted two
+  different separators in one date, and matched a quoted value ending in an
+  LF. So a column declared `number` accepted `+5`, `1e3` and Arabic-Indic
+  `<U+0665>`, a column declared `date` accepted `2024-01/05`, and an order
+  column holding `1e3` beside `6` was accepted. CSV mode now uses the
+  recognisers `.mdtbl` uses: each of those values is text, so the typed
+  column reports it and the order column mixes types. `1e999` in an order
+  column is now text rather than a non-finite number.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also
