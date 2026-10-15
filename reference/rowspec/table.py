@@ -252,6 +252,12 @@ def parse(text):
         if c in seen:
             raise Malformed(f"duplicate column name {c!r}", refusal="duplicate-column")
         seen.add(c)
+    # §9.12: a key names a stored column, or the declaration is malformed.
+    if key is not None:
+        if key not in cols:
+            raise Malformed(f"key := {key} names no column", refusal="malformed-declaration")
+        if key in formulas:
+            raise Malformed(f"key := {key} is a computed column", refusal="malformed-declaration")
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
@@ -506,6 +512,11 @@ def _agg(fn, vals, what):
         nums = [num(v) for v in vals if v not in ("", None)]
     except (ValueError, TypeError):
         return f"#REF!({what})"
+    if not all(math.isfinite(x) for x in nums):
+        # §8: a stored cell whose binary64 value is infinite is #REF!(overflow)
+        # wherever it is an operand. `fsum` raises on inf + -inf, and `_exact`
+        # cannot take an infinity's integer ratio, so it must not reach them.
+        return "#REF!(overflow)"
     if fn == "sum":
         got = _exact(nums, 1)
     elif fn == "avg":

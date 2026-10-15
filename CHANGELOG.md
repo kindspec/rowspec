@@ -33,6 +33,14 @@ prose, and where the two disagree the suite wins.
   `key` beside `order := by(c)`, and both implementations refused a table
   without one, but §9 — which says it is complete — did not carry it.
 
+- **`key := col` must name a stored column, or it is `malformed-declaration`**
+  (§9.12, §4.1.11, §6; part of #100). A key naming no column, or naming a
+  computed one, had no §9 entry, and the two implementations disagreed: the
+  reference accepted both and the second implementation refused both as
+  `malformed-declaration`. The reference now refuses both too. No new
+  identifier: the declaration names nothing a key can be, which is §9.12's
+  ground.
+
 - **§9 splits encoding into two entries: `bad-encoding` (§9.14) for bytes
   that are not UTF-8, and `leading-bom` (§9.26) for a leading BOM.** Both are
   decided on the bytes before any line is classified. Previously a leading
@@ -137,6 +145,18 @@ prose, and where the two disagree the suite wins.
   `a + x` with `a` infinite and `x` blank was `#REF!(x)` and is now
   `#REF!(overflow)`, and so is `if(a > x, …)`. `rowspec_alt` already gave
   `#REF!(overflow)` in every one; a test now holds both to it.
+
+- **An aggregate over a cell whose binary64 value is infinite is
+  `#REF!(overflow)`** (#102). SPEC.md §8 makes such a cell `#REF!(overflow)`
+  wherever it is an operand. The reference implementation passed it on. For
+  `sum` and `avg`, `evaluate` raised `ValueError` when two infinities of
+  opposite sign met, or `OverflowError` when the finite operands' partial
+  sum also left binary64. For `min` and `max` it returned a silently wrong
+  number whenever the result was finite: `min` over a positive infinity and
+  `1` was `1`, and so was `max` over a negative infinity and `1`, in a
+  declaration and in a header group aggregate alike. `count` is unchanged.
+  `rowspec_alt` already returned `#REF!(overflow)`; a test now holds both to
+  it.
 
 ## [0.3.0] — 2026-10-08
 
