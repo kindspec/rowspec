@@ -56,10 +56,27 @@ def test_an_infinite_cell_is_overflow_as_an_operand(impl, formula):
         f"if(a > {BIG}, 1, 2)",
         f"if(a < -{BIG}, 1, 2)",
         f"if(a = {BIG}, 1, 2)",
+        BIG,
+        f"-{BIG}",
+        f"{BIG}.5",
+        f"a + {BIG}",
     ],
-    ids=["times-zero", "minus-itself", "if-branch", "order-bound", "negated-bound", "equality"],
+    ids=[
+        "times-zero",
+        "minus-itself",
+        "if-branch",
+        "order-bound",
+        "negated-bound",
+        "equality",
+        "bare",
+        "negated",
+        "with-a-fraction",
+        "an-operand",
+    ],
 )
 def test_an_infinite_literal_is_overflow(impl, formula):
+    """§8: a numeric literal beyond binary64 is `#REF!(overflow)`, like a stored
+    cell (#117), and the formula holding it is not refused."""
     assert column(impl, formula, ["5"]) == [OVF]
 
 

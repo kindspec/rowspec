@@ -9,6 +9,13 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **A numeric literal beyond binary64 range is `#REF!(overflow)`, like a
+  stored cell** (§8; #117). §8 covered only a stored cell, so a formula such as
+  `| b = 1000…0 |` with four hundred digits had no defined value, and nothing
+  in §9 refused it. The formula is not refused: the literal is an operand like
+  any other. Both implementations already did this; unit tests now pin a bare,
+  negated and fractional literal.
+
 - **Every §9 refusal has a stable identifier, and the suite asserts it**
   (#61). Each entry in SPEC.md §9 now opens with a name such as
   `duplicate-row-id` or `lone-cr`, and an implementation MUST report that
