@@ -627,9 +627,8 @@ for r in seq:
         "        deps[nm] = [col] if col != nm else []",
     ),
     # The check predates the graph; the graph moved it here, ahead of any
-    # value. Moving it back into `_group_column`, so it runs only for a
-    # column that gets evaluated, survives the tree: a group aggregate over
-    # itself with an unknown function is then #REF!(cycle), not refused.
+    # value. The mutant after this one moves it back to where it runs only
+    # for a column that gets evaluated.
     "a-group-aggregate-function-is-not-checked": (
         '        if fn not in ("sum", "count", "min", "max", "avg"):\n'
         "            raise Malformed(\n"
@@ -637,6 +636,68 @@ for r in seq:
         'refusal="unknown-aggregate"\n'
         "            )",
         "        pass",
+    ),
+    # The same check made lazy: run only when the group column is evaluated,
+    # as it was before the graph. A group column on a cycle never is, so an
+    # unknown function there is #REF!(cycle) instead of refused.
+    "a-group-aggregate-function-is-checked-only-when-evaluated": (
+        "    for nm, (fn, _col, ptext) in groups.items():\n"
+        '        if fn not in ("sum", "count", "min", "max", "avg"):\n'
+        "            raise Malformed(\n"
+        '                f"unknown aggregate {fn!r} in column {nm!r}", '
+        'refusal="unknown-aggregate"\n'
+        "            )\n"
+        "        try:\n"
+        '            _predicate(ptext, cols, computed, "malformed-formula")\n'
+        "        except KeyError:\n"
+        "            pass\n"
+        "    known = set(cols)\n"
+        "    unresolved = {nm: _header_error(t, known) for nm, t in trees.items()}\n"
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}\n"
+        "    for nm, (_fn, src) in rowrel.items():\n"
+        "        deps[nm] = [src]\n"
+        "    for nm, (_fn, col, _ptext) in groups.items():\n"
+        "        deps[nm] = [col]\n"
+        "    deps = {nm: set(d) & computed for nm, d in deps.items()}\n"
+        "    pending = set(formulas)\n"
+        "    while pending:\n"
+        "        progressed = False\n"
+        "        for nm in sorted(pending):\n"
+        "            if deps[nm] & pending:\n"
+        "                continue\n"
+        "            if nm in trees:\n"
+        "                _plain_column(nm, trees[nm], unresolved[nm], seq)\n"
+        "            elif nm in rowrel:\n"
+        "                _rowrel_column(nm, *rowrel[nm], seq, formulas, cols)\n"
+        "            else:\n"
+        "                _group_column(nm, *groups[nm], seq, formulas, cols)",
+        "    for nm, (fn, _col, ptext) in groups.items():\n"
+        "        try:\n"
+        '            _predicate(ptext, cols, computed, "malformed-formula")\n'
+        "        except KeyError:\n"
+        "            pass\n"
+        "    known = set(cols)\n"
+        "    unresolved = {nm: _header_error(t, known) for nm, t in trees.items()}\n"
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}\n"
+        "    for nm, (_fn, src) in rowrel.items():\n"
+        "        deps[nm] = [src]\n"
+        "    for nm, (_fn, col, _ptext) in groups.items():\n"
+        "        deps[nm] = [col]\n"
+        "    deps = {nm: set(d) & computed for nm, d in deps.items()}\n"
+        "    pending = set(formulas)\n"
+        "    while pending:\n"
+        "        progressed = False\n"
+        "        for nm in sorted(pending):\n"
+        "            if deps[nm] & pending:\n"
+        "                continue\n"
+        "            if nm in trees:\n"
+        "                _plain_column(nm, trees[nm], unresolved[nm], seq)\n"
+        "            elif nm in rowrel:\n"
+        "                _rowrel_column(nm, *rowrel[nm], seq, formulas, cols)\n"
+        "            else:\n"
+        '                if groups[nm][0] not in ("sum", "count", "min", "max", "avg"):\n'
+        '                    raise Malformed("unknown aggregate", refusal="unknown-aggregate")\n'
+        "                _group_column(nm, *groups[nm], seq, formulas, cols)",
     ),
     # --- §4.2 rule 10 and §8: a header error is the same in every row ------
     "an-overlong-literal-is-found-per-row": (
