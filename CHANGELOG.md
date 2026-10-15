@@ -9,6 +9,18 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **SPEC.md §13 defines the CSV sidecar's `order`, `order_type` and
+  `columns`** (#162). It defined only `key`, while `docs/csv.md` documented
+  all four and `rowspec check` enforced them. An order or typed value is
+  trimmed of ASCII space and tab only (§4.1.4), and is a number or a date
+  only if it matches §4.1.6's `number` or §4.1.7's `date`. An order column
+  follows §6 and §9.10: one type, no blank in any row, and none of §9.10's
+  non-finite spellings. `order_type` and a `columns` type are each one of
+  `number`, `date` or `text`, and a blank in a typed column is not checked.
+  A sidecar names a column as §9.2 compares names, after trimming and NFC,
+  and a name naming no column, or a member the profile does not define, is
+  refused. The CSV profile still carries no §9 identifiers.
+
 - **SPEC.md states two rules directly that it reached only by inference**
   (§7, §9.16; #140). `prior(c)` over a text cell is `#REF!(c)`, a cell
   holding only a non-ASCII space included, and an empty identifier, such as

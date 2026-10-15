@@ -32,6 +32,11 @@ Five lines of JSON next to the file buy the rest.
 Everything is optional and the file itself is optional. Its only job is to say
 what a CSV has nowhere to say.
 
+SPEC.md §13 defines `key`, `order`, `order_type` and `columns` as part of the
+CSV profile: how a value is trimmed and typed, and what each one refuses.
+`delimiter` is rowspec's own member, outside the profile, like the directory
+form below.
+
 **Why JSON and not TOML.** The sidecar is read by every independent
 implementation of this spec, and JSON is in more standard libraries than TOML
 is — Go, JavaScript, Java, Ruby and Python all parse it with nothing installed,

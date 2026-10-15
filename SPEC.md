@@ -1596,6 +1596,55 @@ relaxation**, and the difference must be stated rather than discovered:
   look-alikes such as `∕` (U+2215) for `/` or `‐` (U+2010) for `-` are not
   refused, so §3's guarantee that two identifiers cannot render identically
   does not hold for CSV key values either.
+- **the sidecar is one JSON object with four optional members: `key`,
+  `order`, `order_type` and `columns`.** It sits beside the CSV, named for
+  it: `data.csv.rowspec.json` for `data.csv`. A sidecar that is not valid JSON, or not an object,
+  is refused, and so is a member repeated within one object, `columns`
+  included: JSON's last-one-wins is the silent overwrite §9.4 refuses. A
+  member the profile does not define is refused, because a misspelt `oder`
+  would otherwise switch a check off without a word; an implementation may
+  read further members of its own, provided it documents them, and the
+  reference reads `delimiter`.
+  **A sidecar names a column as §9.2 compares names in this profile**: after
+  trimming ASCII space and tab only, and after NFC. So `" joined"` names the
+  column `joined`, and `""` names a column whose header cell is empty. A
+  name that is not a string, or that names no column, is refused, whichever
+  member holds it: a declaration naming nothing is refused rather than
+  skipped, because skipping it switches off the check it asked for.
+- **`order` names the column that orders the rows, and §6's order rules
+  apply to it.** `key` is then required (§9.25). Each value of the column is
+  trimmed of ASCII space and tab only (§4.1.4), so a leading or trailing
+  non-ASCII space is part of it. A trimmed value is a `number` if it matches
+  §4.1.6's `number`, a `date` if it matches §4.1.7's `date`, and `text`
+  otherwise; no value matches both. So `1e3`, `+5` and `٥` are text, and
+  `2024-13-45` is a date, as in `.mdtbl`. The column is refused (§6, §9.10)
+  when it mixes types, **when it is blank in any row**, a cell of spaces or
+  tabs included, since blank is none of the three types, and when it holds
+  any non-finite spelling §9.10 lists, in any row and whatever the rest of
+  the column holds. A `number` whose binary64 value is infinite, such as a
+  four-hundred-digit one, is a non-finite number, and is refused (§6). A
+  file with no data rows has no order values and is not refused on `order`.
+- **`order_type` declares the order column's type**: one of the strings
+  `number`, `date` or `text`, and anything else, a non-string included, is
+  refused. Every trimmed value of the order column must then be of that type,
+  so a column of numbers declared `text` is refused even though it has a
+  single type. Declaring the type turns §6's inference into a check. Without
+  `order` it has no column to check, and checks nothing.
+- **`columns` declares the type of other stored columns**: a JSON object
+  whose members map a column name to `number`, `date` or `text`. Any other
+  type, a non-string included, is refused, and so is a `columns` that is not
+  an object. Two members naming one column, such as `café` spelt NFC and
+  NFD, are refused as a repeated member is. Each trimmed value of a named
+  column is classified as an order value is, and refused when its type is
+  not the declared one: `text` means a value matching neither `number` nor
+  `date`, so `5` in a `text` column is refused, and `inf`, which is text by
+  §4.1.6, is refused in a `number` column and admitted in a `text` one. A
+  number beyond binary64 matches `number` and is admitted: it is
+  `#REF!(overflow)` where it is used (§8), and nothing here sorts by it.
+  **A blank value is not checked**, so a typed column may hold blanks: the
+  blank rule above exists because an order needs a place for every row, and
+  a typed column orders nothing. `columns` does not require `key`, and it may
+  name the order column, in which case both checks apply.
 - **record boundaries are RFC 4180's.** A quoted field runs to its closing
   quote, so a file that ends inside one is refused. This is the profile's
   reading of §9.6, and it applies whatever the field count: the grammar
@@ -1617,8 +1666,9 @@ relaxation**, and the difference must be stated rather than discovered:
 
 **The CSV profile does not carry §9's identifiers yet.** A CSV-mode refusal is
 not required to report one, its conformance cases assert only that a file is
-refused, and most of the refusals a sidecar brings, such as invalid JSON or a
-sidecar `key` naming no column, have no §9 entry to name. §9.12 refuses a
+refused, and most of the refusals a sidecar brings, such as invalid JSON, a
+sidecar `key` naming no column, or a value of a typed column of another type,
+have no §9 entry to name. §9.12 refuses a
 `key :=` line naming no column, and a sidecar is not a declaration line.
 
 An implementation claiming CSV-mode conformance states which profile it means.
