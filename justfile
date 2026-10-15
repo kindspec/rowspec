@@ -82,11 +82,13 @@ conform-csv:
 mutants:
     cd conformance && uv run python mutants.py
 
-# The same gate over SPEC.md §13's CSV profile: csvmode.py, measured by
-# cases-csv/. A separate run with its own report, because the two profiles are
-# two trees and kindkit's check_gate.py ties a report to exactly one.
+# The same gate over SPEC.md §13's CSV profile: csvmode.py, then sidecar.py,
+# each measured by cases-csv/. Separate runs with their own reports, because
+# kindkit's check_gate.py ties a report to exactly one tree and the kit splices
+# one source file per run.
 mutants-csv:
     cd conformance && uv run python mutants.py --profile csv
+    cd conformance && uv run python mutants.py --profile sidecar
 
 # Validate a file or a directory
 run *ARGS:

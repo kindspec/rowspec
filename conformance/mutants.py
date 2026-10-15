@@ -780,6 +780,21 @@ for r in seq:
         "    if spelled is not None:",
         "    if False:",
     ),
+    # §4.2 rule 4 (#157, #165): the declared-order check finds a row-relative
+    # call only where the name touches its `(`, as the call pattern does.
+    "a-row-relative-name-before-a-spaced-paren-needs-an-order": (
+        '            if re.search(rf"\\b{fn}\\(", bare):',
+        '            if re.search(rf"\\b{fn}[ \\t]*\\(", bare):',
+    ),
+    # §9.10 (#177): a non-finite spelling after one leading sign, and no more.
+    "a-signed-non-finite-spelling-is-text": (
+        '    if v[:1] in ("+", "-"):\n        v = v[1:]',
+        '    if v[:1] in ("+", "-"):\n        pass',
+    ),
+    "a-non-finite-spelling-may-follow-any-number-of-signs": (
+        '    if v[:1] in ("+", "-"):\n        v = v[1:]',
+        '    v = v.lstrip("+-")',
+    ),
 }
 
 
@@ -980,10 +995,103 @@ CSV_MUTANTS = {
         '    if not raw.strip(b" \\t\\r\\n"):',
         "    if not raw.strip():",
     ),
+    # §4.1.6 by `table.py`'s recogniser (#164): restores the regex this file
+    # had, which took `+`, exponents, one-sided points and any Unicode digit.
+    "csv-number-is-the-old-loose-regex": (
+        '    if _isnum(v):\n        return "number"',
+        '    if re.match(r"^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?$", v):\n'
+        '        return "number"',
+    ),
+    # §9.10 (#168, #170, #177): a non-finite spelling in an order column, in
+    # any row, bare or after one sign.
+    "csv-order-non-finite-spelling-unchecked": (
+        "    spelled = [(n, v) for n, v in values if is_nonfinite_spelling(v)]",
+        "    spelled = []",
+    ),
+    "csv-order-signed-non-finite-spelling-is-text": (
+        "    spelled = [(n, v) for n, v in values if is_nonfinite_spelling(v)]",
+        '    spelled = [(n, v) for n, v in values if v.lower() in ("inf", "nan", "infinity")]',
+    ),
+    "csv-order-non-finite-spelling-may-follow-any-number-of-signs": (
+        "    spelled = [(n, v) for n, v in values if is_nonfinite_spelling(v)]",
+        "    spelled = [(n, v) for n, v in values\n"
+        '               if v.lstrip("+-").lower() in ("inf", "nan", "infinity")]',
+    ),
+    # §13 (#186): an empty key name in the sidecar names an empty header cell.
+    "csv-empty-key-name-is-no-key": (
+        "    if side and side.key is not None:",
+        "    if side and side.key:",
+    ),
+    # §13 and §9.10 (#189): a blank order cell has no type and no place.
+    "csv-order-column-accepts-a-blank-cell": (
+        '    blank = [n for n, v in _column_values(body, names, col) if v == ""]',
+        "    blank = []",
+    ),
     # --- CONTROL: must be killed, or the CSV harness is broken ----------------
     "CONTROL-csv-reports-nothing": (
         "    return findings + warnings",
         "    return []",
+    ),
+}
+
+
+# The sidecar's own table: deliberate defects in `sidecar.py`, measured by the
+# same CSV tree, since the CSV profile is the only one that reads a sidecar.
+# Run with `--profile sidecar`; see `csvmode_over_sidecar.py` for how the
+# runner is made to load the mutant in place of `rowspec.sidecar`.
+SIDECAR_EQUIVALENT = {}
+
+SIDECAR_MUTANTS = {
+    # --- §13 (#185): a delimiter is one Unicode scalar value, and not one
+    # that RFC 4180 reserves to quote a field or end a record --------------
+    "sidecar-delimiter-may-be-a-double-quote": (
+        "        if d in '\"\\r\\n':",
+        "        if d in '\\r\\n':",
+    ),
+    "sidecar-delimiter-may-be-a-cr": (
+        "        if d in '\"\\r\\n':",
+        "        if d in '\"\\n':",
+    ),
+    "sidecar-delimiter-may-be-an-lf": (
+        "        if d in '\"\\r\\n':",
+        "        if d in '\"\\r':",
+    ),
+    # Accepting a longer delimiter outright only crashes the CSV reader, so
+    # this one accepts it by reading its first scalar, which answers wrongly.
+    "sidecar-delimiter-of-two-scalars-is-its-first": (
+        '        d = obj["delimiter"]',
+        '        d = obj["delimiter"] = obj["delimiter"][:1]',
+    ),
+    "sidecar-delimiter-may-be-a-lone-surrogate": (
+        "        if len(d) != 1 or 0xD800 <= ord(d) <= 0xDFFF:",
+        "        if len(d) != 1:",
+    ),
+    # --- §13 (#186): a sidecar names a column as §9.2 compares names --------
+    "sidecar-column-name-is-not-trimmed": (
+        '    return unicodedata.normalize("NFC", name.strip(" \\t"))',
+        '    return unicodedata.normalize("NFC", name)',
+    ),
+    "sidecar-column-name-is-not-nfc": (
+        '    return unicodedata.normalize("NFC", name.strip(" \\t"))',
+        '    return name.strip(" \\t")',
+    ),
+    "sidecar-column-name-trims-all-whitespace": (
+        '    return unicodedata.normalize("NFC", name.strip(" \\t"))',
+        '    return unicodedata.normalize("NFC", name.strip())',
+    ),
+    "sidecar-two-columns-members-may-name-one-column": (
+        "        if col in named:",
+        "        if False:",
+    ),
+    # --- §13 (#187): a declared check with no column to run on --------------
+    "sidecar-order-type-without-order-accepted": (
+        '    if "order_type" in obj and "order" not in obj:',
+        "    if False:",
+    ),
+    # --- CONTROL: must be killed, or the sidecar harness is broken ------------
+    "CONTROL-sidecar-is-never-found": (
+        "    per_file = data_path + SUFFIX",
+        "    return None",
     ),
 }
 
@@ -1015,13 +1123,28 @@ SCRATCH = os.path.join(HERE, "mutant_impl.py")
 CSV_IMPL = os.path.normpath(os.path.join(HERE, "..", "reference", "rowspec", "csvmode.py"))
 CSV_SCRATCH = os.path.join(HERE, "mutant_csvmode.py")
 
+#: The sidecar's target: `sidecar.py`, probed through the CSV profile with
+#: `csvmode_over_sidecar` as the implementation, which loads the scratch file
+#: named in `$ROWSPEC_GATE_SIDECAR` as `rowspec.sidecar`.
+SIDECAR_IMPL = os.path.normpath(os.path.join(HERE, "..", "reference", "rowspec", "sidecar.py"))
+SIDECAR_SCRATCH = os.path.join(HERE, "mutant_sidecar.py")
+SIDECAR_SHIM = "csvmode_over_sidecar"
+
 #: `--profile` -> (source, mutants, equivalence claims, scratch file, the
 #: runner's profile arguments). Each profile is its own gate run with its own
 #: report, because kindkit's `check_gate.py` requires a gate report's baseline
-#: to have run exactly the tree it names, and the two profiles are two trees.
+#: to have run exactly the tree it names. `sidecar` runs the CSV tree, as a
+#: separate gate because the kit splices one source file per run.
 TARGETS = {
     "mdtbl": (IMPL, MUTANTS, EQUIVALENT, SCRATCH, ()),
     "csv": (CSV_IMPL, CSV_MUTANTS, CSV_EQUIVALENT, CSV_SCRATCH, ("--profile", "csv")),
+    "sidecar": (
+        SIDECAR_IMPL,
+        SIDECAR_MUTANTS,
+        SIDECAR_EQUIVALENT,
+        SIDECAR_SCRATCH,
+        ("--profile", "csv"),
+    ),
 }
 
 #: Held for the whole run, so two gates in one tree take turns at `SCRATCH`
@@ -1041,7 +1164,7 @@ LOCK = os.path.join(HERE, ".mutants.lock")
 PROBE_TIMEOUT = 300
 
 
-def probe(path, profile_args=()):
+def probe(path, profile_args=(), as_sidecar=False):
     """What the fixture tree ran, and which of those cases failed, for `path`.
 
     A SET of failing ids, not a count. The reference itself need not pass every
@@ -1061,13 +1184,19 @@ def probe(path, profile_args=()):
     `PROBE_TIMEOUT` is no verdict -- BROKEN, never a kill. A tree that shrank
     below `MIN_CASES` is the runner's own exit 2.
     """
-    module = os.path.splitext(os.path.basename(path))[0]
+    module, env = os.path.splitext(os.path.basename(path))[0], None
+    if as_sidecar:
+        # `path` is a sidecar.py, which the runner reaches through csvmode.
+        module, env = SIDECAR_SHIM, {**os.environ, "ROWSPEC_GATE_SIDECAR": path}
     # cwd=HERE and every path anchored to __file__. This file used to read
     # `../reference/...` relative to wherever the gate was started, and
     # `run_cases.py` had the same shape once and printed "0 failure(s)" over
     # 226 cases it had never opened, four of them failing.
     return probe_command(
-        [sys.executable, RUNNER, module, *profile_args], cwd=HERE, timeout=PROBE_TIMEOUT
+        [sys.executable, RUNNER, module, *profile_args],
+        cwd=HERE,
+        env=env,
+        timeout=PROBE_TIMEOUT,
     )
 
 
@@ -1096,7 +1225,7 @@ def duplicate_mutations(source=IMPL, mutants=MUTANTS):
 
 
 def main(argv=()):
-    """`mutants.py [--profile mdtbl|csv]`, the profile defaulting to mdtbl.
+    """`mutants.py [--profile mdtbl|csv|sidecar]`, the profile defaulting to mdtbl.
 
     Three exit codes, the same three the runner uses and for the same reason.
 
@@ -1131,7 +1260,8 @@ def _profile(argv):
 
 def _run(argv=()):
     try:
-        source, mutants, equivalent, scratch, profile_args = TARGETS[_profile(argv)]
+        profile = _profile(argv)
+        source, mutants, equivalent, scratch, profile_args = TARGETS[profile]
         for leftover in sorted({t[3] for t in TARGETS.values()}):
             if os.path.lexists(leftover):
                 # Possibly a mutant, and gitignored, so nothing else shows it.
@@ -1146,7 +1276,7 @@ def _run(argv=()):
         report = gate(
             source=source,
             mutants=from_table(mutants, equivalent),
-            probe=lambda path: probe(path, profile_args),
+            probe=lambda path: probe(path, profile_args, profile == "sidecar"),
             scratch=scratch,
         )
     except GateError as exc:

@@ -40,7 +40,11 @@ def test_second_implementation_passes():
     assert r.returncode == 0, r.stdout + r.stderr
 
 
-@pytest.mark.parametrize("profile", [(), ("--profile", "csv")], ids=["mdtbl", "csv"])
+@pytest.mark.parametrize(
+    "profile",
+    [(), ("--profile", "csv"), ("--profile", "sidecar")],
+    ids=["mdtbl", "csv", "sidecar"],
+)
 def test_mutation_gate_is_sound(profile):
     """Assert the gate's own VERDICT, not a substring of its report.
 
@@ -68,15 +72,19 @@ def _gate_tree(tmp_path):
     """A copy of the gate and what it measures, so a test can plant files in
     it without touching the scratch file of a gate running in this tree."""
     skip = shutil.ignore_patterns(
-        "__pycache__", "mutant_impl.py", "mutant_csvmode.py", ".mutants.lock"
+        "__pycache__", "mutant_impl.py", "mutant_csvmode.py", "mutant_sidecar.py", ".mutants.lock"
     )
     for name in ("conformance", "reference"):
         shutil.copytree(os.path.join(ROOT, name), tmp_path / name, ignore=skip)
     return tmp_path / "conformance"
 
 
-@pytest.mark.parametrize("profile", [(), ("--profile", "csv")], ids=["mdtbl", "csv"])
-@pytest.mark.parametrize("name", ["mutant_impl.py", "mutant_csvmode.py"])
+@pytest.mark.parametrize(
+    "profile",
+    [(), ("--profile", "csv"), ("--profile", "sidecar")],
+    ids=["mdtbl", "csv", "sidecar"],
+)
+@pytest.mark.parametrize("name", ["mutant_impl.py", "mutant_csvmode.py", "mutant_sidecar.py"])
 def test_a_leftover_scratch_file_is_refused_not_overwritten(tmp_path, name, profile):
     """A run killed mid-probe leaves a MUTATED `mutant_impl.py` behind, and the
     file is gitignored, so nothing else shows it. The next run used to write

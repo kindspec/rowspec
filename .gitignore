@@ -44,5 +44,6 @@ htmlcov/
 .cache/
 mutant_impl.py
 mutant_csvmode.py
+mutant_sidecar.py
 .venv/
 .mutants.lock
