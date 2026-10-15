@@ -598,8 +598,8 @@ CSV_MUTANTS = {
     ),
     # --- §9.2 / §3 / §13: column names ---------------------------------------
     "csv-column-names-not-nfc": (
-        '    names = [unicodedata.normalize("NFC", h.strip()) for h in header]',
-        "    names = [h.strip() for h in header]",
+        '    names = [unicodedata.normalize("NFC", h.strip(" \\t")) for h in header]',
+        '    names = [h.strip(" \\t") for h in header]',
     ),
     "csv-duplicate-columns-allowed": (
         "        if len(idxs) == 1:\n            continue",

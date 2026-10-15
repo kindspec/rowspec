@@ -240,9 +240,12 @@ def _grouped_header(names, second):
 
 def _header_names(header, second=None):
     """SPEC.md §3: identifiers compare after NFC, and `Cf` format characters are
-    rejected in them. SPEC.md §9.2: a duplicate column name is refused."""
+    rejected in them. SPEC.md §9.2: a duplicate column name is refused.
+
+    SPEC.md §13: a name is trimmed of ASCII space and tab only, as a key value is
+    (§4.1.4), so a leading or trailing non-ASCII space is part of the name."""
     findings = []
-    names = [unicodedata.normalize("NFC", h.strip()) for h in header]
+    names = [unicodedata.normalize("NFC", h.strip(" \t")) for h in header]
     for name in names:
         for ch in name:
             if unicodedata.category(ch) == "Cf":
@@ -268,7 +271,7 @@ def _header_names(header, second=None):
     for name, idxs in seen.items():
         if len(idxs) == 1:
             continue
-        forms = {header[i].strip() for i in idxs}
+        forms = {header[i].strip(" \t") for i in idxs}
         label = _show(name) if name else "an unnamed column"
         if len(forms) > 1:
             detail = (
@@ -347,7 +350,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
             reader = csv.reader(io.StringIO(text[at:], newline=""), delimiter=delimiter)
             return next(reader, [])
 
-        names = [unicodedata.normalize("NFC", h.strip()) for h in first_record(0)]
+        names = [unicodedata.normalize("NFC", h.strip(" \t")) for h in first_record(0)]
         # The first column of that name, as `names.index` gives elsewhere.
         key_idx = next((i for i, n in enumerate(names) if side and n == side.key), None)
 
