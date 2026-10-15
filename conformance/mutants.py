@@ -52,7 +52,7 @@ from kindkit.cli import EXIT_FAILURES, EXIT_NO_VERDICT, EXIT_OK
 # nothing, and nothing said so.
 EQUIVALENT = {
     "a-missing-column-is-blank-under-a-text-comparison": (
-        "§4.2 rule 10's header rule makes this unreachable: `_eval_plain` "
+        "§4.2 rule 10's header rule makes this unreachable: `_evaluate_columns` "
         "resolves every static name against `cols` BEFORE any row is "
         "evaluated, so a name that does not exist never reaches the cell "
         "lookup at all. The mutant is kept rather than deleted because the "
@@ -63,7 +63,7 @@ EQUIVALENT = {
         "is `a-missing-name-is-an-error-only-where-its-branch-is-taken`"
     ),
     "computed-columns-evaluated-in-reverse-header-order": (
-        "the plain-formula loop evaluates a column only once its STATIC "
+        "the evaluation loop evaluates a column only once its STATIC "
         "dependencies have left `pending`, so a column's value is decided by "
         "the dependency graph and never by the order the loop happens to "
         "visit it in -- which is §4.2 rule 9, and the reason header order is "
@@ -196,13 +196,13 @@ MUTANTS = {
 prev_ovf = False
 prev_err = None
 for r in seq:
-    raw = str(r.get(src, ""))
+    raw = r.get(src, "")
     try:
         v = num(raw)
     except (ValueError, TypeError):
         v = None
     ovf = v in (INF, -INF)
-    if src in formulas and raw.startswith("#REF!"):
+    if _is_ref(raw):
         err = raw
     elif ovf:
         err = "#REF!(overflow)"
@@ -225,7 +225,7 @@ for r in seq:
             r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
     elif fn == "cumulative":
         if poisoned is None and (v is None or ovf):
-            poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
+            poisoned = err
         if poisoned:
             r[nm] = poisoned
         else:
@@ -234,13 +234,13 @@ for r in seq:
 prev_ovf = False
 prev_err = None
 for r in seq:
-    raw = str(r.get(src, ""))
+    raw = r.get(src, "")
     try:
         v = num(raw)
     except (ValueError, TypeError):
         v = None
     ovf = v in (INF, -INF)
-    if src in formulas and raw.startswith("#REF!"):
+    if _is_ref(raw):
         err = raw
     elif ovf:
         err = "#REF!(overflow)"
@@ -263,7 +263,7 @@ for r in seq:
             r[nm] = "#REF!(overflow)" if d in (INF, -INF) else d
     elif fn == "cumulative":
         if poisoned is None and (v is None or ovf):
-            poisoned = "#REF!(overflow)" if ovf else f"#REF!({src})"
+            poisoned = err
         if poisoned:
             r[nm] = poisoned
         else:
@@ -459,13 +459,12 @@ for r in seq:
     # the two ordering defects that each produced a silent wrong number:
     # a group aggregate over a computed column summed empty cells to 0, and a
     # column depending on cumulative() was #REF!. Both were pass-ordering.
-    # The SECOND plain pass. Removing it is what made a per-vendor subtotal over
-    # a computed column evaluate to 0 with `check` reporting 0 refused.
+    # Evaluation is now one dependency graph, so the defect is a missing
+    # EDGE: an ordinary formula that does not wait for the row-relative or
+    # group column it names reads that column's empty stored cells.
     "plain-pass-runs-only-once": (
-        "    _eval_plain(seq, plain, computed=frozenset(formulas), "
-        "cols=frozenset(cols))\n"
-        "    # row-relative, computed over the DERIVED order",
-        "    # row-relative, computed over the DERIVED order",
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}",
+        "    deps = {nm: [n for n in names_of(t) if n in trees] for nm, t in trees.items()}",
     ),
     # Writes the right value to the WRONG row. Under the old `str(value) in out`
     # check this survived whenever the value already appeared anywhere in the
@@ -578,25 +577,15 @@ for r in seq:
         "                unknown = unknown or c",
         "                unknown = c",
     ),
+    # The predicate is checked for every group column before any is
+    # evaluated. Without that check it is parsed only when the column is
+    # evaluated, which a column whose source is on a cycle never is.
     "a-group-predicate-waits-on-its-source": (
-        "            try:\n"
-        "                preds, missing = _predicate(ptext, cols, formulas, "
-        '"malformed-formula"), None\n'
-        "            except KeyError as e:\n"
-        "                preds, missing = None, e.args[0]\n"
-        "            if col not in cols:\n"
-        "                missing = col\n"
-        '            elif col in formulas and any(r.get(col) in (None, "") for r in seq):\n'
-        "                continue",
-        '            if col in formulas and any(r.get(col) in (None, "") for r in seq):\n'
-        "                continue\n"
-        "            try:\n"
-        "                preds, missing = _predicate(ptext, cols, formulas, "
-        '"malformed-formula"), None\n'
-        "            except KeyError as e:\n"
-        "                preds, missing = None, e.args[0]\n"
-        "            if col not in cols:\n"
-        "                missing = col",
+        "        try:\n"
+        '            _predicate(ptext, cols, computed, "malformed-formula")\n'
+        "        except KeyError:\n"
+        "            pass",
+        "        pass",
     ),
     "a-declaration-over-a-missing-column-skips-its-refusals": (
         "    for nm, (fn, col, pred) in decls.items():\n"
