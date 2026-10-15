@@ -9,6 +9,17 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **A signed non-finite spelling in an order column is refused** (§6,
+  §9.10). §9.10 listed `inf`, `nan` and `infinity` in any case and said
+  nothing about a sign, so `-inf`, `+nan` or `-Infinity` in an order column
+  was left unsettled: the reference read each as text and accepted it, and
+  `rowspec_alt` refused it. Decided by the project owner: one leading `+`
+  or `-` is refused like the bare spelling, as `bad-order-column`. Python's
+  `float()` reads every signed spelling as a number exactly as it reads the
+  bare one, so a host that reads the column would sort it differently from
+  rowspec, which is the reason the bare spellings are refused. §4.1.6 is unchanged:
+  a signed spelling is still text, and is refused only in an order column.
+
 - **SPEC.md §13 defines the CSV sidecar's `order`, `order_type`, `columns`
   and `delimiter`** (#162). It defined only `key`, while `docs/csv.md`
   documented all five and `rowspec check` enforced them. An order or typed
