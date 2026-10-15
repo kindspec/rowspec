@@ -252,6 +252,23 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A declaration argument that is not an `ident` is `malformed-declaration`**
+  (#156, #160). SPEC.md §4.1 writes `arg = ident`. The reference
+  implementation matched the argument as any run of characters but
+  whitespace and parentheses, or none, and never checked it. So a file whose
+  aggregate argument held any non-`ident` character was accepted with a
+  `#REF!` naming it: `t := sum(<U+0000>n)`, `t := sum(n<U+200B>)`,
+  `t := sum(a-b)`, `t := sum(n.x)`, `t := sum(n€)` and
+  `t := sum(n-m where c = "x")` among them; `t := sum()` gave `#REF!()`; and
+  `order := by()` was accepted and the rows kept their file order. Each is
+  now refused, as `rowspec_alt` already did. The check runs before any other
+  on the line, so some files already refused now report
+  `malformed-declaration` in place of another identifier that also applies:
+  `order := by(id-x)` was `bad-order-column`, `t := foo()` was
+  `unknown-aggregate`, `t<U+200B> := sum()` was `bad-identifier`, and
+  `t := sum()` or `order := by()` repeating a name already declared was
+  `duplicate-aggregate` or `duplicate-declaration`.
+
 - **WSP between a row-relative function name and its `(` is
   `malformed-formula`** (#157). SPEC.md §4.2 rule 4 recognises a function
   name only immediately before `(`. The reference implementation admitted

@@ -126,6 +126,16 @@ def _check_ident(name, what):
             )
 
 
+def _is_ident(name):
+    """§4.1's `ident` as a test: one or more characters, each admitted by
+    `_check_ident`."""
+    try:
+        _check_ident(name, "")
+    except Malformed:
+        return False
+    return name != ""
+
+
 _ANNOT = re.compile(r'"[^"]*"|[ \t]#')
 
 
@@ -232,8 +242,11 @@ def parse(text):
         if ww:
             nm_, fn_, inner = mw.groups()
             col_, ptext = inner[: ww.start()], inner[ww.end() :]
-            if not re.fullmatch(r"[ \t]*[^\s()]+", col_):
-                # §4.1: only WSP may pad the aggregated column, never U+00A0.
+            if not _is_ident(col_.lstrip(WSP)):
+                # §4.1: only WSP may pad the aggregated column, never U+00A0,
+                # and the column is an `ident`: a control or Cf character in
+                # it is a malformed declaration, not a name that resolves to
+                # no column.
                 raise Malformed(
                     f"line {n}: malformed declaration: {line.strip(WSP)!r}",
                     refusal="malformed-declaration",
@@ -254,6 +267,17 @@ def parse(text):
         m = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*(\w+)\([ \t]*([^\s()]*)[ \t]*\)[ \t]*$", line)
         if m:
             name, fn, arg = m.groups()
+            if not _is_ident(arg):
+                # §4.1: `arg = ident`, for `order := by(c)` as for an
+                # aggregate. The pattern above admits any character but
+                # whitespace and parentheses, and none at all, so a control or
+                # Cf character, or nothing, would otherwise become a name that
+                # resolves to no column: an aggregate of #REF!, or an order
+                # that is never checked.
+                raise Malformed(
+                    f"line {n}: malformed declaration: {line.strip(WSP)!r}",
+                    refusal="malformed-declaration",
+                )
         else:
             m2 = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*([\w.-]+)[ \t]*$", line)
             if not m2:
