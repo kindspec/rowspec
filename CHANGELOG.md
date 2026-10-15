@@ -299,6 +299,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A CSV sidecar's `order_type` without `order` is refused** (#184).
+  SPEC.md §13 refuses it as `order` without `key` is (§9.25): it declares
+  a check with no column to run on, and ignoring it would leave the author
+  believing the check ran. CSV mode accepted it and checked nothing. It is
+  now refused as a malformed sidecar, in the per-file sidecar and in the
+  directory one alike.
+
 - **A row-relative name inside a string literal needs no declared order**
   (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
   order, and text inside a `string` is a value (§4.2 rule 6), not an
