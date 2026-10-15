@@ -46,8 +46,9 @@ def test_delta_carries_this_rows_error_over_a_stored_column(impl, prev, cur, wan
     assert str(stored(impl, prev, cur)) == want
 
 
-# `c = a / z`: (a, z) gives c's value in a row.
-SHAPES = {"/0": ("1", "0"), "blank": ("", "1"), "overflow": (BIG, "1")}
+# `c = a / z`: (a, z) gives c's value in a row. `blank-a` leaves `a` blank,
+# so `c` is `#REF!(a)`.
+SHAPES = {"/0": ("1", "0"), "blank-a": ("", "1"), "overflow": (BIG, "1")}
 
 
 def computed(impl, prev, cur):
@@ -66,8 +67,8 @@ def computed(impl, prev, cur):
     [
         ("overflow", "/0", "#REF!(/0)"),
         ("/0", "overflow", OVF),
-        ("/0", "blank", "#REF!(a)"),
-        ("blank", "/0", "#REF!(/0)"),
+        ("/0", "blank-a", "#REF!(a)"),
+        ("blank-a", "/0", "#REF!(/0)"),
     ],
 )
 def test_delta_carries_this_rows_own_error_over_a_computed_column(impl, prev, cur, want):

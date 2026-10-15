@@ -398,7 +398,7 @@ for r in seq:
     ),
     "delta-first-row-is-the-value": (
         'if prev is None:\n    r[nm] = ""\nelif err or prev_err:',
-        'if False:\n    r[nm] = ""\nelif err or prev_err:',
+        "if prev is None:\n    r[nm] = err or v\nelif err or prev_err:",
     ),
     "delta-is-negated": (
         "    d = v - prev",
