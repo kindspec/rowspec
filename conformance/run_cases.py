@@ -56,7 +56,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "reference"))
 #: most of itself -- a filter, a bad path, a half-checked-out tree. It is a
 #: FLOOR measured with `find conformance/cases -name expect.json | wc -l`, so
 #: adding cases never touches it and removing them has to be deliberate.
-MIN_CASES = 483
+MIN_CASES = 508
 
 #: The same floor for SPEC.md §13's CSV tree, measured the same way over
 #: `conformance/cases-csv`.
