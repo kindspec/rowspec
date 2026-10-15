@@ -1215,6 +1215,29 @@ not a relabelled `#REF!(v)`. It is the originating-error rule above applied to
 an aggregate: relabelling at the boundary sends a reader to inspect a
 well-formed aggregate instead of the cell that divided by zero.
 
+**When its operands hold several different `#REF!` values, an aggregate carries
+the one whose shape ranks first: `cycle`, then a name, then `/0`, then `empty`,
+then `overflow`. Among several names it carries the one that sorts first by
+code point over the NFC name, as §4.1.8 orders text.** Never the first by row,
+in the file or in the declared order: §6 makes a row's position no input to any
+computation, and an aggregate is defined on the multiset of its operands (§7).
+The leftmost rule cannot decide this, because the formula names one column. A
+value that will not coerce counts as a name, so `sum(a)` over a cell `x` and a
+stored cell beyond binary64 is `#REF!(a)` whichever line comes first, and
+`sum(c)` over a computed `#REF!(overflow)` and `#REF!(/0)` is `#REF!(/0)`.
+`count` coerces nothing, so only the `#REF!` values actually present compete
+in it.
+
+**[CHOICE]** The ranking is the order a reader should fix things in. `cycle`
+comes first because the precedence above already puts it ahead of a name:
+nothing in a cycle's reach can be computed until it is broken. A name comes
+next: a reference that does not resolve, or a value that is not a number,
+means the inputs are not what the formula needs, and an arithmetic outcome
+computed beside them says little until they are fixed. `/0`, `empty` and
+`overflow` are outcomes of arithmetic over values that are present, and
+nothing makes one more basic than another, so they keep the order the list of
+shapes below gives them.
+
 **An aggregate whose result is not finite is `#REF!(overflow)`**, on the same
 ground as §4.2 rule 2: `inf` is not a `number` under §4.1.6, so an
 implementation that returned one would write a file it could not read back and

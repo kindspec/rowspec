@@ -9,6 +9,18 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **An aggregate whose operands hold several different `#REF!` values
+  carries one chosen by shape, then by name, never by row position** (§8;
+  #115). The ranking is `cycle`, a name, `/0`, `empty`, `overflow`; among
+  names, the one that sorts first by code point. A value that will not coerce
+  is a name, so it outranks a stored cell beyond binary64. SPEC.md did not
+  say, and both implementations carried the error of the first row in some
+  cases, so swapping two lines changed an aggregate: `sum(c)` over a computed
+  `#REF!(overflow)` and `#REF!(/0)` gave whichever came first, and the second
+  implementation's `sum(a)` over a text cell and a cell beyond binary64 did
+  the same. Both now follow the ranking, in table-level and per-row group
+  aggregates.
+
 - **Every §9 refusal has a stable identifier, and the suite asserts it**
   (#61). Each entry in SPEC.md §9 now opens with a name such as
   `duplicate-row-id` or `lone-cr`, and an implementation MUST report that

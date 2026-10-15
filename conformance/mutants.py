@@ -152,8 +152,8 @@ MUTANTS = {
         "        if False:",
     ),
     "count-coerces-like-the-other-four": (
-        '    if fn == "count":\n        return len(vals)',
-        "    if False:\n        return len(vals)",
+        '    if fn != "count":\n        for v in vals:',
+        "    if True:\n        for v in vals:",
     ),
     # --- §7/§8: an aggregate with no operands -------------------------------
     "empty-min-is-blank": (
@@ -330,7 +330,7 @@ for r in seq:
     ),
     "allow-rowrel-without-order": ("if order is None:", "if False:"),
     "ref-becomes-zero": (
-        "if bad:\n    return bad[0]",
+        "if bad:\n    return _first_ref(bad)",
         "if bad:\n    return 0.0",
     ),
     "off-by-one-cumulative": (

@@ -497,30 +497,40 @@ def _exact(nums, divisor):
         return float("inf")  # the caller maps a non-finite result to #REF!(overflow)
 
 
+# §8: of several #REF! among one aggregate's operands, the first by shape in
+# this order, then the name that sorts first. Never the first row's.
+_REF_RANK = {"cycle": 0, "/0": 2, "empty": 3, "overflow": 4}
+
+
+def _first_ref(errs):
+    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))
+
+
 def _agg(fn, vals, what):
     bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]
-    if bad:
-        return bad[0]
     # `count` counts rows and never coerces: it is poisoned by a #REF! already
-    # present (handled above) but not by a value that merely is not a number,
-    # because it never uses one as an operand.
+    # present but not by a value that merely is not a number, because it never
+    # uses one as an operand.
+    if fn != "count":
+        for v in vals:
+            if v in ("", None) or v in bad:
+                continue
+            try:
+                x = num(v)
+            except (ValueError, TypeError):
+                bad.append(f"#REF!({what})")
+                continue
+            if not math.isfinite(x):
+                # §8: a stored cell whose binary64 value is infinite is
+                # #REF!(overflow) wherever it is an operand. `fsum` raises on
+                # inf + -inf, and `_exact` cannot take an infinity's integer
+                # ratio, so it must not reach them.
+                bad.append("#REF!(overflow)")
+    if bad:
+        return _first_ref(bad)
     if fn == "count":
         return len(vals)
-    try:
-        for v in vals:
-            if v not in ("", None):
-                num(v)
-    except (ValueError, TypeError):
-        return f"#REF!({what})"
-    try:
-        nums = [num(v) for v in vals if v not in ("", None)]
-    except (ValueError, TypeError):
-        return f"#REF!({what})"
-    if not all(math.isfinite(x) for x in nums):
-        # §8: a stored cell whose binary64 value is infinite is #REF!(overflow)
-        # wherever it is an operand. `fsum` raises on inf + -inf, and `_exact`
-        # cannot take an infinity's integer ratio, so it must not reach them.
-        return "#REF!(overflow)"
+    nums = [num(v) for v in vals if v not in ("", None)]
     if fn == "sum":
         got = _exact(nums, 1)
     elif fn == "avg":
