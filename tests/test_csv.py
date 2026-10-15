@@ -106,6 +106,18 @@ def test_duplicate_column_name(tmp_path):
     assert "duplicate column name 'name'" in messages(found)
 
 
+def test_repeated_empty_names_in_a_grouped_looking_header_are_duplicate_columns(tmp_path, capsys):
+    """#92. SPEC.md §13 makes an empty header cell a column name, so five of
+    them are §9.2's duplicate column. No label repeats, so this is not a
+    grouped header, and it must be a finding rather than a traceback."""
+    f = write(tmp_path, "g.csv", b",x,,,,\na,b,c,d,e,f\n")
+    found = check_file(f)
+    assert rules(found) == ["duplicate-column"]
+    assert "duplicate column name an unnamed column" in messages(found)
+    assert cli.main(["check", f]) == 1
+    assert "duplicate column name an unnamed column" in capsys.readouterr().err
+
+
 def test_column_names_collide_after_nfc_and_the_error_shows_codepoints(tmp_path):
     f = write(tmp_path, "n.csv", "id,caf\u00e9,cafe\u0301\nr_01,a,b\n".encode())
     found = check_file(f)
