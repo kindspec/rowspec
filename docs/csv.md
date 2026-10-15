@@ -23,14 +23,20 @@ Five lines of JSON next to the file buy the rest.
 {
   "key":   "code",          // the column holding the row identifier
   "order": "joined",        // the column that determines row order
-  "order_type": "date",     // optional: number | date | text
+  "order_type": "date",     // optional, needs "order": number | date | text
   "columns": { "population": "number" },   // optional
-  "delimiter": ","          // optional; .tsv is inferred
+  "delimiter": ","          // optional; tab for .tsv and .tab, in any case
 }
 ```
 
-Everything is optional and the file itself is optional. Its only job is to say
-what a CSV has nowhere to say.
+Everything is optional and the file itself is optional, except that `order`
+needs `key` and `order_type` needs `order`: each is refused without the
+other. Its only job is to say what a CSV has nowhere to say.
+
+SPEC.md §13 defines all five members as part of the CSV profile: how a value
+is trimmed and typed, and what each one refuses. `delimiter` is one Unicode
+scalar value other than `"`, CR or LF. Any other member is refused, so a
+misspelt `oder` cannot switch a check off without a word.
 
 **Why JSON and not TOML.** The sidecar is read by every independent
 implementation of this spec, and JSON is in more standard libraries than TOML
@@ -91,13 +97,13 @@ profile: what it cannot apply, and how it reads §9.16, RFC 4180's records and
 | 7 | `alignment-field-count`: alignment row field count | | | ● |
 | 8 | `alignment-row-in-data`: alignment-style row among data | | | ● |
 | 9 | `rowrel-without-order`: row-relative operator, no order | | | ● |
-| 10 | `bad-order-column`: `order` column absent or mixed-type | | ● | |
+| 10 | `bad-order-column`: `order` column absent, mixed, blank or non-finite | | ● | |
 | 11 | `unknown-aggregate`: unknown aggregate function | | | ● |
-| 12 | `malformed-declaration`: malformed declaration | | ● | |
+| 12 | `malformed-declaration`: malformed declaration | | | ● |
 | 13 | `no-table`: no table | ● | | |
 | 25 | `order-without-key`: `order` with no `key` | | ● | |
 
-Four, five and five. §3's encoding rules add two more to the bare-CSV column —
+Four, four and six. §3's encoding rules add two more to the bare-CSV column —
 invalid UTF-8, and a `Cf` format character inside a column name — for six
 checks on a file with no declarations at all. Three rows read the CSV
 differently from `.mdtbl`, as SPEC.md §13 states:
@@ -127,10 +133,12 @@ same column as `first name` with a space, and nothing refuses it. Key values
 are exempt from the allowlist for the same reason: `002RadioTV.do` is a real
 registry id.
 
-The five `.mdtbl`-only refusals are not a gap in CSV mode. Three of them are
+The six `.mdtbl`-only refusals are not a gap in CSV mode. Three of them are
 about an alignment row and formulas, neither of which CSV has; two are about
-aggregate declarations, which the sidecar deliberately does not grow. A CSV
-with no computed column cannot violate them.
+aggregate declarations, which the sidecar deliberately does not grow; and
+§9.12 is about a declaration line, which a sidecar is not. SPEC.md §13
+refuses a malformed sidecar in its own right. A CSV with no computed column
+cannot violate them.
 
 ## Two warnings, not refusals
 

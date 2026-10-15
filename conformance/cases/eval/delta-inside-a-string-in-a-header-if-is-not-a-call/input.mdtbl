@@ -1,0 +1,9 @@
+| id | note | amt | x = if(note = "delta(amt)", amt, 0) |
+| --- | --- | --: | --: |
+| r_01 | delta(amt) | 5 |  |
+| r_02 | y | 7 |  |
+| r_03 | delta(amt) | 11 |  |
+
+key := id
+g := sum(x)
+h := max(x)
