@@ -201,6 +201,17 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
+  CRLF and every other scalar value but CR a `char`. The reference
+  implementation split the file with Python's `str.splitlines()`, which also
+  breaks on VT, FF, U+001C to U+001E, NEL, U+2028 and U+2029. So a stored
+  cell holding one was refused as `malformed-table-line`, a computed cell
+  holding one as `row-field-count` rather than `value-in-computed-cell`,
+  `canon` refused the file, `add-row` inserted its row inside the last line,
+  and CSV mode reported a conflict marker after one inside a quoted field.
+  `parse`, `canon`, `add-row` and CSV mode's conflict-marker scan now split
+  on LF only. `rowspec_alt` already did; a test now holds both to it.
+
 - **Every computed column is evaluated by dependency over one graph** (#112,
   #113, #132, #133, #134, #135). SPEC.md §4.2 rule 9 makes a formula's
   operands the values those columns evaluate to, whatever order the header

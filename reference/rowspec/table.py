@@ -133,6 +133,23 @@ def _strip_annotation(line):
     return line
 
 
+def split_lines(text, keepends=False):
+    """Split on `eol = LF / CRLF` (§4.1) and nothing else.
+
+    `str.splitlines()` also breaks on VT, FF, U+001C-U+001E, NEL, U+2028 and
+    U+2029, each of which is a `char`, so it split one table line in two.
+    A lone CR is refused before this is reached (§3)."""
+    out = text.split("\n")
+    last = out.pop()
+    if keepends:
+        out = [ln + "\n" for ln in out]
+    else:
+        out = [ln[:-1] if ln.endswith("\r") else ln for ln in out]
+    if last:
+        out.append(last)
+    return out
+
+
 def parse(text):
     if text.startswith("\ufeff"):
         # §9.26: a property of the bytes, decided before any line is classified.
@@ -140,7 +157,7 @@ def parse(text):
     if re.search(r"\r(?!\n)", text):
         raise Malformed("lone CR: two rows would share one line", refusal="lone-cr")
     text = unicodedata.normalize("NFC", text)
-    lines = text.splitlines()
+    lines = split_lines(text)
     for n, line in enumerate(lines, 1):
         if line.startswith(CONFLICT):
             raise Malformed(f"line {n}: unresolved conflict marker", refusal="conflict-marker")
@@ -1437,7 +1454,7 @@ if __name__ == "__main__":
 def structure(text):
     """Full parse into a serialisable structure, preserving what render needs."""
     text = unicodedata.normalize("NFC", text)
-    lines = text.splitlines(keepends=True)
+    lines = split_lines(text, keepends=True)
     cols, formulas, rows, decls, order, key = parse(text)
     tbl_idx = [i for i, ln in enumerate(lines) if ln.strip().startswith("|")]
     header_raw = lines[tbl_idx[0]]

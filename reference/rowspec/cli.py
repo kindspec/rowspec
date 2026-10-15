@@ -15,7 +15,7 @@ import os
 import sys
 
 from .csvmode import Finding, check_file
-from .table import Malformed, _why_not_a_number, canon, escape_cell, evaluate, parse
+from .table import Malformed, _why_not_a_number, canon, escape_cell, evaluate, parse, split_lines
 
 CSV_EXT = (".csv", ".tsv", ".tab")
 TABLE_EXT = (".mdtbl",)
@@ -204,7 +204,7 @@ def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
     supplied = dict(zip(fillable, values, strict=True))
     cells = [rid if c == key else "" if c in formulas else supplied.get(c, "") for c in cols]
     line = "| " + " | ".join(escape_cell(c) for c in cells) + " |"
-    lines = text.splitlines(keepends=True)
+    lines = split_lines(text, keepends=True)
     last = max(i for i, ln in enumerate(lines) if ln.strip().startswith("|"))
     eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
     lines.insert(last + 1, line + eol)

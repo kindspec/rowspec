@@ -39,7 +39,7 @@ import sys
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
-from rowspec.table import Malformed
+from rowspec.table import Malformed, split_lines
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
@@ -126,7 +126,7 @@ def _conflict_markers(text):
     """SPEC.md §9.1. Python's csv module parses a committed conflict as ordinary
     rows without complaint, which is why this check runs on the raw text."""
     out = []
-    for line in text.splitlines():
+    for line in split_lines(text):
         if not _MARKER.match(line):
             continue
         out.append(
