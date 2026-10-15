@@ -192,6 +192,18 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A stored cell spelled like an error value is text** (#126). SPEC.md §4.1
+  rule 6 makes a cell that is not a `number` text, `#REF!(c)` as an operand
+  of its own column `c`, and §7 lets only an error actually present poison
+  `count`. The reference implementation read a stored `#REF!(zz)` as that
+  error: `sum` and `count` over the column, and a row formula using it, gave
+  `#REF!(zz)`, naming a column the table does not have. They now give
+  `#REF!(a)` for the column `a` holding it, and `count` counts its row. A
+  string comparison in `if` now compares it as the text it is, and a stored
+  `#REF!(overflow)` beside a cell that really overflows is `#REF!(a)` in
+  either row order. `rowspec_alt` already did all of this; a test now holds
+  both to it.
+
 - **`prior(c)` over a stored text cell is `#REF!(c)`** (#114). SPEC.md §4.2
   rule 10 leaves a computed value two kinds, a number and an error, and §8
   makes a value that will not coerce `#REF!`; blank is the one non-number §7
