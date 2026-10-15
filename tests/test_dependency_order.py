@@ -68,7 +68,7 @@ def test_cumulative_carries_a_computed_sources_own_error(impl, formula, first, s
         [["r_1", "1", "0", "", "", ""], ["r_2", "2", "1", "", "", ""]],
     )
     assert values(impl, src, "b", "d", "c") == [
-        [first, "", first],
+        [first, first, first],
         [second, first, first],
     ]
 

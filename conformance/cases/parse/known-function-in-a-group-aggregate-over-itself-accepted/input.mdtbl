@@ -1,0 +1,5 @@
+| id | k | c = min(c where k = @k) |
+| --- | --- | --: |
+| r_1 | x |  |
+
+key := id

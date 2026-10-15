@@ -1,0 +1,8 @@
+| id | n | k | v | p = prior(v) | b = sum(p where k = @k) |
+| --- | --: | --- | --: | --: | --: |
+| r_1 | 1 | x | 1 |  |  |
+| r_2 | 2 | y | 2 |  |  |
+| r_3 | 3 | x | 4 |  |  |
+
+key := id
+order := by(n)
