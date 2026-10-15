@@ -177,13 +177,42 @@ def test_row_relative_over_another_row_relative_column(impl, fn, want, dep, src,
 
 @IMPLS
 @pytest.mark.parametrize("dep, src", [("s", "p"), ("b", "p")], ids=["dep-after", "dep-first"])
+@LATER
 @pytest.mark.parametrize("fn, want", [("sum", 3.0), ("count", 3), ("max", 2.0)])
-def test_group_aggregate_over_a_prior_column(impl, fn, want, dep, src):
+def test_group_aggregate_over_a_prior_column(impl, fn, want, dep, src, later):
+    cells = _header(f"{dep} = {fn}({src} where g = @g)", f"{src} = prior(v)", later)
     text = table(
-        f"| id | g | v | {src} = prior(v) | {dep} = {fn}({src} where g = @g) |",
+        f"| id | g | v | {cells} |",
         [["r_1", "x", "1", "", ""], ["r_2", "x", "2", "", ""], ["r_3", "x", "4", "", ""]],
     )
     assert values(impl, text, src, dep) == [["", want], [1.0, want], [2.0, want]]
+
+
+# --- an ordinary formula waits for the row-relative or group column it names --
+
+
+@IMPLS
+@NAMES
+@LATER
+def test_ordinary_formula_over_a_row_relative_column(impl, dep, src, later):
+    cells = _header(f"{dep} = {src} * 2", f"{src} = cumulative(v)", later)
+    text = table(
+        f"| id | v | {cells} |",
+        [["r_1", "1", "", ""], ["r_2", "2", "", ""], ["r_3", "3", "", ""]],
+    )
+    assert [r[0] for r in values(impl, text, dep)] == [2.0, 6.0, 12.0]
+
+
+@IMPLS
+@NAMES
+@LATER
+def test_ordinary_formula_over_a_group_aggregate(impl, dep, src, later):
+    cells = _header(f"{dep} = {src} * 2", f"{src} = sum(a where g = @g)", later)
+    text = table(
+        f"| id | g | a | {cells} |",
+        [["r_1", "x", "1", "", ""], ["r_2", "x", "2", "", ""], ["r_3", "y", "4", "", ""]],
+    )
+    assert [r[0] for r in values(impl, text, dep)] == [6.0, 6.0, 8.0]
 
 
 # --- §4.2 rule 9: the order of the header is not an input to any value -------
