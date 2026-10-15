@@ -430,7 +430,7 @@ def _predicate(text, cols, computed, refusal):
     `refusal` is the §9 identifier for a predicate the grammar does not
     generate, which depends on where it is written: a header cell or a
     declaration line."""
-    preds = []
+    preds, unknown = [], None
     for part in [x.strip() for x in re.split(r"\s+and\s+", text)]:
         m = _PRED.fullmatch(part)
         if not m:
@@ -442,9 +442,11 @@ def _predicate(text, cols, computed, refusal):
                 # anywhere. Refusing would make the file's ACCEPTANCE depend on
                 # the header rather than on its own bytes -- §4.2 rule 7's
                 # argument, which it made for the aggregated column and which
-                # applies unchanged to the predicate's.
-                raise KeyError(c)
-            if c and c in computed:
+                # applies unchanged to the predicate's. Raised only after
+                # every part is checked: a refusal anywhere in the predicate
+                # outranks a #REF!, which is a value.
+                unknown = unknown or c
+            elif c and c in computed:
                 raise Malformed(
                     f"predicate names computed column {c!r} (§9.22): comparison is on "
                     f"cell text and a computed column has none, so the predicate would "
@@ -452,6 +454,8 @@ def _predicate(text, cols, computed, refusal):
                     refusal="computed-column-compared",
                 )
         preds.append((col, at, lit))
+    if unknown:
+        raise KeyError(unknown)  # the leftmost, per §8
     return preds
 
 
@@ -1240,17 +1244,23 @@ def evaluate(text):
                 raise Malformed(
                     f"unknown aggregate {fn!r} in column {nm!r}", refusal="unknown-aggregate"
                 )
-            if col not in cols:
-                raise Malformed(
-                    f"column {nm!r} aggregates unknown column {col!r}", refusal="malformed-formula"
-                )
-            if col in formulas and any(r.get(col) in (None, "") for r in seq):
-                continue  # its source is not computed yet
+            # The predicate first: it depends only on the header, and a
+            # refusal in it must fire whether or not the aggregate ever gets
+            # a value -- a missing column, or a source on a cycle, included.
             try:
-                preds = _predicate(ptext, cols, formulas, "malformed-formula")
+                preds, missing = _predicate(ptext, cols, formulas, "malformed-formula"), None
             except KeyError as e:
+                preds, missing = None, e.args[0]
+            if col not in cols:
+                # §8: a name that does not resolve is #REF!(name), not a
+                # refusal -- §4.2 rule 7's argument -- and the aggregated
+                # column is leftmost, ahead of any name in the predicate.
+                missing = col
+            elif col in formulas and any(r.get(col) in (None, "") for r in seq):
+                continue  # its source is not computed yet
+            if missing:
                 for r in seq:
-                    r[nm] = f"#REF!({e.args[0]})"
+                    r[nm] = f"#REF!({missing})"
                 del groups[nm]
                 progressed = True
                 continue
@@ -1277,16 +1287,25 @@ def evaluate(text):
     # row-relative, computed over the DERIVED order
     out = {}
     for nm, (fn, col, pred) in decls.items():
+        # Refusals first: a missing column is a #REF!, which is a value, and
+        # must not hide an unknown function or a predicate §9 refuses.
+        if fn not in ("sum", "count", "min", "max", "avg"):
+            raise Malformed(
+                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
+            )
+        try:
+            preds_ = _predicate(pred, cols, formulas, "malformed-declaration") if pred else None
+        except KeyError as e:
+            preds_ = e
+        # The leftmost name: the aggregated column precedes the predicate.
         if col not in cols:
             out[nm] = f"#REF!({col})"
             continue
+        if isinstance(preds_, KeyError):
+            out[nm] = f"#REF!({preds_.args[0]})"
+            continue
         rows_ = seq
         if pred:
-            try:
-                preds_ = _predicate(pred, cols, formulas, "malformed-declaration")
-            except KeyError as e:
-                out[nm] = f"#REF!({e.args[0]})"
-                continue
             rows_ = [
                 o
                 for o in seq
@@ -1296,10 +1315,6 @@ def evaluate(text):
                 )
             ]
         vals = [r.get(col) for r in rows_]
-        if fn not in ("sum", "count", "min", "max", "avg"):
-            raise Malformed(
-                f"unknown aggregate function {fn!r} in {nm!r}", refusal="unknown-aggregate"
-            )
         out[nm] = _agg(fn, vals, col)
 
     return seq, out

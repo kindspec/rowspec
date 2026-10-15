@@ -158,6 +158,42 @@ prose, and where the two disagree the suite wins.
   `rowspec_alt` already returned `#REF!(overflow)`; a test now holds both to
   it.
 
+- **`rowspec_alt` refuses an order column that is blank in every row** (#100),
+  as `bad-order-column`. SPEC.md §9.10 refuses one that "is blank in any
+  row"; `rowspec_alt` refused blank only when it was mixed with a value.
+
+- **A header group aggregate over a column that does not exist is
+  `#REF!(name)`, not a refusal** (#100). `| t = sum(nope where a = "x") |`
+  was refused as `malformed-formula` by the reference implementation. SPEC.md
+  §8 makes a name that does not resolve `#REF!(name)`, §4.2 rule 7 rejects
+  refusing an aggregate over an absent column, and §9.20 does not reach a
+  cell the grammar generates. The predicate's own refusals, such as
+  `computed-column-compared`, still apply.
+
+- **A refusal anywhere in a `where` predicate is reported even after a name
+  that does not resolve** (#100). The reference stopped checking a predicate
+  at its first unknown name and gave `#REF!(name)`, so
+  `sum(a where zz = "x" and b = "x")`, with `b` computed, was accepted where
+  §9.22 refuses it, and so was a right-hand side the grammar does not
+  generate, such as `a = 3`. That held in header cells and in declarations.
+  Every part is now checked first, and the leftmost unknown name is reported
+  only if nothing is refused. `rowspec_alt` already did this.
+
+- **A header group aggregate over a column on a cycle still has its
+  predicate checked** (#100). The reference skipped an aggregate whose
+  source column had no value yet, and a source on a cycle never gets one, so
+  `| b = 1 + 1 | t = sum(u where b = "x") | u = t + 1 |` was `#REF!(cycle)`
+  where §9.22 refuses it, and `sum(u where a = 3)` likewise where §9.20
+  does. The predicate depends only on the header and is now checked first.
+  `rowspec_alt` already did this.
+
+- **A declaration over a missing column is still refused when the line
+  breaks a rule** (#100). The reference returned `#REF!(name)` for
+  `g := sum(nope ...)` before checking the function or the predicate, so
+  `g := foo(nope)` was accepted where §9.11 refuses it, and so was a
+  predicate §9.22 or §9.12 refuses. Both are now checked first.
+  `rowspec_alt` already did this.
+
 ## [0.3.0] — 2026-10-08
 
 Everything since `v0.2.0`. Documentation-only commits, and development and CI
