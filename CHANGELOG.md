@@ -13,8 +13,10 @@ prose, and where the two disagree the suite wins.
   (§7, §9.16; #140). `prior(c)` over a text cell is `#REF!(c)`, a cell
   holding only a non-ASCII space included, and an empty identifier, such as
   a blank key value, is `bad-identifier`. Neither changes what the spec
-  requires: both followed from §8 and from §4.1.9's `1*`, which already
-  makes an empty identifier refused.
+  requires: the first followed from §4.2 rule 10 and §8, and the second
+  from §4.1.9's `1*`, which already makes an empty identifier refused. The
+  empty case applies to every identifier §9.16 lists, a column name and a
+  `key`/`order` argument included.
 
 - **In the first row, `delta(c)` carries `c`'s error when `c` gives one**
   (§7; #142). SPEC.md read `delta(c)` as `c - prior(c)` but did not say what

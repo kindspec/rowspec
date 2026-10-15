@@ -988,10 +988,11 @@ past a blank produces exactly a stale value, and a plausible one — the reader
 sees a number that was true two rows ago and nothing says so. `cumulative(c)`
 is `#REF!(c)` from the blank row onward, by ordinary propagation.
 
-**`prior(c)` over a text cell is `#REF!(c)`.** A computed value is a number or
-an error (§8), and a value that will not coerce to a number is `#REF!`, so the
-preceding row's text is not carried forward as text. A cell holding only a
-non-ASCII space, such as U+00A0, is text, since trimming removes `WSP` alone.
+**`prior(c)` over a text cell is `#REF!(c)`.** A computed value is a number,
+an error (§4.2 rule 10), or the blank `prior` gives over a blank cell, and a
+value that will not coerce to a number is `#REF!` (§8), so the preceding row's
+text is not carried forward as text. A cell holding only a non-ASCII space,
+such as U+00A0, is text, since trimming removes `WSP` alone.
 
 **`delta(c)` is read as `c - prior(c)`, so §8's leftmost rule decides which
 error it carries: when this row's `c` and the preceding row's both give an
