@@ -342,6 +342,47 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A sidecar `delimiter` of `"`, CR, LF or a lone surrogate is refused**
+  (#178). SPEC.md §13 admits one Unicode scalar value other than those
+  three, which RFC 4180 reserves for quoting and for ending a record. CSV
+  mode checked only that the delimiter was one character, so `"`, CR and
+  LF reached Python's `csv.reader`. On Python 3.11 and 3.12 it used them
+  as the separator, so the file was silently misread and accepted; on
+  3.13 it raised an uncaught `ValueError`, so the file was neither
+  accepted nor refused. A lone surrogate, written as the JSON escape
+  `\ud800`, was used as the separator on every version. Each is now
+  refused as a malformed sidecar.
+
+- **A blank cell in a CSV sidecar's `order` column is refused** (#180).
+  SPEC.md §13 applies §6's order rules to the column a sidecar's `order`
+  names, and refuses it when it is blank in any row, a cell of spaces or
+  tabs included, since blank is none of the three types. CSV mode dropped
+  blank values before typing the column, so `id,n / a,1 / b,` was
+  accepted. It now reports `order-blank`, naming the row. A file with no
+  data rows is still not refused on `order`, and a cell holding only a
+  non-ASCII space such as U+00A0 is text, not blank.
+
+- **A CSV sidecar's `order_type` without `order` is refused** (#184).
+  SPEC.md §13 refuses it as `order` without `key` is (§9.25): it declares
+  a check with no column to run on, and ignoring it would leave the author
+  believing the check ran. CSV mode accepted it and checked nothing. It is
+  now refused as a malformed sidecar, in the per-file sidecar and in the
+  directory one alike.
+
+- **A CSV sidecar names a column after trimming ASCII space and tab and
+  after NFC, `""` included** (#181, #182, #183). SPEC.md §13 compares a
+  name in `key`, `order` or `columns` as §9.2 compares column names, and
+  refuses one that names no column rather than skipping it. CSV mode
+  normalised names to NFC but did not trim them, so `"key": " id"` was
+  refused as naming no column; it ignored `"key": ""` and `"order": ""`
+  altogether, so neither named an empty-headed column nor was refused
+  without one; and two `columns` members alike after NFC, such as `café`
+  spelt NFC and NFD, were merged with the last one winning. Each name is
+  now trimmed and normalised before it is matched, an empty name names the
+  empty-headed column or is refused, and two members naming one column are
+  refused as a repeated member is. A leading or trailing non-ASCII space,
+  such as U+00A0, is still part of the name.
+
 - **An order column holding a signed non-finite spelling is refused**
   (#175). SPEC.md §9.10 now refuses `inf`, `nan` and `infinity` in any
   case after one leading `+` or `-`, as it refuses the bare spelling. The

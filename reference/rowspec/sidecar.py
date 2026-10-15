@@ -93,8 +93,17 @@ def _validate(obj, where):
             f"{where}: order_type {obj['order_type']!r} is not one of "
             f"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}"
         )
-    if "delimiter" in obj and len(obj["delimiter"]) != 1:
-        raise Malformed(f"{where}: delimiter must be a single character, not {obj['delimiter']!r}")
+    if "delimiter" in obj:
+        d = obj["delimiter"]
+        # SPEC.md §13: one Unicode scalar value, so not a lone surrogate, which
+        # JSON's `\ud800` escape produces as a one-character Python string.
+        if len(d) != 1 or 0xD800 <= ord(d) <= 0xDFFF:
+            raise Malformed(f"{where}: delimiter must be one Unicode scalar value, not {d!r}")
+        if d in '"\r\n':
+            raise Malformed(
+                f"{where}: delimiter {d!r} is reserved: RFC 4180 uses it to quote a field "
+                f"or to end a record, so the record boundaries would be undefined"
+            )
     cols = obj.get("columns", {})
     if not isinstance(cols, dict):
         raise Malformed(f"{where}: 'columns' must be a JSON object of name -> type")
@@ -104,10 +113,28 @@ def _validate(obj, where):
                 f"{where}: column {name!r} declares type {t!r}, not one of "
                 f"{', '.join(TYPES)}{_suggest(str(t), TYPES)}"
             )
+    named = {}
+    for name in cols:
+        # SPEC.md §13: two members naming one column are refused as a repeated
+        # member is, or the last of them would silently win.
+        col = column_name(name)
+        if col in named:
+            raise Malformed(
+                f"{where}: 'columns' names column {col!r} twice, "
+                f"as {ascii(named[col])} and {ascii(name)}"
+            )
+        named[col] = name
     if "order" in obj and "key" not in obj:
         raise Malformed(
             f"{where}: 'order' requires 'key'. Without a key, rows with the same "
             f"order value fall back to their position in the file, which is a coordinate"
+        )
+    if "order_type" in obj and "order" not in obj:
+        # SPEC.md §13: a declared check with no column to run on is refused,
+        # since ignoring it would leave the author believing it ran.
+        raise Malformed(
+            f"{where}: 'order_type' requires 'order'. It declares the type of the "
+            f"order column, and with no 'order' there is no column to check"
         )
     return obj
 
@@ -148,14 +175,21 @@ def find(data_path):
     return None
 
 
+def column_name(name):
+    """SPEC.md §13: a sidecar names a column as §9.2 compares names in CSV
+    mode, after trimming ASCII space and tab only and after NFC. So `" id"`
+    names `id`, and `""` names a column whose header cell is empty."""
+    return unicodedata.normalize("NFC", name.strip(" \t"))
+
+
 def _build(path, obj):
-    norm = {k: unicodedata.normalize("NFC", v) for k, v in obj.items() if isinstance(v, str)}
-    cols = {unicodedata.normalize("NFC", n): t for n, t in (obj.get("columns") or {}).items()}
+    names = {k: column_name(obj[k]) for k in ("key", "order") if k in obj}
+    cols = {column_name(n): t for n, t in (obj.get("columns") or {}).items()}
     return Sidecar(
         path,
-        key=norm.get("key"),
-        order=norm.get("order"),
-        order_type=norm.get("order_type"),
+        key=names.get("key"),
+        order=names.get("order"),
+        order_type=obj.get("order_type"),
         columns=cols,
         delimiter=obj.get("delimiter"),
     )
