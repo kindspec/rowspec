@@ -138,7 +138,7 @@ was split. `parse/order-unrecognised-construct-refused` gained
 
 ## Cases written without the implementation
 
-Five later batches were written by authors who were not the author of
+Six later batches were written by authors who were not the author of
 `reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
 Each author derived every expected outcome from SPEC.md, read the existing
 case tree for its format, and recorded the passage the outcome rests on in
@@ -208,3 +208,8 @@ the case's `WHY.md`.
   `cumulative` over a missing column in the first row
   (`rowrel/*-of-a-missing-column-*`), and first-row assertions for the
   cycles above.
+- **The sixth batch**, by the same author, was written against SPEC.md at
+  `72abdc4`, opening only SPEC.md, this tree, and the case-count floor in
+  `conformance/run_cases.py`. It puts `#REF!(/0)` against `#REF!(empty)` in
+  one aggregate, with a row-swapped twin
+  (`eval/aggregate-ranks-div-zero-over-empty*`).
