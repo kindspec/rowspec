@@ -193,6 +193,9 @@ prose, and where the two disagree the suite wins.
   missing or cyclic argument to a row-relative call, in the first row too.
   The floor is now 517 cases.
 
+- **2 conformance cases ranking `/0` above `empty`** (#115) in one aggregate,
+  with the data lines swapped in the second. The floor is now 519 cases.
+
 - **The mutation gate covers evaluation order, header errors and the `#REF!`
   ranking** (#115, #117, #133, #134). Eleven new mutants each break one of
   them: a dropped edge in the dependency graph (row-relative to its source, a
