@@ -33,6 +33,14 @@ prose, and where the two disagree the suite wins.
   `key` beside `order := by(c)`, and both implementations refused a table
   without one, but §9 — which says it is complete — did not carry it.
 
+- **`key := col` must name a stored column, or it is `malformed-declaration`**
+  (§9.12, §4.1.11, §6; part of #100). A key naming no column, or naming a
+  computed one, had no §9 entry, and the two implementations disagreed: the
+  reference accepted both and the second implementation refused both as
+  `malformed-declaration`. The reference now refuses both too. No new
+  identifier: the declaration names nothing a key can be, which is §9.12's
+  ground.
+
 - **§9 splits encoding into two entries: `bad-encoding` (§9.14) for bytes
   that are not UTF-8, and `leading-bom` (§9.26) for a leading BOM.** Both are
   decided on the bytes before any line is classified. Previously a leading
