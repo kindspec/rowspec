@@ -182,6 +182,17 @@ prose, and where the two disagree the suite wins.
   values, `prior` over text, and stored text spelled like an error. The floor
   is now 483 cases.
 
+- **34 conformance cases for evaluation order** (#112, #113, #132, #133, #134,
+  #135) in
+  `conformance/cases/`, written from SPEC.md without the implementation. A
+  computed column over a row-relative column or a group aggregate whose name
+  sorts after it, in both header positions; self-cycles through `prior`,
+  `delta`, `cumulative` and a group aggregate; an unknown function in a group
+  call; computed values a host prints in exponent form; and `cumulative` over
+  a computed `#REF!(/0)`; a group aggregate over a `prior` column; and a
+  missing or cyclic argument to a row-relative call, in the first row too.
+  The floor is now 517 cases.
+
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
   conformance tree in headless LibreOffice. It asserts that each computed cell

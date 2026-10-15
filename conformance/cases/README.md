@@ -138,7 +138,7 @@ was split. `parse/order-unrecognised-construct-refused` gained
 
 ## Cases written without the implementation
 
-Four later batches were written by authors who were not the author of
+Five later batches were written by authors who were not the author of
 `reference/rowspec/` or `reference/rowspec_alt/` and did not read either.
 Each author derived every expected outcome from SPEC.md, read the existing
 case tree for its format, and recorded the passage the outcome rests on in
@@ -191,3 +191,20 @@ the case's `WHY.md`.
   `prior` over a stored text cell and over a cell of U+00A0; an order column
   holding a U+00A0 cell; and a stored cell spelled like an error. Its
   CSV-profile cases are in `cases-csv/columns/`.
+- **The fifth batch**, by the same author, was written against SPEC.md at
+  `40e5647`, opening only SPEC.md, this tree, and the case-count floor in
+  `conformance/run_cases.py`. It covers evaluation by dependency where a
+  computed column's name sorts before the column it reads, each with the
+  header in both orders (`rowrel/*-later-sorting-*`); a column that names
+  itself through `prior`, `delta`, `cumulative` or a group aggregate, and a
+  column depending on one (`*-of-itself-*`, `*-self-cycle-*`,
+  `group-aggregate-over-itself-*`); an unknown function in a header group
+  call (`parse/*-function-in-a-header-group-call-*`); row-relative operators
+  over computed values that hosts print in exponent form
+  (`rowrel/*-tiny-computed-*`, `rowrel/*-large-computed-*`); and
+  `cumulative` over a computed `#REF!(/0)`. A review pass on the same
+  terms added a per-row group aggregate over a `prior` column
+  (`rowrel/group-aggregate-over-a-prior-column-*`), `prior`, `delta` and
+  `cumulative` over a missing column in the first row
+  (`rowrel/*-of-a-missing-column-*`), and first-row assertions for the
+  cycles above.
