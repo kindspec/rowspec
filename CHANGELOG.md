@@ -303,10 +303,12 @@ prose, and where the two disagree the suite wins.
   (#178). SPEC.md §13 admits one Unicode scalar value other than those
   three, which RFC 4180 reserves for quoting and for ending a record. CSV
   mode checked only that the delimiter was one character, so `"`, CR and
-  LF reached Python's `csv.reader`, which raised an uncaught `ValueError`:
-  the file was neither accepted nor refused. A lone surrogate, written as
-  the JSON escape `\ud800`, was used as the separator. Each is now refused
-  as a malformed sidecar.
+  LF reached Python's `csv.reader`. On Python 3.11 and 3.12 it used them
+  as the separator, so the file was silently misread and accepted; on
+  3.13 it raised an uncaught `ValueError`, so the file was neither
+  accepted nor refused. A lone surrogate, written as the JSON escape
+  `\ud800`, was used as the separator on every version. Each is now
+  refused as a malformed sidecar.
 
 - **A row-relative name inside a string literal needs no declared order**
   (#172). SPEC.md §9.9 refuses a row-relative operator with no declared

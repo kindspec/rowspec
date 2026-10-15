@@ -54,6 +54,19 @@ def test_a_lone_surrogate_is_not_a_scalar_value_and_is_refused(tmp_path, value):
 
 @pytest.mark.parametrize(
     "delimiter",
+    ["", ";;", "e\u0301", "\u2764\ufe0f"],
+    ids=["empty", "two-characters", "nfd-e-acute", "emoji-and-vs16"],
+)
+def test_a_delimiter_that_is_not_exactly_one_scalar_value_is_refused(tmp_path, delimiter):
+    # NFD e-acute and an emoji with VS16 each render as one character but are
+    # two scalar values, and the delimiter is used as written, not normalised.
+    p = write(tmp_path, b"id,n\na,1\n", json.dumps({"delimiter": delimiter}))
+    with pytest.raises(Malformed, match="one Unicode scalar value"):
+        check_file(p)
+
+
+@pytest.mark.parametrize(
+    "delimiter",
     [";", "\t", " ", "\U0001f600", "\ufeff"],
     ids=["semicolon", "tab", "space", "astral", "bom-character"],
 )
