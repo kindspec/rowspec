@@ -17,7 +17,10 @@ prose, and where the two disagree the suite wins.
   header, so a formula holding one is `#REF!(overflow)` in every row, a row
   whose `if` takes the other branch included. It outranks an error from the
   data, and of two such errors the leftmost wins: `1000…0 + nope` is
-  `#REF!(overflow)`. Both implementations used to evaluate the literal per
+  `#REF!(overflow)`. §8 now states this for every header error, an unresolved
+  name included: a header error outranks an error raised while evaluating a
+  row, which is what both implementations already did for a name. An
+  operation on literals, such as `1 / 0`, is still evaluated per row. Both implementations used to evaluate the literal per
   row: a row taking the other branch got a number, a blank operand to its left
   gave `#REF!(c)`, and `1000…0 + nope` gave `#REF!(nope)`. Both now follow the
   rule.
