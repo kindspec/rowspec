@@ -252,6 +252,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **An order column holding `inf`, `nan` or `infinity` in any case is
+  refused, even when it holds nothing else** (#168). SPEC.md §9.10 refuses
+  a non-finite spelling in an order column in any row. The reference read
+  those spellings as text, so it refused one beside a number as mixed types
+  but accepted a column of only `inf` and `nan`, or `nan` beside the text
+  `nan2`, which `rowspec_alt` refused. The reference now refuses each as
+  `bad-order-column`, and CSV mode reports `order-non-finite` for the same
+  columns under an `order` sidecar.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also

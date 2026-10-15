@@ -39,7 +39,7 @@ import sys
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
-from rowspec.table import Malformed, split_lines
+from rowspec.table import Malformed, is_nonfinite_spelling, split_lines
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
@@ -605,6 +605,19 @@ def _order_column(body, names, side, key_idx):
             ),
             "A non-finite number has no defined place in a sort.",
         )
+    # §9.10: a non-finite spelling is refused in any row, even in a column of
+    # nothing else, where it is text and the column has one type.
+    spelled = [(n, v) for n, v in values if is_nonfinite_spelling(v)]
+    _cap(
+        findings,
+        "order-non-finite",
+        spelled,
+        lambda nv: (
+            f"order column {_show(col)} holds the non-finite spelling {_show(nv[1])} at "
+            f"{_name_row(body[nv[0] - 1], names, key_idx, nv[0])}"
+        ),
+        "SPEC.md §9.10 refuses inf, nan and infinity, in any case, in an order column.",
+    )
     return findings
 
 
