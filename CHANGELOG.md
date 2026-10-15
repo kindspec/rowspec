@@ -246,11 +246,19 @@ prose, and where the two disagree the suite wins.
 - **A declaration argument that is not an `ident` is `malformed-declaration`**
   (#156, #160). SPEC.md §4.1 writes `arg = ident`. The reference
   implementation matched the argument as any run of characters but
-  whitespace and parentheses, or none, so `t := sum(<U+0000>n)` or
-  `t := sum(n<U+200B>)` gave `#REF!(<argument>)`, `t := sum()` gave
-  `#REF!()`, and `order := by()` was accepted and the rows kept their file
-  order. It now refuses each, an aggregate with or without a `where`, as
-  `rowspec_alt` already did.
+  whitespace and parentheses, or none, and never checked it. So a file whose
+  aggregate argument held any non-`ident` character was accepted with a
+  `#REF!` naming it: `t := sum(<U+0000>n)`, `t := sum(n<U+200B>)`,
+  `t := sum(a-b)`, `t := sum(n.x)`, `t := sum(n€)` and
+  `t := sum(n-m where c = "x")` among them; `t := sum()` gave `#REF!()`; and
+  `order := by()` was accepted and the rows kept their file order. Each is
+  now refused, as `rowspec_alt` already did. The check runs before any other
+  on the line, so some files already refused now report
+  `malformed-declaration` in place of another identifier that also applies:
+  `order := by(id-x)` was `bad-order-column`, `t := foo()` was
+  `unknown-aggregate`, `t<U+200B> := sum()` was `bad-identifier`, and
+  `t := sum()` or `order := by()` repeating a name already declared was
+  `duplicate-aggregate` or `duplicate-declaration`.
 
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
