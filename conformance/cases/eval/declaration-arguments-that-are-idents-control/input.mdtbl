@@ -1,0 +1,11 @@
+| id | a_b | n_x | k |
+| --- | --: | --: | --- |
+| r_01 | 5 | 1 | x |
+| r_02 | 7 | 2 | y |
+| r_03 | 11 | 4 | x |
+
+key := id
+t := sum(a_b)
+u := sum(n_x)
+v := sum(a_b where k = "x")
+w := count(a_b)
