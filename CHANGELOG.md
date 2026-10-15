@@ -261,6 +261,82 @@ prose, and where the two disagree the suite wins.
   `bad-order-column`, and CSV mode reports `order-non-finite` for the same
   columns under an `order` sidecar.
 
+- **A declaration argument that is not an `ident` is `malformed-declaration`**
+  (#156, #160). SPEC.md §4.1 writes `arg = ident`. The reference
+  implementation matched the argument as any run of characters but
+  whitespace and parentheses, or none, and never checked it. So a file whose
+  aggregate argument held any non-`ident` character was accepted with a
+  `#REF!` naming it: `t := sum(<U+0000>n)`, `t := sum(n<U+200B>)`,
+  `t := sum(a-b)`, `t := sum(n.x)`, `t := sum(n€)` and
+  `t := sum(n-m where c = "x")` among them; `t := sum()` gave `#REF!()`; and
+  `order := by()` was accepted and the rows kept their file order. Each is
+  now refused, as `rowspec_alt` already did. The check runs before any other
+  on the line, so some files already refused now report
+  `malformed-declaration` in place of another identifier that also applies:
+  `order := by(id-x)` was `bad-order-column`, `t := foo()` was
+  `unknown-aggregate`, `t<U+200B> := sum()` was `bad-identifier`, and
+  `t := sum()` or `order := by()` repeating a name already declared was
+  `duplicate-aggregate` or `duplicate-declaration`.
+
+- **WSP between a row-relative function name and its `(` is
+  `malformed-formula`** (#157). SPEC.md §4.2 rule 4 recognises a function
+  name only immediately before `(`. The reference implementation admitted
+  space or tab there, so `p = prior (n)`, `p = delta<TAB>(n)` and
+  `p = cumulative (n)` were evaluated as `prior(n)`, `delta(n)` and
+  `cumulative(n)`, and with no `order` declared were refused as
+  `rowrel-without-order`. Each is now `malformed-formula`, as `rowspec_alt`
+  already gave.
+
+- **A `#` inside a string literal in a header formula is data** (#131).
+  SPEC.md §4.2 rule 6's `string` may contain `#`, and rule 8 refuses a `#`
+  only outside the grammar. The reference implementation refused any header
+  formula containing `#`, so `t = if(a = "#4", 1, 2)` was `malformed-formula`
+  and a stored `#4` could not be compared in an `if`. It now skips string
+  literals before looking for `#`, as `rowspec_alt` already did; a `#`
+  outside a string, such as `a * 2 #note`, is still refused.
+
+- **An empty column name is `bad-identifier`** (#130). SPEC.md §4.1 makes
+  an `ident` one or more characters. The reference implementation checked
+  each character of a name and so passed a name with none: a header cell
+  that is empty or holds only space and tab, or a computed cell such as
+  `|  = 1 |`, gave a column keyed `''`. It is now refused, as `rowspec_alt`
+  already did.
+
+- **CSV mode reads a header of U+00A0 and other Unicode spaces as column
+  names** (#154). SPEC.md §13 trims a column name of ASCII space and tab
+  only, so a header cell holding U+00A0 is a non-empty name. The check for
+  a missing header row trimmed with Python's `str.strip()`, so a header of
+  `<U+00A0>,<U+2003>` was refused as `file contains no table: there is no
+  header row`, while `<U+00A0>,b` was accepted. It now trims ASCII space
+  and tab only: the first file is accepted, and `<U+00A0>,<U+00A0>` is a
+  duplicate column. Two other checks trimmed too much. A file holding only
+  VT or FF was refused as empty, while `<VT>,x` was accepted; it is now a
+  header of one name. A second row holding `a` and `a<U+00A0>` counted as a
+  repeated name, so a grouped header was reported as duplicate columns; it
+  is now reported as a grouped header.
+
+- **The xlsx export refuses a character XML cannot hold instead of
+  crashing or writing a broken file** (#166). §4.1 lets a stored cell or
+  string literal hold any C0 control but CR and LF, and U+FFFE and U+FFFF;
+  #144 added form feed and vertical tab, which used to end a line. The XML
+  an `.xlsx` is made of has no character for any of them except tab, LF and
+  CR. openpyxl raised `IllegalCharacterError` on a C0 control, and wrote
+  U+FFFE or U+FFFF into a file no reader could parse, which LibreOffice
+  opened with the value silently dropped. The exporter now raises
+  `NotExpressible`, as it does for anything else a spreadsheet cannot say,
+  and checks the sheet title the same way.
+
+- **CSV mode reads numbers and dates by §4.1.6 and §4.1.7** (#155). CSV
+  mode had regexes of its own, which matched any Unicode decimal digit,
+  accepted a leading `+`, exponent notation, `.5` and `5.`, accepted two
+  different separators in one date, and matched a quoted value ending in an
+  LF. So a column declared `number` accepted `+5`, `1e3` and Arabic-Indic
+  `<U+0665>`, a column declared `date` accepted `2024-01/05`, and an order
+  column holding `1e3` beside `6` was accepted. CSV mode now uses the
+  recognisers `.mdtbl` uses: each of those values is text, so the typed
+  column reports it and the order column mixes types. `1e999` in an order
+  column is now text rather than a non-finite number.
+
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference
   implementation split the file with Python's `str.splitlines()`, which also
