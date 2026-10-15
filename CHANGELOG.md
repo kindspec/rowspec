@@ -250,7 +250,9 @@ prose, and where the two disagree the suite wins.
   `<U+00A0>,<U+2003>` was refused as `file contains no table: there is no
   header row`, while `<U+00A0>,b` was accepted. It now trims ASCII space
   and tab only: the first file is accepted, and `<U+00A0>,<U+00A0>` is a
-  duplicate column.
+  duplicate column. Two other checks trimmed too much. A file holding only
+  VT or FF was refused as empty, while `<VT>,x` was accepted; it is now a
+  header of one name.
 
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference

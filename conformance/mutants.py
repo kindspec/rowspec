@@ -860,7 +860,7 @@ CSV_MUTANTS = {
     ),
     # --- refused either way: see CSV_EQUIVALENT ------------------------------
     "csv-empty-file-check-removed": (
-        "    if not raw.strip():",
+        '    if not raw.strip(b" \\t\\r\\n"):',
         "    if False:",
     ),
     "csv-grouped-header-disabled": (

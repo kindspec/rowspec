@@ -61,3 +61,19 @@ def test_a_header_of_ascii_space_and_tab_is_still_refused(tmp_path, cell):
     except Malformed:
         return
     assert any(f.level == "refuse" for f in found)
+
+
+@pytest.mark.parametrize("ch", ["\x0b", "\x0c"], ids=["vt", "ff"])
+def test_a_file_of_one_vt_or_ff_name_is_a_header_only_file(tmp_path, ch):
+    """VT and FF are not trimmed by §13, so a file holding only one of them
+    is a header of one name, as `<VT>,x` is, and not an empty file."""
+    assert check(tmp_path, f"{ch}\n") == []
+
+
+@pytest.mark.parametrize(
+    "body", ["", "\n", " \t\n", "\r\n\r\n"], ids=["empty", "lf", "wsp", "crlf"]
+)
+def test_a_file_of_ascii_space_tab_and_line_breaks_is_still_empty(tmp_path, body):
+    """Control: what the empty-file check still trims."""
+    with pytest.raises(Malformed, match="no table"):
+        check(tmp_path, body)

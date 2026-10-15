@@ -622,7 +622,8 @@ def check_file(path):
     side = sidecar_mod.find(path)
     with open(path, "rb") as fh:
         raw = fh.read()
-    if not raw.strip():
+    # ASCII space, tab and line breaks only: VT or FF alone is a column name.
+    if not raw.strip(b" \t\r\n"):
         raise Malformed("file contains no table: the file is empty")
     text, warnings = _decode(raw, "the file")
     if "\r\n" in text:
