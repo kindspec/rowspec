@@ -202,4 +202,9 @@ the case's `WHY.md`.
   call (`parse/*-function-in-a-header-group-call-*`); row-relative operators
   over computed values that hosts print in exponent form
   (`rowrel/*-tiny-computed-*`, `rowrel/*-large-computed-*`); and
-  `cumulative` over a computed `#REF!(/0)`.
+  `cumulative` over a computed `#REF!(/0)`. A review pass on the same
+  terms added a per-row group aggregate over a `prior` column
+  (`rowrel/group-aggregate-over-a-prior-column-*`), `prior`, `delta` and
+  `cumulative` over a missing column in the first row
+  (`rowrel/*-of-a-missing-column-*`), and first-row assertions for the
+  cycles above.

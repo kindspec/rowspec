@@ -19,8 +19,8 @@ comes first, reaches it before its input has a value. The table is acyclic.
 This case and its twin hold the same columns with the two computed header
 cells, and their cells, swapped; both expect the same value.
 
-Ordered by `n`, the rows are `r_1` (`k` = `x`, `v` = 1), `r_2` (`y`, 2) and
-`r_3` (`x`, 4). The declared order matches the file order.
+In file order the rows are `r_1` (`k` = `x`, `v` = 1), `r_2` (`y`, 2) and
+`r_3` (`x`, 4). The `n` column is present but no `order` is declared.
 
 Here the dependent column comes last in the header. The twin is
 `rowrel/formula-over-a-later-sorting-group-aggregate-dependent-first`.
