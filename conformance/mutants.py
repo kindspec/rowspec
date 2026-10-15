@@ -217,7 +217,7 @@ for r in seq:
             r[nm] = "#REF!(overflow)" if prev_ovf else prev
     elif fn == "delta":
         if prev is None:
-            r[nm] = ""
+            r[nm] = err or ""
         elif err or prev_err:
             r[nm] = err or prev_err
         else:
@@ -255,7 +255,7 @@ for r in seq:
             r[nm] = "#REF!(overflow)" if prev_ovf else prev
     elif fn == "delta":
         if prev is None:
-            r[nm] = ""
+            r[nm] = err or ""
         elif err or prev_err:
             r[nm] = err or prev_err
         else:
@@ -400,7 +400,7 @@ for r in seq:
         'if fn == "prior":\n    r[nm] = ""',
     ),
     "delta-first-row-is-the-value": (
-        'if prev is None:\n    r[nm] = ""\nelif err or prev_err:',
+        'if prev is None:\n    r[nm] = err or ""\nelif err or prev_err:',
         "if prev is None:\n    r[nm] = err or v\nelif err or prev_err:",
     ),
     "delta-is-negated": (
@@ -466,14 +466,11 @@ for r in seq:
     # EDGE: an ordinary formula that does not wait for the row-relative or
     # group column it names reads that column's empty stored cells.
     #
-    # Only the GROUP half of this mutant is caught. Dropping just the edge to
-    # a row-relative column survives the tree: `_evaluate_columns` visits
-    # `sorted(pending)`, and in every case that has an ordinary formula over a
-    # row-relative column the source's name happens to sort first, so it is
-    # evaluated first without the edge. The gap waits for a case, from an
-    # author who has not read table.py, whose dependent column sorts before
-    # its row-relative source. `tests/test_dependency_order.py` covers it for
-    # the two implementations in the meantime.
+    # Both halves are caught. The row-relative half dies to the cases whose
+    # dependent column sorts before its `cumulative` source
+    # (`formula-over-a-later-sorting-cumulative-dependent-*`), and
+    # `a-formula-has-no-edge-to-a-row-relative-column` below drops that edge
+    # on its own.
     "plain-pass-runs-only-once": (
         "    deps = {nm: names_of(t) for nm, t in trees.items()}",
         "    deps = {nm: [n for n in names_of(t) if n in trees] for nm, t in trees.items()}",
@@ -611,6 +608,137 @@ for r in seq:
     "cumulative-is-poisoned-only-by-a-blank": (
         "if poisoned is None and (v is None or ovf):",
         "if poisoned is None and v is None:",
+    ),
+    # --- §4.2 rule 9: one dependency graph over every computed column ------
+    "a-row-relative-column-has-no-edge-to-its-source": (
+        "        deps[nm] = [src]",
+        "        deps[nm] = []",
+    ),
+    "a-formula-has-no-edge-to-a-row-relative-column": (
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}",
+        "    deps = {nm: [n for n in names_of(t) if n not in rowrel] for nm, t in trees.items()}",
+    ),
+    "a-row-relative-column-over-itself-is-not-a-cycle": (
+        "        deps[nm] = [src]",
+        "        deps[nm] = [src] if src != nm else []",
+    ),
+    "a-group-aggregate-over-itself-is-not-a-cycle": (
+        "        deps[nm] = [col]",
+        "        deps[nm] = [col] if col != nm else []",
+    ),
+    # The check predates the graph; the graph moved it here, ahead of any
+    # value. The mutant after this one moves it back to where it runs only
+    # for a column that gets evaluated.
+    "a-group-aggregate-function-is-not-checked": (
+        '        if fn not in ("sum", "count", "min", "max", "avg"):\n'
+        "            raise Malformed(\n"
+        '                f"unknown aggregate {fn!r} in column {nm!r}", '
+        'refusal="unknown-aggregate"\n'
+        "            )",
+        "        pass",
+    ),
+    # The same check made lazy: run only when the group column is evaluated,
+    # as it was before the graph. A group column on a cycle never is, so an
+    # unknown function there is #REF!(cycle) instead of refused.
+    "a-group-aggregate-function-is-checked-only-when-evaluated": (
+        "    for nm, (fn, _col, ptext) in groups.items():\n"
+        '        if fn not in ("sum", "count", "min", "max", "avg"):\n'
+        "            raise Malformed(\n"
+        '                f"unknown aggregate {fn!r} in column {nm!r}", '
+        'refusal="unknown-aggregate"\n'
+        "            )\n"
+        "        try:\n"
+        '            _predicate(ptext, cols, computed, "malformed-formula")\n'
+        "        except KeyError:\n"
+        "            pass\n"
+        "    known = set(cols)\n"
+        "    unresolved = {nm: _header_error(t, known) for nm, t in trees.items()}\n"
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}\n"
+        "    for nm, (_fn, src) in rowrel.items():\n"
+        "        deps[nm] = [src]\n"
+        "    for nm, (_fn, col, _ptext) in groups.items():\n"
+        "        deps[nm] = [col]\n"
+        "    deps = {nm: set(d) & computed for nm, d in deps.items()}\n"
+        "    pending = set(formulas)\n"
+        "    while pending:\n"
+        "        progressed = False\n"
+        "        for nm in sorted(pending):\n"
+        "            if deps[nm] & pending:\n"
+        "                continue\n"
+        "            if nm in trees:\n"
+        "                _plain_column(nm, trees[nm], unresolved[nm], seq)\n"
+        "            elif nm in rowrel:\n"
+        "                _rowrel_column(nm, *rowrel[nm], seq, formulas, cols)\n"
+        "            else:\n"
+        "                _group_column(nm, *groups[nm], seq, formulas, cols)",
+        "    for nm, (fn, _col, ptext) in groups.items():\n"
+        "        try:\n"
+        '            _predicate(ptext, cols, computed, "malformed-formula")\n'
+        "        except KeyError:\n"
+        "            pass\n"
+        "    known = set(cols)\n"
+        "    unresolved = {nm: _header_error(t, known) for nm, t in trees.items()}\n"
+        "    deps = {nm: names_of(t) for nm, t in trees.items()}\n"
+        "    for nm, (_fn, src) in rowrel.items():\n"
+        "        deps[nm] = [src]\n"
+        "    for nm, (_fn, col, _ptext) in groups.items():\n"
+        "        deps[nm] = [col]\n"
+        "    deps = {nm: set(d) & computed for nm, d in deps.items()}\n"
+        "    pending = set(formulas)\n"
+        "    while pending:\n"
+        "        progressed = False\n"
+        "        for nm in sorted(pending):\n"
+        "            if deps[nm] & pending:\n"
+        "                continue\n"
+        "            if nm in trees:\n"
+        "                _plain_column(nm, trees[nm], unresolved[nm], seq)\n"
+        "            elif nm in rowrel:\n"
+        "                _rowrel_column(nm, *rowrel[nm], seq, formulas, cols)\n"
+        "            else:\n"
+        '                if groups[nm][0] not in ("sum", "count", "min", "max", "avg"):\n'
+        '                    raise Malformed("unknown aggregate", refusal="unknown-aggregate")\n'
+        "                _group_column(nm, *groups[nm], seq, formulas, cols)",
+    ),
+    # --- §4.2 rule 10 and §8: a header error is the same in every row ------
+    "an-overlong-literal-is-found-per-row": (
+        '        return "#REF!(overflow)" if node.v in (INF, -INF) else None',
+        "        return None",
+    ),
+    "a-data-error-outranks-a-header-error": (
+        "        if err:\n"
+        "            r[nm] = err\n"
+        "            continue\n"
+        "        try:\n"
+        "            r[nm] = ev(tree, r)",
+        "        try:\n"
+        "            r[nm] = ev(tree, r)\n"
+        "            if err:\n"
+        "                r[nm] = err",
+    ),
+    "the-rightmost-header-error-wins": (
+        "        return _header_error(node.l, known) or _header_error(node.r, known)",
+        "        return _header_error(node.r, known) or _header_error(node.l, known)",
+    ),
+    # --- §8: which of several #REF! an aggregate carries ---------------------
+    "div-by-zero-and-empty-rank-swapped": (
+        '_REF_RANK = {"cycle": 0, "/0": 2, "empty": 3, "overflow": 4}',
+        '_REF_RANK = {"cycle": 0, "/0": 3, "empty": 2, "overflow": 4}',
+    ),
+    "a-name-ranks-after-every-shape": (
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 5), e[6:-1]))",
+    ),
+    "names-rank-in-reverse-code-point-order": (
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
+        "    return max(\n"
+        "        (e for e in errs\n"
+        "         if _REF_RANK.get(e[6:-1], 1) == min(_REF_RANK.get(x[6:-1], 1) for x in errs)),\n"
+        "        key=lambda e: e[6:-1],\n"
+        "    )",
+    ),
+    "the-first-error-by-row-wins": (
+        "    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))",
+        "    return errs[0]",
     ),
 }
 

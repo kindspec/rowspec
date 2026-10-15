@@ -9,6 +9,15 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **In the first row, `delta(c)` carries `c`'s error when `c` gives one**
+  (§7; #142). SPEC.md read `delta(c)` as `c - prior(c)` but did not say what
+  the first row gives, which has no preceding row. It is blank only when `c`
+  is a number there; otherwise it is the error `c` gives, a blank or text
+  `c` included, as in every later row. Both implementations used to give a
+  blank in the first row whatever `c` held, so `delta(a)` with `a = v / 0`
+  was blank there and `#REF!(/0)` from the second row on. Both now follow
+  the rule.
+
 - **A numeric literal beyond binary64 range is `#REF!(overflow)`, like a
   stored cell** (§8; #117). §8 covered only a stored cell, so a formula such as
   `| b = 1000…0 |` with four hundred digits had no defined value, and nothing
@@ -181,6 +190,39 @@ prose, and where the two disagree the suite wins.
   with errors in both rows, overlong literals and header errors, blank key
   values, `prior` over text, and stored text spelled like an error. The floor
   is now 483 cases.
+
+- **34 conformance cases for evaluation order** (#112, #113, #132, #133, #134,
+  #135) in
+  `conformance/cases/`, written from SPEC.md without the implementation. A
+  computed column over a row-relative column or a group aggregate whose name
+  sorts after it, in both header positions; self-cycles through `prior`,
+  `delta`, `cumulative` and a group aggregate; an unknown function in a group
+  call; computed values a host prints in exponent form; and `cumulative` over
+  a computed `#REF!(/0)`; a group aggregate over a `prior` column; and a
+  missing or cyclic argument to a row-relative call, in the first row too.
+  The floor is now 517 cases.
+
+- **2 conformance cases ranking `/0` above `empty`** (#115) in one aggregate,
+  with the data lines swapped in the second. The floor is now 519 cases.
+
+- **2 conformance cases for an unknown function in a group aggregate over
+  itself**: it is refused even though the column is on a cycle, since
+  acceptance depends only on the formula's own bytes. A `min` control is
+  accepted. The floor is now 521 cases.
+
+- **The mutation gate covers evaluation order, header errors and the `#REF!`
+  ranking** (#115, #117, #132, #133, #134). Thirteen new mutants each break
+  one of them: a dropped edge in the dependency graph (a row-relative column to
+  its source, a formula to a row-relative column, a `prior`, `delta` or
+  `cumulative` column over itself, a group aggregate over itself), the
+  unknown-function check on a group call, removed or run only when the column
+  is evaluated (the check is older than the graph, which moved it ahead of
+  any value), an overlong literal found per row, a data error
+  outranking a header error, the rightmost header error winning, and an
+  aggregate's `#REF!` chosen with `/0` and `empty` swapped, names last, names
+  in reverse code-point order, or by row position. The cases kill every one
+  of them on a wrong answer. `just mutants` reports 99 killed, 0 survived, 2
+  equivalent.
 
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the

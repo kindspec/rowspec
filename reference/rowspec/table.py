@@ -1191,9 +1191,10 @@ def _rowrel_column(nm, fn, src, seq, formulas, cols):
                 r[nm] = "#REF!(overflow)" if prev_ovf else prev
         elif fn == "delta":
             # §7: `delta(c)` is `c - prior(c)`, so by §8's leftmost rule
-            # this row's error wins over the preceding row's.
+            # this row's error wins over the preceding row's -- in the first
+            # row too, where it is blank only when `c` is a number.
             if prev is None:
-                r[nm] = ""
+                r[nm] = err or ""
             elif err or prev_err:
                 r[nm] = err or prev_err
             else:
