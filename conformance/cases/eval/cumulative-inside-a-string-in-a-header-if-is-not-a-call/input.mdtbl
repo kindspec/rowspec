@@ -1,0 +1,9 @@
+| id | note | amt | x = if(note = "cumulative(amt)", amt, 0) |
+| --- | --- | --: | --: |
+| r_01 | cumulative(amt) | 5 |  |
+| r_02 | y | 7 |  |
+| r_03 | cumulative(amt) | 11 |  |
+
+key := id
+g := sum(x)
+h := max(x)

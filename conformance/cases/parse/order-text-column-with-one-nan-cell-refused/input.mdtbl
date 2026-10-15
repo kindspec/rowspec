@@ -1,0 +1,9 @@
+| id | o | amt |
+| --- | --- | --: |
+| r_01 | apple | 5 |
+| r_02 | nAn | 7 |
+| r_03 | pear | 11 |
+
+key := id
+order := by(o)
+g := sum(amt)
