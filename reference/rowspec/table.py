@@ -325,7 +325,11 @@ def parse(text):
             if cell.startswith("#REF!"):
                 row[c] = _Text(cell)
         for c in formulas:
-            if str(row.get(c, "")).strip() != "":
+            # `split_row` has trimmed the cell of ASCII space and tab, which
+            # is all §4.1.4 trims. A second `.strip()` here also removed
+            # U+00A0 and the other Unicode spaces, so a computed cell holding
+            # only one was read as empty instead of as a value (§9.17).
+            if row.get(c, "") != "":
                 raise Malformed(
                     f"computed column {c!r} has a value {row[c]!r} in a data row; "
                     f"computed cells must be empty",

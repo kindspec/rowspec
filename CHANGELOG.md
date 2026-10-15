@@ -201,6 +201,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A computed cell holding only U+00A0 or another Unicode space is
+  `value-in-computed-cell`** (#137). SPEC.md §4.1.4 trims a cell of ASCII
+  space and tab only, so such a cell holds a value, and §9.17 refuses a value
+  in a computed cell. The reference implementation trimmed the cell again
+  with Python's `str.strip()` and accepted it as empty. `rowspec_alt` already
+  refused it; a test now holds both to it.
+
 - **A stored cell spelled like an error value is text** (#126). SPEC.md §4.1
   rule 6 makes a cell that is not a `number` text, `#REF!(c)` as an operand
   of its own column `c`, and §7 lets only an error actually present poison
