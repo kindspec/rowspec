@@ -103,6 +103,15 @@ REF_OVERFLOW = Ref("overflow")
 REF_EMPTY = Ref("empty")
 
 
+# §8: which `#REF!` an aggregate carries when its operands hold several --
+# the shape first, in this order, then the name that sorts first by code point.
+REF_RANK = {"cycle": 0, "/0": 2, "empty": 3, "overflow": 4}
+
+
+def first_ref(errs):
+    return min(errs, key=lambda r: (REF_RANK.get(r.name, 1), r.name))
+
+
 def display(v):
     if isinstance(v, Ref):
         return f"#REF!({v.name})"
@@ -1589,28 +1598,28 @@ class Evaluator:
         if vals is None:
             return Ref(name)
         sel = [vals[q] for q in range(self.n) if self.matches(preds, q, p)]
+        # §8: an aggregate over any column containing a `#REF!` is itself
+        # `#REF!` -- it must not sum the values it can read.  Of several, the
+        # one ranked first, never the first row's: §6 forbids position.
+        errs = {v for v in sel if isinstance(v, Ref)}
         if fn == "count":
             # §7: `count` counts rows and never coerces.  It is poisoned by a
             # `#REF!` actually present in the column, because that is an error
             # value -- but not by a value that merely fails to parse as a
             # number, because `count` never uses it as an operand.
-            for v in sel:
-                if isinstance(v, Ref):
-                    return v
+            if errs:
+                return first_ref(errs)
             # A count is a cardinality: `count` never coerces an operand to
             # binary64, so its result is the exact row count, not a binary64
             # computation.  §7 spells its identity as `0`, an integer.
             return len(sel)
         nums = []
         for v in sel:
-            # §8: an aggregate over any column containing a `#REF!` is itself
-            # `#REF!` -- it must not sum the values it can read.
-            if isinstance(v, Ref):
-                return v
-            if v is BLANK:
+            if isinstance(v, Ref) or v is BLANK:
                 continue
             if isinstance(v, TextVal):
-                return Ref(name)
+                errs.add(Ref(name))
+                continue
             # §8: a stored cell whose binary64 value is already infinite is
             # `#REF!(overflow)` where it is used as an operand, and these
             # four coerce -- `min` and `max` included, which only compare
@@ -1618,8 +1627,11 @@ class Evaluator:
             # infinity itself, a value the format cannot store.
             v = fin(v)
             if isinstance(v, Ref):
-                return v
+                errs.add(v)
+                continue
             nums.append(v)
+        if errs:
+            return first_ref(errs)
         if fn == "sum":
             # §7: the correctly-rounded binary64 of the EXACT mathematical
             # sum -- order-independent, and finite whenever the exact sum is.

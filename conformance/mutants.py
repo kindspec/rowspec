@@ -152,8 +152,8 @@ MUTANTS = {
         "        if False:",
     ),
     "count-coerces-like-the-other-four": (
-        '    if fn == "count":\n        return len(vals)',
-        "    if False:\n        return len(vals)",
+        '    if fn != "count":\n        for v in vals:',
+        "    if True:\n        for v in vals:",
     ),
     # --- §7/§8: an aggregate with no operands -------------------------------
     "empty-min-is-blank": (
@@ -196,7 +196,7 @@ MUTANTS = {
 prev_ovf = False
 prev_err = None
 for r in seq:
-    raw = str(r.get(src, "")).strip()
+    raw = str(r.get(src, ""))
     try:
         v = num(raw)
     except (ValueError, TypeError):
@@ -234,7 +234,7 @@ for r in seq:
 prev_ovf = False
 prev_err = None
 for r in seq:
-    raw = str(r.get(src, "")).strip()
+    raw = str(r.get(src, ""))
     try:
         v = num(raw)
     except (ValueError, TypeError):
@@ -344,7 +344,7 @@ for r in seq:
     ),
     "allow-rowrel-without-order": ("if order is None:", "if False:"),
     "ref-becomes-zero": (
-        "if bad:\n    return bad[0]",
+        "if bad:\n    return _first_ref(bad)",
         "if bad:\n    return 0.0",
     ),
     "off-by-one-cumulative": (
@@ -547,8 +547,8 @@ for r in seq:
     #
     # Only min and max die to a wrong value; sum and avg die by raising.
     "an-infinite-aggregate-operand-is-passed-on": (
-        "    if not all(math.isfinite(x) for x in nums):",
-        "    if False:",
+        "            if not math.isfinite(x):",
+        "            if False:",
     ),
     "a-header-group-aggregate-over-a-missing-column-is-refused": (
         "    if col not in cols:\n        missing = col",

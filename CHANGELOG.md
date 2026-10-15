@@ -25,6 +25,19 @@ prose, and where the two disagree the suite wins.
   gave `#REF!(c)`, and `1000…0 + nope` gave `#REF!(nope)`. Both now follow the
   rule.
 
+- **An aggregate whose operands hold several different `#REF!` values
+  carries one chosen by shape, then by name, never by row position** (§8;
+  #115). The ranking is `cycle`, a name, `/0`, `empty`, `overflow`; among
+  names, the one that sorts first by code point. A value that will not coerce
+  is a name, so it outranks a stored cell beyond binary64. SPEC.md did not
+  say, and both implementations carried the error of the first row in some
+  cases, so swapping two lines changed an aggregate: `sum(c)` over a computed
+  `#REF!(overflow)` and `#REF!(/0)` gave whichever came first, and the second
+  implementation's `sum(a)` over a text cell and a cell beyond binary64 did
+  the same. Both now follow the ranking, in table-level and per-row group
+  aggregates. The ranking reads a `#REF!` as spelled, so a broken reference
+  to a column named `cycle`, `empty` or `overflow` ranks as that shape.
+
 - **`delta(c)` carries this row's error when this row and the preceding row
   both give one** (§7; #116). §7 now reads `delta(c)` as `c - prior(c)`, so
   §8's leftmost rule decides. SPEC.md did not say, and the two implementations
@@ -178,6 +191,22 @@ prose, and where the two disagree the suite wins.
   `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
 
 ### Fixed
+
+- **`prior(c)` over a stored text cell is `#REF!(c)`** (#114). SPEC.md §4.2
+  rule 10 leaves a computed value two kinds, a number and an error, and §8
+  makes a value that will not coerce `#REF!`; blank is the one non-number §7
+  lets `prior` carry. The reference implementation stored the text itself in
+  the computed column, so `count` over that column counted it as a value
+  where it must be poisoned. `rowspec_alt` already gave `#REF!(c)`; a test
+  now holds both to it. `prior` over a computed column is unchanged here.
+
+- **`prior`, `delta`, `cumulative` and an order column no longer trim
+  U+00A0 and other Unicode spaces from a cell** (part of #114). SPEC.md
+  §4.1.4 trims ASCII space and tab only. The reference trimmed again with
+  Python's `str.strip()`, so a cell holding only U+00A0 was blank and
+  `2<U+00A0>` was the number 2: `cumulative` summed it, an order column
+  sorted it as a number, and a text order key lost the character. Each is
+  now text, as in `rowspec_alt`.
 
 - **A blank value in the key column is `bad-identifier`** (#111). SPEC.md
   §4.1.9 makes a key value an `ident`, one or more characters, so a blank

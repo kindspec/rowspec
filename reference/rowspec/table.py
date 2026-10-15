@@ -403,7 +403,7 @@ DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
-    vals = [str(r.get(col, "")).strip() for r in rows]
+    vals = [str(r.get(col, "")) for r in rows]
     if any(v == "" for v in vals):
         # §6: blank is none of number/date/text, so a column mixing it with any
         # of them mixes types. Previously blanks were filtered out here and the
@@ -513,30 +513,40 @@ def _exact(nums, divisor):
         return float("inf")  # the caller maps a non-finite result to #REF!(overflow)
 
 
+# §8: of several #REF! among one aggregate's operands, the first by shape in
+# this order, then the name that sorts first. Never the first row's.
+_REF_RANK = {"cycle": 0, "/0": 2, "empty": 3, "overflow": 4}
+
+
+def _first_ref(errs):
+    return min(errs, key=lambda e: (_REF_RANK.get(e[6:-1], 1), e[6:-1]))
+
+
 def _agg(fn, vals, what):
     bad = [v for v in vals if isinstance(v, str) and v.startswith("#REF!")]
-    if bad:
-        return bad[0]
     # `count` counts rows and never coerces: it is poisoned by a #REF! already
-    # present (handled above) but not by a value that merely is not a number,
-    # because it never uses one as an operand.
+    # present but not by a value that merely is not a number, because it never
+    # uses one as an operand.
+    if fn != "count":
+        for v in vals:
+            if v in ("", None) or v in bad:
+                continue
+            try:
+                x = num(v)
+            except (ValueError, TypeError):
+                bad.append(f"#REF!({what})")
+                continue
+            if not math.isfinite(x):
+                # §8: a stored cell whose binary64 value is infinite is
+                # #REF!(overflow) wherever it is an operand. `fsum` raises on
+                # inf + -inf, and `_exact` cannot take an infinity's integer
+                # ratio, so it must not reach them.
+                bad.append("#REF!(overflow)")
+    if bad:
+        return _first_ref(bad)
     if fn == "count":
         return len(vals)
-    try:
-        for v in vals:
-            if v not in ("", None):
-                num(v)
-    except (ValueError, TypeError):
-        return f"#REF!({what})"
-    try:
-        nums = [num(v) for v in vals if v not in ("", None)]
-    except (ValueError, TypeError):
-        return f"#REF!({what})"
-    if not all(math.isfinite(x) for x in nums):
-        # §8: a stored cell whose binary64 value is infinite is #REF!(overflow)
-        # wherever it is an operand. `fsum` raises on inf + -inf, and `_exact`
-        # cannot take an infinity's integer ratio, so it must not reach them.
-        return "#REF!(overflow)"
+    nums = [num(v) for v in vals if v not in ("", None)]
     if fn == "sum":
         got = _exact(nums, 1)
     elif fn == "avg":
@@ -1180,7 +1190,7 @@ def evaluate(text):
         kind = column_type(order, rows)
 
         def typed(r):
-            v = str(r[order]).strip()
+            v = str(r[order])
             if kind == "number":
                 f = num(v)
                 if f != f or f in (float("inf"), float("-inf")):
@@ -1228,7 +1238,7 @@ def evaluate(text):
         prev_ovf = False
         prev_err = None
         for r in seq:
-            raw = str(r.get(src, "")).strip()
+            raw = str(r.get(src, ""))
             try:
                 v = num(raw)
             except (ValueError, TypeError):
@@ -1280,6 +1290,11 @@ def evaluate(text):
                     # `canon` would not round-trip its own output.
                     r[nm] = "#REF!(overflow)" if acc in (INF, -INF) else acc
             prev = raw if v is None else v
+            if v is None and raw != "" and src not in formulas:
+                # §4.2 rule 10: a computed value is a number or an error, so
+                # stored text that will not coerce is #REF!(src) (§8), never
+                # the text itself -- which `count` would then count as a value.
+                prev = f"#REF!({src})"
             prev_ovf = ovf
             prev_err = err
 
