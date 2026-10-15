@@ -252,12 +252,16 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
-- **The xlsx export refuses a C0 control character instead of crashing**
-  (#166). Since #144, a stored cell or string literal can hold a form feed,
-  vertical tab or other C0 control, and the XML an `.xlsx` is made of has
-  no character for any of them except tab, LF and CR. The exporter passed
-  the text to openpyxl, which raised `IllegalCharacterError`. It now raises
-  `NotExpressible`, as it does for anything else a spreadsheet cannot say.
+- **The xlsx export refuses a character XML cannot hold instead of
+  crashing or writing a broken file** (#166). §4.1 lets a stored cell or
+  string literal hold any C0 control but CR and LF, and U+FFFE and U+FFFF;
+  #144 added form feed and vertical tab, which used to end a line. The XML
+  an `.xlsx` is made of has no character for any of them except tab, LF and
+  CR. openpyxl raised `IllegalCharacterError` on a C0 control, and wrote
+  U+FFFE or U+FFFF into a file no reader could parse, which LibreOffice
+  opened with the value silently dropped. The exporter now raises
+  `NotExpressible`, as it does for anything else a spreadsheet cannot say,
+  and checks the sheet title the same way.
 
 - **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
   CRLF and every other scalar value but CR a `char`. The reference

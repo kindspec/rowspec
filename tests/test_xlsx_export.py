@@ -193,12 +193,18 @@ def test_the_coordinate_check_can_fail():
             "key := id\n",
             "significant digits",
         ),
-        ("| id | a |\n| - | - |\n| r_1 | a\x0cb |\n\nkey := id\n", "C0 control"),
-        ("| id | a |\n| - | - |\n| r_1 | a\x0bb |\n\nkey := id\n", "C0 control"),
-        ("| id | a |\n| - | - |\n| r_1 | a\x00b |\n\nkey := id\n", "C0 control"),
+        ("| id | a |\n| - | - |\n| r_1 | a\x0cb |\n\nkey := id\n", "no spreadsheet file"),
+        ("| id | a |\n| - | - |\n| r_1 | a\x0bb |\n\nkey := id\n", "no spreadsheet file"),
+        ("| id | a |\n| - | - |\n| r_1 | a\x00b |\n\nkey := id\n", "no spreadsheet file"),
         (
             '| id | g | t = if(g = "x\x0c", 1, 0) |\n| - | - | - |\n| r_1 | y |  |\n\nkey := id\n',
-            "C0 control",
+            "no spreadsheet file",
+        ),
+        ("| id | a |\n| - | - |\n| r_1 | a\ufffeb |\n\nkey := id\n", "no spreadsheet file"),
+        (
+            '| id | g | t = if(g = "x\uffff", 1, 0) |\n| - | - | - |\n'
+            "| r_1 | y |  |\n\nkey := id\n",
+            "no spreadsheet file",
         ),
     ],
     ids=[
@@ -213,6 +219,8 @@ def test_the_coordinate_check_can_fail():
         "vertical-tab-cell",
         "nul-cell",
         "form-feed-string-literal",
+        "fffe-cell",
+        "ffff-string-literal",
     ],
 )
 def test_what_a_spreadsheet_cannot_say_is_refused(table, why):
@@ -326,3 +334,8 @@ def test_tab_in_a_cell_is_exported():
     refusal of the others must not reach it."""
     wb = to_workbook("| id | a |\n| - | - |\n| r_1 | a\tb |\n\nkey := id\n")
     assert wb.active["B2"].value == "a\tb"
+
+
+def test_a_sheet_title_xml_cannot_hold_is_refused():
+    with pytest.raises(NotExpressible, match="no spreadsheet file"):
+        to_workbook("| id | a |\n| - | - |\n| r_1 | 1 |\n\nkey := id\n", "a\x0cb")
