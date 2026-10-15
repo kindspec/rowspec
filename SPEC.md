@@ -304,9 +304,14 @@ appears in the grammar; `key := col` is the sole bare form, because `key` names
 a column rather than computing one. A declaration is malformed (§9.12) if it
 contains `:=` and does not match `declaration` — including a non-`key` name with
 no function, an unclosed parenthesis, an unrecognised `order` construct such as
-`order := none()`, and any `ident` violating rule 9. §6 defines exactly two
-order states, `order := by(c)` and the line omitted entirely; a third spelling is
-refused rather than degraded into the second.
+`order := none()`, and any `ident` violating rule 9. **`key := col` is malformed
+too when `col` is not a stored column of the table** — when no column has that
+name, or the column it names is computed. The grammar cannot see the header,
+so this check is semantic rather than syntactic, but the declaration is
+malformed all the same: it names nothing a key can be. A missing column has no
+values, and a computed column's cells are empty (§5), so neither holds a row
+id. §6 defines exactly two order states, `order := by(c)` and the line omitted
+entirely; a third spelling is refused rather than degraded into the second.
 
 **12. Conflict markers.** A conflict line is any line whose first seven
 characters are seven `<`, seven `=`, seven `>`, or **seven `|`**. All four,
@@ -921,7 +926,8 @@ value into a computed cell is an error.
 
 **The key** column holds an opaque, machine-generated row identifier. It is not
 an address: a human writes column *names* into formulas and never writes a row
-id into anything.
+id into anything. It is a stored column; `key :=` naming no column, or a
+computed one, is refused (§9.12).
 
 Measured rationale: across four identity functions and four concurrent-edit
 scenarios, natural keys lose an edit on rename and overwrite a row on
@@ -1284,7 +1290,9 @@ An implementation MUST refuse:
     words
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
-    that does not match `declaration` (§4.1.11)
+    that does not match `declaration`, or a `key := col` whose `col` is not a
+    stored column of the table: no column of that name, or a computed one
+    (§4.1.11)
 13. `no-table`: a file containing no table
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
