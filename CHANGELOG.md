@@ -299,6 +299,20 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A CSV sidecar names a column after trimming ASCII space and tab and
+  after NFC, `""` included** (#181, #182, #183). SPEC.md §13 compares a
+  name in `key`, `order` or `columns` as §9.2 compares column names, and
+  refuses one that names no column rather than skipping it. CSV mode
+  normalised names to NFC but did not trim them, so `"key": " id"` was
+  refused as naming no column; it ignored `"key": ""` and `"order": ""`
+  altogether, so neither named an empty-headed column nor was refused
+  without one; and two `columns` members alike after NFC, such as `café`
+  spelt NFC and NFD, were merged with the last one winning. Each name is
+  now trimmed and normalised before it is matched, an empty name names the
+  empty-headed column or is refused, and two members naming one column are
+  refused as a repeated member is. A leading or trailing non-ASCII space,
+  such as U+00A0, is still part of the name.
+
 - **A row-relative name inside a string literal needs no declared order**
   (#172). SPEC.md §9.9 refuses a row-relative operator with no declared
   order, and text inside a `string` is a value (§4.2 rule 6), not an
