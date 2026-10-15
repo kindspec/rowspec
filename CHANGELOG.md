@@ -13,8 +13,14 @@ prose, and where the two disagree the suite wins.
   stored cell** (§8; #117). §8 covered only a stored cell, so a formula such as
   `| b = 1000…0 |` with four hundred digits had no defined value, and nothing
   in §9 refused it. The formula is not refused: the literal is an operand like
-  any other. Both implementations already did this; unit tests now pin a bare,
-  negated and fractional literal.
+  any other. Like an unresolved name (§4.2 rule 10), its cause is in the
+  header, so a formula holding one is `#REF!(overflow)` in every row, a row
+  whose `if` takes the other branch included. It outranks an error from the
+  data, and of two such errors the leftmost wins: `1000…0 + nope` is
+  `#REF!(overflow)`. Both implementations used to evaluate the literal per
+  row: a row taking the other branch got a number, a blank operand to its left
+  gave `#REF!(c)`, and `1000…0 + nope` gave `#REF!(nope)`. Both now follow the
+  rule.
 
 - **A CSV column name is trimmed of ASCII space and tab only before §9.2
   compares names** (§13; #118), as a key value is (§4.1.4). §13 did not say

@@ -1363,13 +1363,14 @@ class Evaluator:
         elif not col.computed:
             vals = [coerce_cell(self.st.row_lines[i].cells[idx]) for i in self.perm]
         else:
-            missing = self.static_miss(col.formula)
+            missing = self.header_error(col.formula)
             if missing is not None:
                 # §4.2 rule 10: a name that does not resolve is `#REF!(name)`
                 # in EVERY row, even where the branch naming it is not
                 # selected.  Whether a name resolves is a property of the
-                # header alone.
-                vals = [Ref(missing)] * self.n
+                # header alone -- and so is a literal too long for binary64,
+                # which is `#REF!(overflow)` in every row (§8).
+                vals = [missing] * self.n
             else:
                 vals = [self.eval(col.formula, p) for p in range(self.n)]
         self.cache[name] = vals
@@ -1379,6 +1380,29 @@ class Evaluator:
         for nm in names_in(node):
             if nm not in self.st.col_index:
                 return nm
+        return None
+
+    def header_error(self, node):
+        """The leftmost error a formula has whatever the data, in source
+        order: a name that does not resolve, or a literal whose binary64 value
+        is infinite (§4.2 rule 10, §8)."""
+        for nd in iter_nodes(node):
+            t = nd[0]
+            if t == "lit":
+                items = [nd[1]]
+            elif t == "cmp":
+                items = [nd[2]]
+                if nd[3] == "col" or isinstance(nd[4], Ref):
+                    items.append(nd[4])
+            elif t in ("col", "rowrel", "agg"):
+                items = names_in(nd)
+            else:
+                continue
+            for it in items:
+                if isinstance(it, Ref):
+                    return it
+                if isinstance(it, str) and it not in self.st.col_index:
+                    return Ref(it)
         return None
 
     def stored_text(self, name, p):

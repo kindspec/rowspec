@@ -1226,11 +1226,16 @@ whose decimal spelling is finite but whose binary64 value is already infinite is
 `#REF!(overflow)` wherever it is used as an operand, for the same reason: §9.10
 refuses the *spellings* `inf` and `nan`, and a four-hundred-digit cell is
 neither. **So is a numeric literal in a formula** whose binary64 value is
-infinite: `| b = 1000…0 |`, with four hundred digits, is `#REF!(overflow)` in
-every row, and so is every value that uses such a literal as an operand, an
-`if` bound included. The formula is not refused. `literal` generates the token,
-so §9.20 does not reach it, and converting it to binary64 is the conversion
-§4.2 rule 2 applies to every operand, the one a stored cell undergoes.
+infinite: `| b = 1000…0 |`, with four hundred digits, is `#REF!(overflow)`.
+The formula is not refused. `literal` generates the token, so §9.20 does not
+reach it, and converting it to binary64 is the conversion §4.2 rule 2 applies
+to every operand, the one a stored cell undergoes. **A formula holding such a
+literal is `#REF!(overflow)` in every row, a row whose `if` takes the other
+branch included, because whether a literal fits binary64 is a property of the
+header alone, which is §4.2 rule 10's reason for an unresolved name;** like
+that name it outranks any error that comes from the data, an `if` bound
+included, and of two such errors in one formula the leftmost wins, so
+`1000…0 + nope` is `#REF!(overflow)` and `nope + 1000…0` is `#REF!(nope)`.
 
 **There are exactly five `#REF!` shapes**, and an implementation emits no
 sixth. `#REF!(name)` carries the *originating* name — the column that could not
@@ -1238,9 +1243,10 @@ be resolved or whose value would not coerce, not the column the error surfaces
 in. `#REF!(/0)` is division by zero (§4.2 rule 2). `#REF!(cycle)` is a cycle
 among computed columns (§4.2 rule 9). `#REF!(empty)` is an aggregate with no
 operands and no identity element (§7). `#REF!(overflow)` is an operation whose
-IEEE result is an infinity (§4.2 rule 2), or an operand — a stored cell or a
-numeric literal — whose binary64 value already is one. All five are values, all five
-propagate identically, and none of them is ever a number.
+IEEE result is an infinity (§4.2 rule 2), an aggregate whose result is not
+finite (above), or an operand — a stored cell or a numeric literal — whose
+binary64 value already is one. All five are values, all five propagate
+identically, and none of them is ever a number.
 
 This paragraph said *three* while rule 2 already required `overflow`, and later
 *four* while §7 required `empty` — the kind of drift a document acquires when a

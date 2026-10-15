@@ -1036,6 +1036,29 @@ OPS = {
 }
 
 
+def _header_error(node, known):
+    """The leftmost error a formula has whatever the data: a name that does not
+    resolve, or a literal whose binary64 value is infinite (§4.2 rule 10, §8).
+    Both branches of every `if`, in textual order."""
+    if isinstance(node, Name):
+        return None if node.id in known else f"#REF!({node.id})"
+    if isinstance(node, Num):
+        return "#REF!(overflow)" if node.v in (INF, -INF) else None
+    if isinstance(node, Neg):
+        return _header_error(node.x, known)
+    if isinstance(node, Bin):
+        return _header_error(node.l, known) or _header_error(node.r, known)
+    if isinstance(node, If):
+        c = node.c
+        err = None if c.lhs in known else f"#REF!({c.lhs})"
+        if err is None and c.kind == "name" and c.rhs not in known:
+            err = f"#REF!({c.rhs})"
+        if err is None and c.kind == "num" and c.rhs in (INF, -INF):
+            err = "#REF!(overflow)"
+        return err or _header_error(node.a, known) or _header_error(node.b, known)
+    return None
+
+
 def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozenset()):
     """Evaluate ordinary column formulas by DEPENDENCY, per row.
 
@@ -1073,17 +1096,19 @@ def _eval_plain(seq, plain, later=frozenset(), computed=frozenset(), cols=frozen
     # other branch. Otherwise a merge that adds the first row taking that branch
     # poisons the column, and every aggregate over it, without touching a
     # formula or a header.
+    # A literal too long for binary64 is the same kind of error (§8): its cause
+    # is in the header, so it is #REF!(overflow) in every row too.
     unresolved = {}
     if cols:
         known = set(cols)
-        for nm, names in ordered.items():
-            # §8: the LEFTMOST unresolved name in the formula text, not the
+        for nm, t in trees.items():
+            # §8: the LEFTMOST such error in the formula text, not the
             # alphabetically first and not whichever one evaluation reached
             # first -- rule 9 makes evaluation strategy a free choice, so the
             # error must not be a function of it.
-            miss = [n for n in names if n not in known]
-            if miss:
-                unresolved[nm] = f"#REF!({miss[0]})"
+            err = _header_error(t, known)
+            if err:
+                unresolved[nm] = err
     for r in seq:
         pending = set(plain)
         deferred = set()
