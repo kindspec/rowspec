@@ -243,6 +243,35 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **Only LF and CRLF end a line** (#144). SPEC.md §4.1 makes `eol` LF or
+  CRLF and every other scalar value but CR a `char`. The reference
+  implementation split the file with Python's `str.splitlines()`, which also
+  breaks on VT, FF, U+001C to U+001E, NEL, U+2028 and U+2029. So a stored
+  cell holding one was refused as `malformed-table-line`, a computed cell
+  holding one as `row-field-count` rather than `value-in-computed-cell`,
+  `canon` and `add-row` refused the file, and CSV mode reported a conflict
+  marker after one inside a quoted field. `parse`, `canon`, `add-row` and CSV
+  mode's conflict-marker scan now split on LF only, as `rowspec_alt` already
+  did; a test now holds both to it. `add-row` splits the file itself as well,
+  and with only `parse` fixed it would have inserted its row inside the last
+  line. In CSV mode this also changes a marker run placed after a lone CR
+  rather than an LF: git does not start a line there, so it is no longer
+  reported as a conflict marker (§4.1.12 is about a line's first seven
+  characters), and the lone CR is still reported, as before.
+
+- **U+00A0 and other Unicode spaces are not `WSP` around a line, a header
+  cell or a declaration** (#143). SPEC.md §4.1 defines `WSP` as ASCII space
+  and tab only. The reference implementation trimmed lines, header names,
+  formulas and declarations with Python's `str.strip()` and matched them with
+  `\s`, which cover Unicode whitespace, so it accepted U+00A0 after a closing
+  pipe, before a leading pipe or a `#`, on a line of its own, around a header
+  name or a formula, and inside or after a declaration. It now trims and
+  matches ASCII space and tab only, and refuses each of those files as
+  `rowspec_alt` already did; a test now holds both to it. A declaration's
+  `where` is now separated by any run of space and tab, as §4.2 writes it
+  (`1*WSP "where" 1*WSP`): `sum(n \twhere c = "x")` and `sum(n where\tc = "x")`
+  were refused before, because only a single space was recognised.
+
 - **CSV mode trims key, order and typed column values of ASCII space and
   tab only** (#145). SPEC.md §13 trims a key value of ASCII space and tab
   only (§4.1.4). CSV mode trimmed values with Python's `str.strip()`, which
