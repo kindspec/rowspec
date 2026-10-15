@@ -93,6 +93,14 @@ _IDENT_EXTRA = set("_")
 
 
 def _check_ident(name, what):
+    if not name:
+        # §4.1: `ident = 1*( ... )`. A name of no characters has no bad
+        # character for the loops below to find, and would key a column ''.
+        raise Malformed(
+            f"{what} is empty; §4.1.9 makes an identifier one or more letters, "
+            f"marks, digits or underscores",
+            refusal="bad-identifier",
+        )
     for ch in name:
         if ch in _STRUCTURAL or (
             not (ch.isalnum() or unicodedata.category(ch).startswith("M"))
@@ -116,6 +124,16 @@ def _check_ident(name, what):
                 f"must not render identically",
                 refusal="bad-identifier",
             )
+
+
+def _is_ident(name):
+    """§4.1's `ident` as a test: one or more characters, each admitted by
+    `_check_ident`."""
+    try:
+        _check_ident(name, "")
+    except Malformed:
+        return False
+    return name != ""
 
 
 _ANNOT = re.compile(r'"[^"]*"|[ \t]#')
@@ -224,8 +242,11 @@ def parse(text):
         if ww:
             nm_, fn_, inner = mw.groups()
             col_, ptext = inner[: ww.start()], inner[ww.end() :]
-            if not re.fullmatch(r"[ \t]*[^\s()]+", col_):
-                # §4.1: only WSP may pad the aggregated column, never U+00A0.
+            if not _is_ident(col_.lstrip(WSP)):
+                # §4.1: only WSP may pad the aggregated column, never U+00A0,
+                # and the column is an `ident`: a control or Cf character in
+                # it is a malformed declaration, not a name that resolves to
+                # no column.
                 raise Malformed(
                     f"line {n}: malformed declaration: {line.strip(WSP)!r}",
                     refusal="malformed-declaration",
@@ -246,6 +267,17 @@ def parse(text):
         m = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*(\w+)\([ \t]*([^\s()]*)[ \t]*\)[ \t]*$", line)
         if m:
             name, fn, arg = m.groups()
+            if not _is_ident(arg):
+                # §4.1: `arg = ident`, for `order := by(c)` as for an
+                # aggregate. The pattern above admits any character but
+                # whitespace and parentheses, and none at all, so a control or
+                # Cf character, or nothing, would otherwise become a name that
+                # resolves to no column: an aggregate of #REF!, or an order
+                # that is never checked.
+                raise Malformed(
+                    f"line {n}: malformed declaration: {line.strip(WSP)!r}",
+                    refusal="malformed-declaration",
+                )
         else:
             m2 = re.match(r"[ \t]*([^\s:=]+)[ \t]*:=[ \t]*([\w.-]+)[ \t]*$", line)
             if not m2:
@@ -311,7 +343,9 @@ def parse(text):
     # I7: row-relative operators are illegal unless order is declared
     for nm, expr in formulas.items():
         for fn in ROWREL:
-            if re.search(rf"\b{fn}[ \t]*\(", expr):
+            # §4.2 rule 4: a function name touches its `(`. `prior (n)` is
+            # not a row-relative call, and is refused as a formula below.
+            if re.search(rf"\b{fn}\(", expr):
                 if order is None:
                     raise Malformed(
                         f"column {nm!r} uses row-relative {fn}() but the table "
@@ -450,6 +484,13 @@ def _isnum(v):
 DATE_RE = re.compile(r"^[0-9]{1,4}([-/])[0-9]{1,2}\1[0-9]{1,2}$")
 
 
+def is_nonfinite_spelling(v):
+    """SPEC.md §9.10: `inf`, `nan` and `infinity`, in any case. These are text
+    by §4.1.6, so an order column of nothing else is a single type, and §9.10
+    refuses them in any row whatever the rest of the column holds."""
+    return v.lower() in ("inf", "nan", "infinity")
+
+
 def column_type(col, rows):
     """A column used for ordering must have ONE type. Mixed types have no total
     order, so they are refused rather than silently compared as strings."""
@@ -463,6 +504,12 @@ def column_type(col, rows):
             f"order column {col!r} has a blank cell; an ordering column must "
             f"have a single type across every row (§9.10), and blank is none "
             f"of number, date or text",
+            refusal="bad-order-column",
+        )
+    spelled = next((v for v in vals if is_nonfinite_spelling(v)), None)
+    if spelled is not None:
+        raise Malformed(
+            f"order column {col!r} holds the non-finite spelling {spelled!r} (§9.10)",
             refusal="bad-order-column",
         )
     if not vals:
@@ -618,7 +665,9 @@ def _agg(fn, vals, what):
 
 
 def _ast(expr, where):
-    if "#" in expr:
+    # §4.2 rule 8 refuses a `#` outside the grammar. Inside a `string` it is a
+    # character like any other (rule 6), so `if(a = "#4", 1, 2)` is a formula.
+    if "#" in re.sub(r'"[^"]*"', "", expr):
         raise Malformed(
             f"column {where!r}: '#' is not a comment inside a formula (§4.1.10); "
             f"a whole-line annotation goes outside the table",
@@ -1289,7 +1338,9 @@ def _evaluate_columns(seq, cols, formulas):
     computed = frozenset(formulas)
     rowrel, groups, plain = {}, {}, {}
     for nm, expr in formulas.items():
-        m = re.fullmatch(r"[ \t]*(\w+)[ \t]*\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
+        # §4.2: `rowrel-call = rowrel-fn "(" ...`, with no WSP before `(`
+        # (rule 4). Admitting it here read `prior (n)` as `prior(n)`.
+        m = re.fullmatch(r"[ \t]*(\w+)\([ \t]*(\w+)[ \t]*\)[ \t]*", expr)
         g = _GROUP.fullmatch(expr.strip(WSP))
         if m and m.group(1) in ROWREL:
             rowrel[nm] = m.groups()
