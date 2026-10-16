@@ -379,3 +379,29 @@ def test_removing_an_unterminated_last_line_keeps_the_file_unterminated(op):
     out = op(UNTERMINATED)
     assert not out.endswith("\n")
     evaluate(out)
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        lambda t: edit.set_declaration(t, "g", "sum(a)"),
+        lambda t: edit.set_declaration(t, "n", "count(id)"),
+        lambda t: edit.delete_declaration(t, "n"),
+        lambda t: edit.rename_column(t, "a", "b"),
+        lambda t: edit.insert_row(t, {"a": "2"}, id="r2")[0],
+        lambda t: edit.insert_row(t, {"a": "2"}, after="r1")[0],
+        lambda t: edit.delete_row(t, "r1"),
+    ],
+)
+def test_declarations_above_the_table(op):
+    src = "key := id\nn := count(a)\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
+    out = op(src)
+    assert out.count("\n") - src.count("\n") in (-1, 0, 1)
+    evaluate(out)
+
+
+def test_a_new_declaration_above_the_table_goes_after_the_last_one():
+    src = "key := id\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
+    assert edit.set_declaration(src, "g", "sum(a)") == (
+        "key := id\ng := sum(a)\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
+    )

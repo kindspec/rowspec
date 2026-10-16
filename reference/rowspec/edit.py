@@ -234,8 +234,15 @@ class _Doc:
         evaluate(text)
         self.cols, self.formulas, _rows, _decls, self.order, self.key = parse(text)
         self.lines = split_lines(text, keepends=True)
+        self.index()
+
+    def index(self):
+        """Find the table again. Called after every insertion, so no index goes
+        stale when a line is added above the table. A removal is always the
+        edit's last step, so nothing reads an index after one."""
         tbl = [i for i, ln in enumerate(self.lines) if ln.strip(WSP).startswith("|")]
         self.header, self.align, self.data = tbl[0], tbl[1], tbl[2:]
+        self.table = set(tbl)
 
     def body(self, i):
         return _nfc(_body(self.lines[i]))
@@ -268,7 +275,7 @@ class _Doc:
         """{name: line index} for every declaration line."""
         out = {}
         for i in range(len(self.lines)):
-            if i in (self.header, self.align) or i in self.data:
+            if i in self.table:
                 continue
             d = _declaration(self.body(i))
             if d:
@@ -319,6 +326,7 @@ class _Doc:
             self.lines.insert(at, body)
         else:
             self.lines.insert(at, body + eol)
+        self.index()
 
     def remove(self, i):
         """Remove line `i` and return it. Removing the last line, when it has no
@@ -327,7 +335,6 @@ class _Doc:
         line = self.lines.pop(i)
         if i == len(self.lines) and not _eol(line) and self.lines:
             self.lines[-1] = _body(self.lines[-1])
-        self.data = [j if j < i else j - 1 for j in self.data if j != i]
         return line
 
     def keys(self):
