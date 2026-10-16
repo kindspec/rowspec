@@ -377,3 +377,22 @@ def test_end_places_a_row_last_whatever_its_key():
     with pytest.raises(edit.EditRefused) as e:
         edit.insert_row(BASE, {"item": "x"}, after="r_01", end=True)
     assert e.value.reason == "bad-position"
+
+
+UNTERMINATED = "key := id\n\n" + BASE.split("\n\n")[0].replace("# parts on hand\n", "")
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        lambda t: edit.delete_row(t, "r_04"),
+        lambda t: edit.move_row(t, "r_04", before="r_01"),
+        lambda t: edit.delete_declaration(t + "\ng := sum(qty)", "g"),
+    ],
+    ids=["delete_row", "move_row", "delete_declaration"],
+)
+def test_removing_an_unterminated_last_line_keeps_the_file_unterminated(op):
+    assert not UNTERMINATED.endswith("\n")
+    out = op(UNTERMINATED)
+    assert not out.endswith("\n")
+    evaluate(out)

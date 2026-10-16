@@ -41,7 +41,8 @@ disjoint edits into a conflict.
    padded to the existing widths where it fits, which costs no extra lines.
 5. **A file's lack of a final terminator is kept** (§4.1.1). Appending after
    a last line that has none adds one to it, so that the new line is the one
-   without: one changed line and one added.
+   without: one changed line and one added. Removing a last line that has
+   none takes the terminator off the line before it.
 
 The resulting shapes, for a table of `N` data rows:
 

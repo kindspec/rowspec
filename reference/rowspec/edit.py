@@ -320,6 +320,16 @@ class _Doc:
         else:
             self.lines.insert(at, body + eol)
 
+    def remove(self, i):
+        """Remove line `i` and return it. Removing the last line, when it has no
+        terminator, takes the terminator off the line before it, so the file
+        still ends as it did (§4.1.1)."""
+        line = self.lines.pop(i)
+        if i == len(self.lines) and not _eol(line) and self.lines:
+            self.lines[-1] = _body(self.lines[-1])
+        self.data = [j if j < i else j - 1 for j in self.data if j != i]
+        return line
+
     def keys(self):
         """The row ids, in file order."""
         k = self.cols.index(self.key)
@@ -428,7 +438,7 @@ def insert_row(text, values=None, *, id=None, after=None, before=None, end=False
 def delete_row(text, id):
     """Delete the row keyed `id`. The diff is one removed line."""
     d = _Doc(text)
-    del d.lines[d.row(id)]
+    d.remove(d.row(id))
     return d.result()
 
 
@@ -439,9 +449,7 @@ def move_row(text, id, *, after=None, before=None):
     one added."""
     d = _Doc(text)
     _row_position(d, after, before, skip=id)  # refuse before changing anything
-    i = d.row(id)
-    line = d.lines.pop(i)
-    d.data = [j if j < i else j - 1 for j in d.data if j != i]
+    line = d.remove(d.row(id))
     at = _row_position(d, after, before, skip=id)
     d.insert(at, _body(line), _eol(line) or None)
     return d.result()
@@ -661,7 +669,7 @@ def delete_declaration(text, name):
     decls = d.declarations()
     if _nfc(name) not in decls:
         raise EditRefused("no-such-declaration", f"nothing declares {name!r}")
-    del d.lines[decls[_nfc(name)]]
+    d.remove(decls[_nfc(name)])
     return d.result()
 
 
