@@ -26,6 +26,20 @@ prose, and where the two disagree the suite wins.
   diff-shape rules, and `tests/test_edit_merge.py` pins how pairs of edits
   merge under stock git.
 
+- **`rowspec add-row` takes `--id`, `--after` and `--before`**, so a row can
+  have a chosen id and be placed beside a key rather than at the end, where
+  two concurrent appends always conflict. **`rowspec add-column`,
+  `delete-column` and `rename-column`** edit a file through `rowspec.edit`.
+  A refused edit leaves the file untouched and prints the refusal's
+  identifier in brackets.
+
+### Fixed
+
+- **`rowspec --help` lists every command, and `rowspec COMMAND --help`
+  names that command** (#197). Every command printed the usage of
+  `rowspec check`. `rowspec eval --help` no longer lists the options `eval`
+  accepts and ignores.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed

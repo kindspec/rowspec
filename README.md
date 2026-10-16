@@ -157,6 +157,22 @@ Unpack the archive and run `uv sync` (or `just setup`) in it, then
 `just conform`. kindkit is not on PyPI yet. Once it is, a `conformance` extra
 can make pip enough (#47).
 
+## Edit a table
+
+```sh
+rowspec add-row parts.mdtbl bolt 4 0.10 --after r_01   # one added line
+rowspec add-row parts.mdtbl bolt 4 0.10 --id r_09      # a chosen id
+rowspec rename-column parts.mdtbl qty quantity         # header, formulas, declarations
+rowspec add-column parts.mdtbl note --after item       # every row gains a cell
+rowspec delete-column parts.mdtbl note                 # refused while anything names it
+```
+
+Each edit changes only the lines it is about, so that edits on two branches
+merge wherever they do not touch neighbouring lines, and a refused edit leaves
+the file as it was. A program can call `rowspec.edit` directly;
+[docs/editing-api.md](docs/editing-api.md) has the operations, the diff each
+one makes, and what it refuses.
+
 ## Export to xlsx, only if you ask for it
 
 ```sh
