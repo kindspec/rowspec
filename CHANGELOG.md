@@ -7,6 +7,25 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Added
+
+- **`rowspec.edit`, an editing API for `.mdtbl` files**:
+  `insert_row`, `delete_row`, `move_row`, `add_column`, `delete_column`,
+  `rename_column`, `set_formula`, `set_declaration` and
+  `delete_declaration`. Each one is text in, text out, and changes only the
+  lines its operation is about. Inserting, deleting or replacing a row or a
+  declaration changes one line, a rename changes the header and each
+  declaration naming the column, and adding or deleting a column changes
+  every table line, which §9.6 requires. Every other byte is kept: line
+  endings, padding, alignment rows, annotations and declaration order. Rows
+  are placed after or before a key, or at the end, with a chosen or
+  generated id. An edit is refused, before anything is returned, when its
+  input or its result is a file SPEC.md refuses, carrying that refusal's
+  §9 identifier, or for a reason of its own, such as deleting a column a
+  formula still names. `docs/editing-api.md` has the design and the
+  diff-shape rules, and `tests/test_edit_merge.py` pins how pairs of edits
+  merge under stock git.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed
