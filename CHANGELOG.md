@@ -324,10 +324,11 @@ prose, and where the two disagree the suite wins.
   reports 35 killed, 0 survived, 3 equivalent.
 
 - **The mutation gate covers the order, number and sidecar fixes** (#164,
-  #165, #170, #177, #185, #186, #187, #189). Three new mutants in
-  `table.py` each undo one fix: space or tab admitted before a row-relative
-  name's `(` by the declared-order check, and a non-finite spelling read
-  with no sign stripped or with any number of signs stripped. Six in
+  #165, #170, #177, #185, #186, #187, #189). Each new mutant either undoes
+  one fix or stretches it past what the spec says. The three in `table.py`
+  admit a space or tab before a row-relative name's `(` in the
+  declared-order check, read a non-finite spelling with no sign stripped,
+  and strip any number of signs, which no fix ever did. Six in
   `csvmode.py` restore the old loose number regex, skip the order column's
   non-finite spelling check, read it with no sign or any number of signs,
   take an empty key name for no key, and accept a blank order cell. The
@@ -335,12 +336,15 @@ prose, and where the two disagree the suite wins.
   110 killed, 0 survived, 2 equivalent, and `mutants.py --profile csv`
   41 killed, 0 survived, 3 equivalent.
   `sidecar.py` is gated for the first time, as a third profile run by
-  `just mutants-csv` over `cases-csv/`: ten mutants and a control admit a
-  `"`, CR, LF or lone surrogate as the delimiter, read a two-scalar
-  delimiter as its first, leave a column name untrimmed, not in NFC or
-  trimmed of all whitespace, let two `columns` members name one column, and
-  accept `order_type` without `order`. All eleven are killed on a wrong
-  answer: 11 killed, 0 survived, 0 equivalent.
+  `just mutants-csv` over `cases-csv/`. Its ten mutants admit a `"`, CR,
+  LF or lone surrogate as the delimiter, read a two-scalar delimiter as its
+  first, leave a column name untrimmed, not in NFC or trimmed of all
+  whitespace, let two `columns` members name one column, and accept
+  `order_type` without `order`. The two-scalar and NFC mutants test §13's
+  rules; the code refused or normalised those before #185 and #186. A
+  control finds no sidecar at all. All eleven are killed on a wrong answer:
+  11 killed, 0 survived, 0 equivalent. Two survivors are left out as
+  missing cases (#192).
 
 - **The exported workbook is checked against LibreOffice** (#36).
   `just test-libreoffice` recalculates every exportable `.mdtbl` in the
