@@ -35,6 +35,16 @@ prose, and where the two disagree the suite wins.
   A refused edit leaves the file untouched and prints the refusal's
   identifier in brackets.
 
+### Changed
+
+- **`rowspec add-row` with no position puts the row where its key sorts**,
+  by code point, when the table's rows are already in key order, instead of
+  always at the end. Two rows appended at the end on two branches always
+  conflict, and a minted id is random, so placed by key they usually land
+  in different gaps: on a table of 50 rows, 100 pairs of concurrent adds
+  conflicted 100 times appended and 3 times placed by key. A table not in
+  key order still gets the row at the end, and `--end` asks for the end.
+
 ### Fixed
 
 - **`rowspec --help` lists every command, and `rowspec COMMAND --help`

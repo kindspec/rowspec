@@ -193,13 +193,15 @@ def _rewrite(path, change, out, done):
     return 0
 
 
-def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None):
+def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, end=False):
     """Add a row, minting the opaque id §6 requires unless one is given.
 
     The spec insists row ids are machine-generated; before this, they were hand
     typed, which is how a cross-branch id collision got made by hand. `rid`
-    chooses the id instead, and `after`/`before` place the row beside a key
-    rather than at the end, which is where two concurrent appends collide.
+    chooses the id instead. With no position the row goes where its key sorts
+    when the rows are already in key order, and at the end otherwise: two
+    concurrent appends at the end always collide. `after`/`before` place it
+    beside a key, and `end` at the end.
     """
 
     def change(text):
@@ -212,7 +214,12 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None):
                 f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}"
             )
         new, got = edit.insert_row(
-            text, dict(zip(fillable, values, strict=True)), id=rid, after=after, before=before
+            text,
+            dict(zip(fillable, values, strict=True)),
+            id=rid,
+            after=after,
+            before=before,
+            end=end,
         )
         return new, f"{key}={got}"
 
@@ -222,7 +229,7 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None):
 COMMANDS = {
     "check": "validate .csv, .tsv and .mdtbl tables (the default command)",
     "eval": "print computed values, and fail on any #REF!",
-    "add-row": "add a row with a minted or chosen id, at the end or beside a key",
+    "add-row": "add a row with a minted or chosen id, where its key sorts or beside a key",
     "add-column": "add a stored or computed column, editing every row",
     "delete-column": "delete a column that no formula or declaration names",
     "rename-column": "rename a column everywhere a formula or declaration names it",
@@ -296,6 +303,13 @@ def _parser(cmd):
             metavar="KEY" if cmd == "add-row" else "COLUMN",
             help=f"place it before this {what}",
         )
+        if cmd == "add-row":
+            where.add_argument(
+                "--end",
+                action="store_true",
+                help="place it last; without a position, it goes where its key sorts "
+                "if the rows are in key order, and last otherwise",
+            )
     return p
 
 
@@ -315,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "eval":
         return cmd_eval(a.paths, fmt=a.format)
     if cmd == "add-row":
-        return cmd_add_row(a.file, a.values, rid=a.id, after=a.after, before=a.before)
+        return cmd_add_row(a.file, a.values, rid=a.id, after=a.after, before=a.before, end=a.end)
     if cmd == "add-column":
         return _rewrite(
             a.file,

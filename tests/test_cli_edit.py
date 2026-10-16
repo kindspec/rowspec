@@ -116,3 +116,17 @@ def test_rename_column(table, capsys):
 
 def test_check_is_still_the_default_command(table):
     assert cli.main([str(table)]) == 0
+
+
+def test_add_row_goes_where_its_key_sorts_by_default(table):
+    assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_015"]) == 0
+    assert [r["id"] for r in parse(table.read_text(encoding="utf-8"))[2]] == [
+        "r_01",
+        "r_015",
+        "r_02",
+    ]
+
+
+def test_add_row_end_places_it_last(table):
+    assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_00", "--end"]) == 0
+    assert [r["id"] for r in parse(table.read_text(encoding="utf-8"))[2]][-1] == "r_00"

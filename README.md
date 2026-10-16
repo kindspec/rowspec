@@ -160,7 +160,8 @@ can make pip enough (#47).
 ## Edit a table
 
 ```sh
-rowspec add-row parts.mdtbl bolt 4 0.10 --after r_01   # one added line
+rowspec add-row parts.mdtbl bolt 4 0.10                # one added line, where its key sorts
+rowspec add-row parts.mdtbl bolt 4 0.10 --after r_01   # or beside a key
 rowspec add-row parts.mdtbl bolt 4 0.10 --id r_09      # a chosen id
 rowspec rename-column parts.mdtbl qty quantity         # header, formulas, declarations
 rowspec add-column parts.mdtbl note --after item       # every row gains a cell
