@@ -50,6 +50,22 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
+  a line break in a value** (#194). `set_cell` wrote the edited row with LF
+  in a CRLF file, and with a terminator the file's unterminated last line
+  did not have; it now keeps the row's own ending. `add-row` after an
+  unterminated last row joined the two rows into one line; that row now
+  takes the file's ending. A value holding CR or LF cannot be a cell
+  (§4.1), so `set_cell` raises `Malformed` and `add-row` exits 1 rather
+  than write a table that no longer parses. `rowspec_alt`'s `set_cell`
+  refuses it too.
+
+- **A per-row group aggregate is linear in the row count** (#195). The
+  reference scanned every row for every row, so `sum(v where k = @k)` was
+  quadratic: `rowspec check` on 10,000 rows took about 33 s. It now groups
+  the rows once by their predicate values and aggregates each distinct
+  group once. No value changes.
+
 - **`rowspec --help` lists every command, and `rowspec COMMAND --help`
   names that command** (#197). Every command printed the usage of
   `rowspec check`. `rowspec eval --help` no longer lists the options `eval`
