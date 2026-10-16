@@ -438,6 +438,18 @@ def test_a_rename_in_a_line_that_is_not_nfc_finds_every_reference():
     )
 
 
+def test_a_rename_that_changes_which_name_an_aggregate_reports_is_allowed():
+    """§8 reports the first name by code point among an aggregate's errors, so
+    renaming `id` to `é` moves `#REF!(id)` behind `#REF!(qty)`. Both are the
+    same error to the rename's check: it changes no number."""
+    src = (
+        "| id | qty | n = if(qty > 0, id, 0) |\n| --- | --- | --- |\n"
+        "| r_1 | 10 |  |\n| r_2 | x |  |\n\nkey := id\ng := max(n)\n"
+    )
+    out = edit.rename_column(src, "id", "é")
+    assert evaluate(out)[1] == {"g": "#REF!(qty)"} and evaluate(src)[1] == {"g": "#REF!(id)"}
+
+
 def test_a_declaration_whose_name_is_not_nfc_is_replaced_in_place():
     nfd = unicodedata.normalize("NFD", "caf\u00e9")
     src = f"| id | a |\n| --- | --- |\n| r1 | 1 |\n\nkey := id\n{nfd} := sum(a)\n"
