@@ -7,6 +7,18 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
+  a line break in a value** (#194). `set_cell` wrote the edited row with LF
+  in a CRLF file, and with a terminator the file's unterminated last line
+  did not have; it now keeps the row's own ending. `add-row` after an
+  unterminated last row joined the two rows into one line; that row now
+  takes the file's ending. A value holding CR or LF cannot be a cell
+  (§4.1), so `set_cell` raises `Malformed` and `add-row` exits 1 rather
+  than write a table that no longer parses. `rowspec_alt`'s `set_cell`
+  refuses it too.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed

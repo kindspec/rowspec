@@ -518,8 +518,8 @@ for r in seq:
     # is only reachable through `canon`. The path a real EDITOR takes is
     # set_cell, and it is a different function.
     "set-cell-does-not-escape-pipes": (
-        'st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |\\n"',
-        'st["row_raws"][i] = "| " + " | ".join(str(c) for c in cells) + " |\\n"',
+        'st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |" + eol',
+        'st["row_raws"][i] = "| " + " | ".join(str(c) for c in cells) + " |" + eol',
     ),
     "unescape-applied-everywhere": (
         'return [unescape_cell(c.strip(" \\t")) for c in _UNESCAPED_PIPE.split(body)]',

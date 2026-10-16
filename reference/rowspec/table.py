@@ -1623,12 +1623,21 @@ def set_cell(st, row_key, col, value):
         raise Malformed(f"no column {col!r}")
     if col in st["formulas"]:
         raise Malformed(f"{col!r} is a computed column", refusal="value-in-computed-cell")
+    if "\r" in str(value) or "\n" in str(value):
+        # §4.1: `char` excludes CR and LF, so no cell can hold one. Written,
+        # it splits the row in two and the file is refused.
+        raise Malformed(f"a cell cannot hold a line break (CR or LF): {str(value)!r}")
     idx = st["cols"].index(col)
     for i, r in enumerate(st["rows"]):
         if str(r.get(key)) == str(row_key):
             r[col] = str(value)
-            cells = split_row(st["row_raws"][i])
+            raw = st["row_raws"][i]
+            cells = split_row(raw)
             cells[idx] = str(value)
-            st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |\n"
+            # The line keeps its own terminator (§3), and an unterminated last
+            # line stays unterminated (§4.1.1): an edit to one cell must not
+            # show as a changed line ending.
+            eol = raw[len(raw.rstrip("\r\n")) :]
+            st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |" + eol
             return st
     raise Malformed(f"no row with {key}={row_key!r}")

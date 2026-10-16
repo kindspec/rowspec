@@ -1262,6 +1262,9 @@ def set_cell(st, row_key, column, value):
         )
     if st.key is None:
         raise Malformed(None, "cannot address a row: no key is declared")
+    if "\r" in str(value) or "\n" in str(value):
+        # §4.1: `char` is any scalar value other than CR or LF.
+        raise Malformed(None, f"a cell cannot hold a line break (CR or LF): {str(value)!r}")
     ki = st.col_index[st.key]
     want = nfc(str(row_key))
     for ln in st.row_lines:
