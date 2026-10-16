@@ -29,8 +29,9 @@ disjoint edits into a conflict.
    alignment-row spellings, annotations, blank lines and declaration order of
    every other line stay byte for byte as they were.
 2. **Keep each line's own terminator.** A changed line keeps its `LF` or
-   `CRLF`. A new line takes the terminator of the line it follows, or the
-   file's first terminator when that line has none.
+   `CRLF`. A new line takes the terminator of the line it follows. When that
+   line has none, it takes `CRLF` if any line of the file ends in one, and
+   `LF` otherwise, the rule `rowspec add-row` has followed since #200.
 3. **Within a changed line, change only the cell or span concerned.** A
    renamed column rewrites the name and the formula spans that name it, and
    leaves the other cells of the header line as they were. A replaced cell

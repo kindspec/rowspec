@@ -254,8 +254,10 @@ class _Doc:
     def table_lines(self):
         return [self.header, self.align, *self.data]
 
-    def first_eol(self):
-        return next((_eol(ln) for ln in self.lines if _eol(ln)), "\n")
+    def file_eol(self):
+        """CRLF if any line of the file ends in one, else LF: the ending a line
+        takes when the line before it has none, as `rowspec add-row` gave it."""
+        return "\r\n" if any(ln.endswith("\r\n") for ln in self.lines) else "\n"
 
     def column(self, name):
         name = _nfc(name)
@@ -322,7 +324,7 @@ class _Doc:
         it does. A last line with no terminator gains one, and the new line goes
         without, so the file still ends as it did."""
         prev = self.lines[at - 1]
-        eol = eol or _eol(prev) or self.first_eol()
+        eol = eol or _eol(prev) or self.file_eol()
         if at == len(self.lines) and not _eol(prev):
             self.lines[at - 1] = prev + eol
             self.lines.insert(at, body)

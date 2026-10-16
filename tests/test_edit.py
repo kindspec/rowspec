@@ -497,3 +497,11 @@ def test_a_rename_that_turns_a_number_into_an_error_is_refused(monkeypatch):
     with pytest.raises(edit.EditRefused) as e:
         edit.rename_column(src, "a", "b")
     assert e.value.reason == "rename-changes-values"
+
+
+def test_after_an_unterminated_last_row_a_mixed_file_takes_crlf():
+    """The row that loses its place as last line takes CRLF if the file has
+    any, as `rowspec add-row` has done since #200."""
+    src = "key := id\n\n| id | a |\r\n| --- | --- |\r\n| r_1 | x |"
+    out, _ = edit.insert_row(src, {"a": "z"}, id="r_2")
+    assert out == src + "\r\n| r_2 | z |"
