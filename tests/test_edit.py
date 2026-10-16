@@ -68,7 +68,8 @@ def values(text):
 OPS = {
     "insert_row after": lambda t: edit.insert_row(t, {"item": "cog", "qty": "1"}, after="r_02")[0],
     "insert_row before": lambda t: edit.insert_row(t, {"item": "cog"}, before="r_01")[0],
-    "insert_row end": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_09")[0],
+    "insert_row end": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_09", end=True)[0],
+    "insert_row by key": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_015")[0],
     "delete_row": lambda t: edit.delete_row(t, "r_02"),
     "move_row": lambda t: edit.move_row(t, "r_03", before="r_01"),
     "rename_column": lambda t: edit.rename_column(t, "qty", "quantity"),
@@ -86,6 +87,7 @@ WANT = {
     "insert_row after": lambda n: (0, 1),
     "insert_row before": lambda n: (0, 1),
     "insert_row end": lambda n: (0, 1),
+    "insert_row by key": lambda n: (0, 1),
     "delete_row": lambda n: (1, 0),
     "move_row": lambda n: (1, 1),
     "rename_column": lambda n: (1, 1),
@@ -350,3 +352,28 @@ def test_moving_a_row_to_the_end_of_a_file_with_no_final_terminator():
     out = edit.move_row(src, "r_01")
     assert out.endswith("| r_01 | widget | EU | 10 | 12.00 |  |")
     assert values(out) == values(src)
+
+
+def keys_of(text):
+    return [r["id"] for r in parse(text)[2]]
+
+
+def test_a_row_goes_where_its_key_sorts_when_the_rows_are_in_key_order():
+    out, _ = edit.insert_row(BASE, {"item": "x"}, id="r_025")
+    assert keys_of(out) == ["r_01", "r_02", "r_025", "r_03", "r_04"]
+    out, _ = edit.insert_row(BASE, {"item": "x"}, id="r_00")
+    assert keys_of(out) == ["r_00", "r_01", "r_02", "r_03", "r_04"]
+
+
+def test_a_row_goes_last_when_the_rows_are_not_in_key_order():
+    src = edit.move_row(BASE, "r_01", after="r_03")
+    out, _ = edit.insert_row(src, {"item": "x"}, id="r_025")
+    assert keys_of(out) == ["r_02", "r_03", "r_01", "r_04", "r_025"]
+
+
+def test_end_places_a_row_last_whatever_its_key():
+    out, _ = edit.insert_row(BASE, {"item": "x"}, id="r_00", end=True)
+    assert keys_of(out)[-1] == "r_00"
+    with pytest.raises(edit.EditRefused) as e:
+        edit.insert_row(BASE, {"item": "x"}, after="r_01", end=True)
+    assert e.value.reason == "bad-position"

@@ -39,8 +39,8 @@ disjoint edits into a conflict.
    written wider, and the table's alignment is broken for that line, rather
    than every line being re-padded. A new row or column in a padded table is
    padded to the existing widths where it fits, which costs no extra lines.
-5. **A file's lack of a final terminator is kept.** Appending after a last
-   line that has none adds one to it, so that the new line is the one
+5. **A file's lack of a final terminator is kept** (§4.1.1). Appending after
+   a last line that has none adds one to it, so that the new line is the one
    without: one changed line and one added.
 
 The resulting shapes, for a table of `N` data rows:
@@ -91,9 +91,28 @@ text = edit.delete_declaration(text, "grand")
   interface as much as to the grammar, because an index computed before a
   concurrent change points at the wrong row after it.
 - **Position is `after=` or `before=` a key (rows) or a column name (columns),
-  or neither, which means the end.** A row's position is never an input to a
-  value (§6), so position is only about the diff: it decides which gap the new
-  line lands in, and so which concurrent edits it can collide with.
+  or the end.** A row's position is never an input to a value (§6), so
+  position is only about the diff: it decides which gap the new line lands
+  in, and so which concurrent edits it can collide with. For columns and
+  `move_row`, no position means the end. For `insert_row`, the end is
+  `end=True`, and no position means the default below.
+- **By default a new row goes where its key sorts.** When the rows are
+  already in key order, compared by code point, `insert_row` with no
+  position puts the row before the first row whose key sorts after its own;
+  otherwise it appends at the end. This is a convention of this writer,
+  chosen for merge behaviour, and not a rule of the format: SPEC.md says
+  nothing about row order in the file, and a table in any order stays valid.
+  A generated id is random, so two rows added on two branches land in
+  different gaps. Measured by `uv run python tests/test_edit_merge.py` on a
+  table of 50 rows in key order, 100 pairs of concurrent inserts with random
+  ids of the generated shape:
+
+  | placement | clean | conflict |
+  | --- | --- | --- |
+  | at the end | 0 | 100 |
+  | where the key sorts | 97 | 3 |
+
+  The three conflicts are pairs whose keys sort into the same gap.
 - `insert_row` takes the id as `id=`. Without one it generates `r_` followed
   by six hex digits, as `rowspec add-row` does, and returns the id it used.
   Without a declared `key` there is no id, and only the end position is
@@ -164,7 +183,8 @@ through real merges. In summary, with stock git:
 - Edits to rows with at least one untouched row between them merge cleanly,
   and so do inserts into different gaps. Two inserts into the same gap
   conflict, and **appending at the end is one gap**, so two concurrent
-  appends always conflict.
+  appends always conflict. That is why rows go where their key sorts by
+  default (above).
 - An insert after row `K` conflicts with an edit of `K` or of the row after
   it, and an edit or delete of a row conflicts with an edit of its neighbour.
 - A rename merges cleanly with any row edit, insertion or deletion. It
@@ -178,6 +198,24 @@ through real merges. In summary, with stock git:
   for example a new declaration `sum(qty)` beside a rename of `qty`. The
   merged file evaluates to `#REF!(qty)`, which `rowspec eval` reports. No
   pairing in the test produces a clean merge to a different number.
+
+## Measured limits
+
+**Edits to adjacent lines conflict, and the format cannot change that.**
+Git's merge treats two changes as overlapping unless an unchanged line lies
+between them. A row edit beside an edit of the next row, an insertion beside
+an edited row, and two edits of consecutive declarations all conflict, though
+none touches the other's line. The table is one contiguous run of lines
+(§4.1.2), so a writer cannot put a spacer line between rows, and the API can
+only keep its own edits as small as possible.
+
+**Considered and declined: a blank line between declarations.** The grammar
+allows blank lines among declarations, and with one between them, replacing
+`grand` on one branch and the adjacent `eu` on the other merged cleanly where
+it conflicts without. It was declined because that is the only pairing it
+helps: two new declarations still both append after the last one and still
+conflict, and the convention would cost a second line on every new
+declaration.
 
 ## What the API does not change
 

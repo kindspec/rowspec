@@ -320,6 +320,11 @@ class _Doc:
         else:
             self.lines.insert(at, body + eol)
 
+    def keys(self):
+        """The row ids, in file order."""
+        k = self.cols.index(self.key)
+        return [_nfc(split_row(self.lines[i])[k]) for i in self.data]
+
     def result(self):
         text = "".join(self.lines)
         evaluate(text)
@@ -353,9 +358,26 @@ def _row_body(d, cells, like):
     return indent + "|" + "|".join(inner) + "|"
 
 
-def insert_row(text, values=None, *, id=None, after=None, before=None):
+def _sorted_position(d, rid):
+    """Where a row keyed `rid` sorts, by code point, in a table whose rows are
+    already in key order; otherwise after the last row. A convention for the
+    diff, not a rule of the format: a generated id is random, so two rows
+    added on two branches land in different gaps instead of both at the end,
+    where they always conflict."""
+    if d.key is None:
+        return max(d.table_lines()) + 1
+    keys = d.keys()
+    if keys != sorted(keys):
+        return max(d.table_lines()) + 1
+    later = [i for i, k in zip(d.data, keys, strict=True) if k > rid]
+    return later[0] if later else max(d.table_lines()) + 1
+
+
+def insert_row(text, values=None, *, id=None, after=None, before=None, end=False):
     """Insert one row, after or before the row keyed `after`/`before`, or after
-    the last row. `values` maps column names to cell text; a stored column it
+    the last row when `end` is true. With none of the three, the row goes where
+    its key sorts if the rows are already in key order, and after the last row
+    otherwise. `values` maps column names to cell text; a stored column it
     omits is blank. The row's id is `id`, or the key column's entry in
     `values`, or a generated `r_` and six hex digits. Returns (text, id), and
     id is None for a table with no key.
@@ -389,7 +411,12 @@ def insert_row(text, values=None, *, id=None, after=None, before=None):
     if d.key is not None:
         vals[d.key] = id
     cells = [vals.get(c, "") for c in d.cols]
-    at = _row_position(d, after, before)
+    if end and (after is not None or before is not None):
+        raise EditRefused("bad-position", "give one of after=, before= and end=")
+    if end or after is not None or before is not None:
+        at = _row_position(d, after, before)
+    else:
+        at = _sorted_position(d, id)
     d.insert(at, _row_body(d, cells, at - 1))
     out = d.result()
     got = split_row(d.lines[at])

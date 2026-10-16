@@ -55,7 +55,7 @@ PADDED = (
 _IDS = iter(range(10, 1000))
 
 
-def ins(after=None, before=None, rid=None, item="new"):
+def ins(after=None, before=None, rid=None, item="new", end=False):
     """An insertion with a fixed id, so that applying it twice, once on a
     branch and once serially, inserts the same row."""
     rid = rid or f"r_{next(_IDS)}"
@@ -65,6 +65,7 @@ def ins(after=None, before=None, rid=None, item="new"):
         id=rid,
         after=after,
         before=before,
+        end=end,
     )[0]
 
 
@@ -95,8 +96,21 @@ def realign(text):
 SCENARIOS = {
     "insert after r_01 / insert after r_04": (BASE, ins("r_01"), ins("r_04"), "clean"),
     "insert after r_02 / insert before r_03": (BASE, ins("r_02"), ins(before="r_03"), "conflict"),
-    "insert at end / insert at end": (BASE, ins(), ins(), "conflict"),
-    "insert after r_01 / insert at end": (BASE, ins("r_01"), ins(), "clean"),
+    "insert at end / insert at end": (BASE, ins(end=True), ins(end=True), "conflict"),
+    "insert after r_01 / insert at end": (BASE, ins("r_01"), ins(end=True), "clean"),
+    # The default: where the key sorts, since BASE's rows are in key order.
+    "insert r_015 / insert r_045, by key": (
+        BASE,
+        ins(rid="r_015"),
+        ins(rid="r_045"),
+        "clean",
+    ),
+    "insert r_021 / insert r_025, by key (same gap)": (
+        BASE,
+        ins(rid="r_021"),
+        ins(rid="r_025"),
+        "conflict",
+    ),
     "insert r_07 after r_01 / insert r_07 after r_04": (
         BASE,
         ins("r_01", rid="r_07"),
@@ -375,3 +389,43 @@ def test_a_merge_that_means_neither_order_is_reported(tmp_path):
 
     got, _detail = merge(tmp_path, BASE, a, lambda t: edit.delete_row(t, "r_02"))
     assert got == "silently-wrong"
+
+
+def measure_concurrent_inserts(tmp, pairs=100, rows=50, seed=1):
+    """{placement: {outcome: count}} for `pairs` pairs of rows inserted on two
+    branches of a `rows`-row table in key order, each with a random id of the
+    shape `insert_row` generates: once appended at the end, once placed where
+    the key sorts. Run `uv run python tests/test_edit_merge.py` to print it."""
+    import pathlib
+    import random
+
+    rng = random.Random(seed)
+
+    def rid():
+        return f"r_{rng.getrandbits(24):06x}"
+
+    ids = sorted(rid() for _ in range(rows))
+    base = "| id | qty |\n| --- | --: |\n" + "".join(f"| {i} | 1 |\n" for i in ids)
+    base += "\nkey := id\ns := sum(qty)\n"
+    out = {}
+    for placement, end in (("end", True), ("by key", False)):
+        counts = out.setdefault(placement, {})
+        for n in range(pairs):
+            a, b = rid(), rid()
+            ops = [
+                (lambda t, r=r, e=end: edit.insert_row(t, {"qty": "1"}, id=r, end=e)[0])
+                for r in (a, b)
+            ]
+            d = pathlib.Path(tmp) / f"{placement}-{n}"
+            d.mkdir()
+            got, _ = merge(d, base, *ops)
+            counts[got] = counts.get(got, 0) + 1
+    return out
+
+
+if __name__ == "__main__":
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        for placement, counts in measure_concurrent_inserts(tmp).items():
+            print(f"{placement}: {counts}")
