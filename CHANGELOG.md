@@ -31,9 +31,9 @@ prose, and where the two disagree the suite wins.
   diff-shape rules, and `tests/test_edit_merge.py` pins how pairs of edits
   merge under stock git.
 
-- **`rowspec add-row` takes `--id`, `--after` and `--before`**, so a row can
-  have a chosen id and be placed beside a key rather than at the end, where
-  two concurrent appends always conflict. **`rowspec add-column`,
+- **`rowspec add-row` takes `--id`, `--after`, `--before` and `--end`**, so
+  a row can have a chosen id and be placed beside a key rather than at the
+  end, where two concurrent appends always conflict. **`rowspec add-column`,
   `delete-column` and `rename-column`** edit a file through `rowspec.edit`.
   A refused edit leaves the file untouched and prints the refusal's
   identifier in brackets.
@@ -42,11 +42,19 @@ prose, and where the two disagree the suite wins.
 
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
-  always at the end. Two rows appended at the end on two branches always
-  conflict, and a minted id is random, so placed by key they usually land
-  in different gaps: on a table of 50 rows, 100 pairs of concurrent adds
-  conflicted 100 times appended and 3 times placed by key. A table not in
-  key order still gets the row at the end, and `--end` asks for the end.
+  always at the end. `--end` asks for the end. Two rows appended at the end
+  on two branches always conflict, and a minted id is random, so placed by
+  key they usually land in different gaps, but only when the existing ids
+  are random-shaped and already in key order: measured on 50 such rows, 3
+  and 9 of 100 concurrent pairs conflicted on two seeds. With sequential
+  ids, one row out of key order, or no rows, every pair conflicted, and a
+  table out of key order gets the row at the end.
+
+- **`rowspec add-row` refuses a value with leading or trailing space or
+  tab**, as `[not-representable]`, where it used to write it and let the
+  cell trim it away. **It refuses a file that `rowspec eval` refuses**,
+  with that refusal's identifier, where it used to read only the table's
+  shape and write a row into a file that was already refused.
 
 ### Fixed
 

@@ -79,6 +79,7 @@ def test_add_row_before_a_key(table):
         (["delete-column", "{}", "unit"], "[column-referenced]"),
         (["rename-column", "{}", "qty", "unit"], "[duplicate-column]"),
         (["rename-column", "{}", "qty", "a b"], "[bad-identifier]"),
+        (["add-row", "{}", " bolt", "1", "1"], "[not-representable]"),
     ],
 )
 def test_a_refused_edit_leaves_the_file_untouched(table, capsys, args, code):
@@ -130,6 +131,15 @@ def test_add_row_goes_where_its_key_sorts_by_default(table):
 def test_add_row_end_places_it_last(table):
     assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_00", "--end"]) == 0
     assert [r["id"] for r in parse(table.read_text(encoding="utf-8"))[2]][-1] == "r_00"
+
+
+def test_add_row_refuses_a_file_eval_refuses(tmp_path, capsys):
+    p = tmp_path / "t.mdtbl"
+    src = SRC.replace("qty * unit", "qty ^ unit")
+    p.write_bytes(src.encode())
+    assert cli.main(["add-row", str(p), "bolt", "4", "0.10"]) == 1
+    assert "[malformed-formula]" in capsys.readouterr().err
+    assert p.read_bytes() == src.encode()
 
 
 def test_add_column_takes_an_alignment_starting_with_a_hyphen(table, capsys):
