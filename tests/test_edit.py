@@ -11,6 +11,7 @@ import difflib
 import os
 import re
 import sys
+import unicodedata
 
 import pytest
 
@@ -71,7 +72,6 @@ OPS = {
     "insert_row end": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_09", end=True)[0],
     "insert_row by key": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_015")[0],
     "delete_row": lambda t: edit.delete_row(t, "r_02"),
-    "move_row": lambda t: edit.move_row(t, "r_03", before="r_01"),
     "rename_column": lambda t: edit.rename_column(t, "qty", "quantity"),
     "set_formula": lambda t: edit.set_formula(t, "total", "qty * unit * 2"),
     "set_declaration replace": lambda t: edit.set_declaration(t, "grand", "max(total)"),
@@ -89,7 +89,6 @@ WANT = {
     "insert_row end": lambda n: (0, 1),
     "insert_row by key": lambda n: (0, 1),
     "delete_row": lambda n: (1, 0),
-    "move_row": lambda n: (1, 1),
     "rename_column": lambda n: (1, 1),
     "set_formula": lambda n: (1, 1),
     "set_declaration replace": lambda n: (1, 1),
@@ -177,13 +176,6 @@ def test_a_padded_table_gets_a_padded_column():
         "| ---- | --: | ------ | --: | ----: | -----------------: |",
         "| r_01 |   1 | widget |  10 | 12.00 |                    |",
     ]
-
-
-def test_move_row_keeps_the_line_byte_for_byte():
-    src = BASE.replace("| r_03 | bolt |", "|  r_03|bolt   |")
-    out = edit.move_row(src, "r_03", after="r_04")
-    assert out.splitlines()[6] == "|  r_03|bolt   | EU | 100 | 0.10 |  |"
-    assert values(out) == values(src)
 
 
 @pytest.mark.parametrize(
@@ -306,7 +298,6 @@ def test_a_result_spec_refuses_is_refused_with_its_identifier(call, refusal):
         (lambda: edit.insert_row(BASE, {}, after="r_01", before="r_02"), "bad-position"),
         (lambda: edit.insert_row("| a |\n| - |\n", {}, id="r_1"), "no-key"),
         (lambda: edit.delete_row(BASE, "r_99"), "no-such-row"),
-        (lambda: edit.move_row(BASE, "r_01", after="r_01"), "bad-position"),
         (lambda: edit.insert_row(BASE, {"id": "r_10"}, id="r_11"), "conflicting-id"),
         (lambda: edit.delete_column(BASE, "qty"), "column-referenced"),
         (lambda: edit.delete_column(BASE, "region"), "column-referenced"),
@@ -347,13 +338,6 @@ def test_a_column_named_only_by_its_own_formula_can_be_deleted():
     assert edit.delete_column(src, "x") == "| id |\n| - |\n| r_1 |\n\nkey := id\n"
 
 
-def test_moving_a_row_to_the_end_of_a_file_with_no_final_terminator():
-    src = BASE.split("\n\n")[0].replace("# parts on hand\n", "key := id\n\n")
-    out = edit.move_row(src, "r_01")
-    assert out.endswith("| r_01 | widget | EU | 10 | 12.00 |  |")
-    assert values(out) == values(src)
-
-
 def keys_of(text):
     return [r["id"] for r in parse(text)[2]]
 
@@ -366,7 +350,8 @@ def test_a_row_goes_where_its_key_sorts_when_the_rows_are_in_key_order():
 
 
 def test_a_row_goes_last_when_the_rows_are_not_in_key_order():
-    src = edit.move_row(BASE, "r_01", after="r_03")
+    r01 = "| r_01 | widget | EU | 10 | 12.00 |  |\n"
+    src = BASE.replace(r01, "").replace("| r_04 |", r01 + "| r_04 |")
     out, _ = edit.insert_row(src, {"item": "x"}, id="r_025")
     assert keys_of(out) == ["r_02", "r_03", "r_01", "r_04", "r_025"]
 
@@ -386,13 +371,105 @@ UNTERMINATED = "key := id\n\n" + BASE.split("\n\n")[0].replace("# parts on hand\
     "op",
     [
         lambda t: edit.delete_row(t, "r_04"),
-        lambda t: edit.move_row(t, "r_04", before="r_01"),
         lambda t: edit.delete_declaration(t + "\ng := sum(qty)", "g"),
     ],
-    ids=["delete_row", "move_row", "delete_declaration"],
+    ids=["delete_row", "delete_declaration"],
 )
 def test_removing_an_unterminated_last_line_keeps_the_file_unterminated(op):
     assert not UNTERMINATED.endswith("\n")
     out = op(UNTERMINATED)
     assert not out.endswith("\n")
     evaluate(out)
+
+
+def test_removing_an_unterminated_last_line_after_a_blank_line_keeps_the_blank_line():
+    """A blank line without its terminator is no line, so the file then ends in
+    the blank line's terminator: the caveat docs/editing-api.md states."""
+    src = BASE + "\ng := sum(qty)"
+    out = edit.delete_declaration(src, "g")
+    assert out == BASE + "\n"
+
+
+@pytest.mark.parametrize(
+    "op",
+    [
+        lambda t: edit.set_declaration(t, "g", "sum(a)"),
+        lambda t: edit.set_declaration(t, "n", "count(id)"),
+        lambda t: edit.delete_declaration(t, "n"),
+        lambda t: edit.rename_column(t, "a", "b"),
+        lambda t: edit.insert_row(t, {"a": "2"}, id="r2")[0],
+        lambda t: edit.insert_row(t, {"a": "2"}, after="r1")[0],
+        lambda t: edit.delete_row(t, "r1"),
+    ],
+)
+def test_declarations_above_the_table(op):
+    src = "key := id\nn := count(a)\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
+    out = op(src)
+    assert out.count("\n") - src.count("\n") in (-1, 0, 1)
+    evaluate(out)
+
+
+def test_a_new_declaration_above_the_table_goes_after_the_last_one():
+    src = "key := id\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
+    assert edit.set_declaration(src, "g", "sum(a)") == (
+        "key := id\ng := sum(a)\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
+    )
+
+
+def test_untouched_cells_keep_their_bytes_when_not_nfc():
+    nfd = unicodedata.normalize("NFD", "caf\u00e9")
+    src = f"| id | a | {nfd} |\n| --- | --- | --- |\n| r1 | 1 | {nfd} |\n\nkey := id\n"
+    out, _ = edit.insert_row(src, {"a": "2"}, id="r2")
+    assert out.startswith(src.split("\n\n")[0])
+    out = edit.add_column(src, "z")
+    assert out.splitlines()[2] == f"| r1 | 1 | {nfd} |  |"
+
+
+def test_a_rename_in_a_line_that_is_not_nfc_finds_every_reference():
+    nfd = unicodedata.normalize("NFD", "caf\u00e9")
+    src = (
+        f"| id | {nfd} | t = {nfd} * 2 |\n| --- | --- | --- |\n| r1 | 1 |  |\n\n"
+        f"key := id\ng := sum({nfd})\n"
+    )
+    out = edit.rename_column(src, "caf\u00e9", "n")
+    assert (
+        out
+        == "| id | n | t = n * 2 |\n| --- | --- | --- |\n| r1 | 1 |  |\n\nkey := id\ng := sum(n)\n"
+    )
+
+
+def test_a_string_literal_in_a_header_if_is_not_renamed():
+    src = (
+        '| id | qty | t = if(qty = "qty", 1, 0) |\n'
+        "| --- | --- | --- |\n| r1 | qty |  |\n\nkey := id\n"
+    )
+    out = edit.rename_column(src, "qty", "n")
+    assert out.splitlines()[0] == '| id | n | t = if(n = "qty", 1, 0) |'
+
+
+def test_a_row_that_would_not_read_back_is_refused(monkeypatch):
+    """The read-back is the last check, for a gap in the writer: here one that
+    forgets to escape a pipe while keeping the field count."""
+    monkeypatch.setattr(edit, "escape_cell", lambda c: c.replace("|", "/"))
+    with pytest.raises(edit.EditRefused) as e:
+        edit.insert_row(BASE, {"item": "a|b"}, id="r_09")
+    assert e.value.reason == "not-representable"
+
+
+def test_a_rename_that_changes_which_name_an_aggregate_reports_is_allowed():
+    """§8 reports the first name by code point among an aggregate's errors, so
+    renaming `id` to `é` moves `#REF!(id)` behind `#REF!(qty)`. Both are the
+    same error to the rename's check: it changes no number."""
+    src = (
+        "| id | qty | n = if(qty > 0, id, 0) |\n| --- | --- | --- |\n"
+        "| r_1 | 10 |  |\n| r_2 | x |  |\n\nkey := id\ng := max(n)\n"
+    )
+    out = edit.rename_column(src, "id", "é")
+    assert evaluate(out)[1] == {"g": "#REF!(qty)"} and evaluate(src)[1] == {"g": "#REF!(id)"}
+
+
+def test_a_declaration_whose_name_is_not_nfc_is_replaced_in_place():
+    nfd = unicodedata.normalize("NFD", "caf\u00e9")
+    src = f"| id | a |\n| --- | --- |\n| r1 | 1 |\n\nkey := id\n{nfd} := sum(a)\n"
+    out = edit.set_declaration(src, "caf\u00e9", "max(a)")
+    assert out == src.replace("sum(a)", "max(a)")

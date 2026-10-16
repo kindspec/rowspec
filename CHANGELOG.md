@@ -10,7 +10,7 @@ prose, and where the two disagree the suite wins.
 ### Added
 
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
-  `insert_row`, `delete_row`, `move_row`, `add_column`, `delete_column`,
+  `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
   `delete_declaration`. Each one is text in, text out, and changes only the
   lines its operation is about. Inserting, deleting or replacing a row or a
@@ -21,7 +21,10 @@ prose, and where the two disagree the suite wins.
   are placed after or before a key, or at the end, with a chosen or
   generated id; by default a row goes where its key sorts when the rows are
   already in key order, a writer convention chosen because two rows
-  appended at the end on two branches always conflict. An edit is refused, before anything is returned, when its
+  appended at the end on two branches always conflict. It helps only when
+  the existing ids are random-shaped and already in key order. There is no
+  row move: a move merged with a concurrent delete of the same row brings the
+  row back. An edit is refused, before anything is returned, when its
   input or its result is a file SPEC.md refuses, carrying that refusal's
   §9 identifier, or for a reason of its own, such as deleting a column a
   formula still names. `docs/editing-api.md` has the design and the

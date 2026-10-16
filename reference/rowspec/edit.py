@@ -234,11 +234,19 @@ class _Doc:
         evaluate(text)
         self.cols, self.formulas, _rows, _decls, self.order, self.key = parse(text)
         self.lines = split_lines(text, keepends=True)
+        self.index()
+
+    def index(self):
+        """Find the table again. Called after every insertion, so no index goes
+        stale when a line is added above the table. A removal is always the
+        edit's last step, so nothing reads an index after one."""
         tbl = [i for i, ln in enumerate(self.lines) if ln.strip(WSP).startswith("|")]
         self.header, self.align, self.data = tbl[0], tbl[1], tbl[2:]
+        self.table = set(tbl)
 
     def body(self, i):
-        return _nfc(_body(self.lines[i]))
+        """Line `i` without its terminator, byte for byte."""
+        return _body(self.lines[i])
 
     def set_body(self, i, body):
         self.lines[i] = body + _eol(self.lines[i])
@@ -268,7 +276,7 @@ class _Doc:
         """{name: line index} for every declaration line."""
         out = {}
         for i in range(len(self.lines)):
-            if i in (self.header, self.align) or i in self.data:
+            if i in self.table:
                 continue
             d = _declaration(self.body(i))
             if d:
@@ -278,9 +286,10 @@ class _Doc:
     def refs(self):
         """[(where, line, start, end, name, operand)] for every column name that
         a formula or a declaration mentions. `start` and `end` are offsets in
-        that line's body."""
+        that line's body after NFC, which is how a line is written when an edit
+        changes it (§3)."""
         out = []
-        body = self.body(self.header)
+        body = _nfc(self.body(self.header))
         for (a, b), col in zip(_spans(body), self.cols, strict=True):
             inner = body[a:b]
             if "=" in inner:
@@ -288,7 +297,7 @@ class _Doc:
                 for s, e, name, operand in _formula_refs(body[base:b]):
                     out.append((col, self.header, base + s, base + e, _nfc(name), operand))
         for name, i in self.declarations().items():
-            for s, e, ref, operand in _declaration(self.body(i))[3]:
+            for s, e, ref, operand in _declaration(_nfc(self.body(i)))[3]:
                 out.append((f"{name} :=", i, s, e, _nfc(ref), operand))
         return out
 
@@ -319,15 +328,17 @@ class _Doc:
             self.lines.insert(at, body)
         else:
             self.lines.insert(at, body + eol)
+        self.index()
 
     def remove(self, i):
         """Remove line `i` and return it. Removing the last line, when it has no
         terminator, takes the terminator off the line before it, so the file
-        still ends as it did (§4.1.1)."""
+        still ends as it did (§4.1.1) -- unless that line is blank, since a
+        blank line without its terminator is no line at all. It is then kept
+        whole, and the file ends in its terminator."""
         line = self.lines.pop(i)
-        if i == len(self.lines) and not _eol(line) and self.lines:
+        if i == len(self.lines) and not _eol(line) and _body(self.lines[-1]):
             self.lines[-1] = _body(self.lines[-1])
-        self.data = [j if j < i else j - 1 for j in self.data if j != i]
         return line
 
     def keys(self):
@@ -341,14 +352,11 @@ class _Doc:
         return text
 
 
-def _row_position(d, after, before, skip=None):
+def _row_position(d, after, before):
     """The line index a row goes at: after or before a key, else after the last
-    row. `skip` is a row being moved, which cannot be its own anchor."""
+    row."""
     if after is not None and before is not None:
         raise EditRefused("bad-position", "give after= or before=, not both")
-    anchor = after if after is not None else before
-    if anchor is not None and skip is not None and _nfc(anchor) == _nfc(skip):
-        raise EditRefused("bad-position", f"row {anchor!r} cannot be placed relative to itself")
     if after is not None:
         return d.row(after) + 1
     if before is not None:
@@ -442,19 +450,6 @@ def delete_row(text, id):
     return d.result()
 
 
-def move_row(text, id, *, after=None, before=None):
-    """Move the row keyed `id`, bytes unchanged, after or before another row, or
-    after the last row. A row's position is never an input to a value (§6), so
-    this changes the diff and nothing else. The diff is one removed line and
-    one added."""
-    d = _Doc(text)
-    _row_position(d, after, before, skip=id)  # refuse before changing anything
-    line = d.remove(d.row(id))
-    at = _row_position(d, after, before, skip=id)
-    d.insert(at, _body(line), _eol(line) or None)
-    return d.result()
-
-
 def add_column(
     text, name, *, formula=None, value="", values=None, after=None, before=None, align="---"
 ):
@@ -539,12 +534,20 @@ def delete_column(text, name):
     return d.result()
 
 
+_SHAPES = ("#REF!(cycle)", "#REF!(/0)", "#REF!(empty)", "#REF!(overflow)")
+
+
 def _values_under(text, old, new):
-    """The evaluated table, with column `old` read as `new`."""
+    """The evaluated table, with column `old` read as `new`. Every `#REF!` that
+    names a column reads as one value: of several among an aggregate's
+    operands, §8 reports the name that sorts first, so a rename can change
+    which name an aggregate reports without changing that it is an error."""
     seq, aggs = evaluate(text)
 
     def v(x):
-        return f"#REF!({new})" if type(x) is str and x == f"#REF!({old})" else x
+        if type(x) is str and x.startswith("#REF!(") and x not in _SHAPES:
+            return "#REF!(name)"
+        return x
 
     rows = [{(new if c == old else c): v(x) for c, x in r.items()} for r in seq]
     return rows, {k: v(x) for k, x in aggs.items()}
@@ -582,7 +585,9 @@ def rename_column(text, old, new):
     for _w, i, a, b, ref, _o in refs:
         if ref == old:
             edits.setdefault(i, []).append((a, b, new))
-    header = d.body(d.header)
+    # The spans in `refs` are offsets into the NFC form of each line, so a
+    # line this edit changes is written in NFC (§3).
+    header = _nfc(d.body(d.header))
     spans = _spans(header)
     hedits = edits.pop(d.header, [])
     cells = []
@@ -598,7 +603,7 @@ def rename_column(text, old, new):
             cells.append((a, b, _refill(inner, content)))
     d.set_body(d.header, _replace(header, cells))
     for i, es in edits.items():
-        d.set_body(i, _replace(d.body(i), es))
+        d.set_body(i, _replace(_nfc(d.body(i)), es))
     out = d.result()
     # Every reference reads what it read before, under the new name, and every
     # value is what it was. Neither should be reachable; a gap above is then a
@@ -680,7 +685,6 @@ __all__ = [
     "delete_declaration",
     "delete_row",
     "insert_row",
-    "move_row",
     "rename_column",
     "set_declaration",
     "set_formula",

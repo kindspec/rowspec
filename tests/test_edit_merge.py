@@ -156,18 +156,6 @@ SCENARIOS = {
         ins("r_03"),
         "conflict",
     ),
-    "move r_06 to top / edit r_06": (
-        BASE,
-        lambda t: edit.move_row(t, "r_06", before="r_01"),
-        cell("r_06", "qty", "9"),
-        "conflict",
-    ),
-    "move r_06 to top / edit r_03": (
-        BASE,
-        lambda t: edit.move_row(t, "r_06", before="r_01"),
-        cell("r_03", "qty", "9"),
-        "clean",
-    ),
     "edit r_01 / edit r_02": (BASE, cell("r_01", "qty", "9"), cell("r_02", "qty", "9"), "conflict"),
     "edit r_01 / edit r_03": (BASE, cell("r_01", "qty", "9"), cell("r_03", "qty", "9"), "clean"),
     "rename qty / insert row": (
@@ -391,35 +379,58 @@ def test_a_merge_that_means_neither_order_is_reported(tmp_path):
     assert got == "silently-wrong"
 
 
-def measure_concurrent_inserts(tmp, pairs=100, rows=50, seed=1):
-    """{placement: {outcome: count}} for `pairs` pairs of rows inserted on two
-    branches of a `rows`-row table in key order, each with a random id of the
-    shape `insert_row` generates: once appended at the end, once placed where
-    the key sorts. Run `uv run python tests/test_edit_merge.py` to print it."""
+def measure_concurrent_inserts(tmp, ids, rng, pairs=100, end=False):
+    """{outcome: count} for `pairs` pairs of rows inserted on two branches of a
+    table whose rows have `ids`, in that order, each new row with a random id of
+    the shape `insert_row` generates, placed by default or at the end."""
     import pathlib
-    import random
 
-    rng = random.Random(seed)
-
-    def rid():
-        return f"r_{rng.getrandbits(24):06x}"
-
-    ids = sorted(rid() for _ in range(rows))
     base = "| id | qty |\n| --- | --: |\n" + "".join(f"| {i} | 1 |\n" for i in ids)
     base += "\nkey := id\ns := sum(qty)\n"
-    out = {}
-    for placement, end in (("end", True), ("by key", False)):
-        counts = out.setdefault(placement, {})
-        for n in range(pairs):
-            a, b = rid(), rid()
-            ops = [
-                (lambda t, r=r, e=end: edit.insert_row(t, {"qty": "1"}, id=r, end=e)[0])
-                for r in (a, b)
-            ]
-            d = pathlib.Path(tmp) / f"{placement}-{n}"
-            d.mkdir()
-            got, _ = merge(d, base, *ops)
-            counts[got] = counts.get(got, 0) + 1
+    counts = {}
+    for n in range(pairs):
+        a, b = (f"r_{rng.getrandbits(24):06x}" for _ in range(2))
+        ops = [(lambda t, r=r: edit.insert_row(t, {"qty": "1"}, id=r, end=end)[0]) for r in (a, b)]
+        d = pathlib.Path(tmp) / f"{id(counts)}-{n}"
+        d.mkdir()
+        got, _ = merge(d, base, *ops)
+        counts[got] = counts.get(got, 0) + 1
+    return counts
+
+
+def concurrent_insert_table(tmp):
+    """The measurement docs/editing-api.md quotes. Run
+    `uv run python tests/test_edit_merge.py` to print it."""
+    import random
+
+    out = []
+    for seed in (1, 7):
+        rng = random.Random(seed)
+        rand = sorted(f"r_{rng.getrandbits(24):06x}" for _ in range(50))
+        out.append(
+            (
+                f"50 random-shape ids in key order, seed {seed}, at the end",
+                measure_concurrent_inserts(tmp, rand, rng, end=True),
+            )
+        )
+        out.append(
+            (
+                f"50 random-shape ids in key order, seed {seed}, by key",
+                measure_concurrent_inserts(tmp, rand, rng),
+            )
+        )
+    rng = random.Random(1)
+    rand = sorted(f"r_{rng.getrandbits(24):06x}" for _ in range(50))
+    swapped = list(rand)
+    swapped[10], swapped[11] = swapped[11], swapped[10]
+    appended = [f"r_{rng.getrandbits(24):06x}" for _ in range(50)]
+    for label, ids in (
+        ("50 sequential ids r_0001..r_0050, by key", [f"r_{i:04d}" for i in range(1, 51)]),
+        ("50 random-shape ids, one adjacent pair swapped, by key", swapped),
+        ("50 random-shape ids in the order they were appended, by key", appended),
+        ("no rows, by key", []),
+    ):
+        out.append((label, measure_concurrent_inserts(tmp, ids, rng)))
     return out
 
 
@@ -427,5 +438,5 @@ if __name__ == "__main__":
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
-        for placement, counts in measure_concurrent_inserts(tmp).items():
-            print(f"{placement}: {counts}")
+        for label, counts in concurrent_insert_table(tmp):
+            print(f"{label}: {counts}", flush=True)

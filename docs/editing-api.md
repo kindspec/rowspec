@@ -42,7 +42,9 @@ disjoint edits into a conflict.
 5. **A file's lack of a final terminator is kept** (§4.1.1). Appending after
    a last line that has none adds one to it, so that the new line is the one
    without: one changed line and one added. Removing a last line that has
-   none takes the terminator off the line before it.
+   none takes the terminator off the line before it, with one exception: when
+   that line is blank it is kept whole, since a blank line without its
+   terminator is no line at all, and the file then ends in a terminator.
 
 The resulting shapes, for a table of `N` data rows:
 
@@ -50,7 +52,6 @@ The resulting shapes, for a table of `N` data rows:
 | --- | --- |
 | `insert_row` | 1 added |
 | `delete_row` | 1 removed |
-| `move_row` | 1 removed, 1 added |
 | `add_column` | `N + 2` changed: header, alignment row, every data row |
 | `delete_column` | `N + 2` changed |
 | `rename_column` | 1 (the header) plus 1 per declaration naming it |
@@ -74,7 +75,6 @@ from rowspec import edit
 
 text, rid = edit.insert_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
 text = edit.delete_row(text, "r_0003")
-text = edit.move_row(text, "r_0003", before="r_0001")
 text = edit.add_column(text, "unit", after="qty")
 text = edit.add_column(text, "total", formula="qty * unit")
 text = edit.rename_column(text, "qty", "quantity")
@@ -94,26 +94,39 @@ text = edit.delete_declaration(text, "grand")
 - **Position is `after=` or `before=` a key (rows) or a column name (columns),
   or the end.** A row's position is never an input to a value (§6), so
   position is only about the diff: it decides which gap the new line lands
-  in, and so which concurrent edits it can collide with. For columns and
-  `move_row`, no position means the end. For `insert_row`, the end is
-  `end=True`, and no position means the default below.
+  in, and so which concurrent edits it can collide with. For columns, no
+  position means the end. For `insert_row`, the end is `end=True`, and no
+  position means the default below. There is no operation that moves a row:
+  see "Measured limits".
 - **By default a new row goes where its key sorts.** When the rows are
   already in key order, compared by code point, `insert_row` with no
   position puts the row before the first row whose key sorts after its own;
   otherwise it appends at the end. This is a convention of this writer,
   chosen for merge behaviour, and not a rule of the format: SPEC.md says
   nothing about row order in the file, and a table in any order stays valid.
-  A generated id is random, so two rows added on two branches land in
-  different gaps. Measured by `uv run python tests/test_edit_merge.py` on a
-  table of 50 rows in key order, 100 pairs of concurrent inserts with random
-  ids of the generated shape:
+  It helps only under two conditions, both of which have to hold already:
+  the existing rows are in key order, and the ids are random-shaped, so that
+  new ids spread across the gaps. A table whose rows are out of key order
+  gets every new row at the end, so one insert placed with `after=`,
+  `before=` or `end=True` out of key order turns the default off for that
+  table until its rows are put back in order. Sequential ids are in key
+  order, but a random-shaped new id sorts after all of them. Measured by
+  `uv run python tests/test_edit_merge.py`, 100 pairs of concurrent inserts
+  per row, each new row with a random id of the generated shape:
 
-  | placement | clean | conflict |
-  | --- | --- | --- |
-  | at the end | 0 | 100 |
-  | where the key sorts | 97 | 3 |
+  | existing rows | placement | clean | conflict |
+  | --- | --- | --- | --- |
+  | 50 random-shape ids in key order, seed 1 | at the end | 0 | 100 |
+  | 50 random-shape ids in key order, seed 1 | default | 97 | 3 |
+  | 50 random-shape ids in key order, seed 7 | at the end | 0 | 100 |
+  | 50 random-shape ids in key order, seed 7 | default | 91 | 9 |
+  | 50 sequential ids `r_0001`..`r_0050` | default | 0 | 100 |
+  | 50 random-shape ids, one adjacent pair swapped | default | 0 | 100 |
+  | 50 random-shape ids in the order they were appended | default | 0 | 100 |
+  | no rows | default | 0 | 100 |
 
-  The three conflicts are pairs whose keys sort into the same gap.
+  The conflicts under the default are pairs whose keys sort into the same
+  gap; with no rows there is one gap.
 - `insert_row` takes the id as `id=`. Without one it generates `r_` followed
   by six hex digits, as `rowspec add-row` does, and returns the id it used.
   Without a declared `key` there is no id, and only the end position is
@@ -137,8 +150,7 @@ An edit is refused, with nothing returned, in four ways:
    built, and carry an API reason rather than a §9 identifier:
    - `no-such-row`, `no-such-column`, `no-such-declaration`;
    - `no-key`: an id, or a position relative to a key, on a table with no key;
-   - `bad-position`: both `after=` and `before=`, or a row placed relative
-     to itself;
+   - `bad-position`: more than one of `after=`, `before=` and `end=True`;
    - `conflicting-id`: an `id=` that differs from the key column's entry in
      the values;
    - `line-break`: CR or LF in a value, formula or declaration (§4.1);
@@ -169,7 +181,10 @@ An edit is refused, with nothing returned, in four ways:
    is a refusal rather than a wrong file.
 
 Values, names and formulas are NFC-normalised before they are written (§3),
-and a `|` in a value or formula is written as `\|` (§4.1.3).
+and a `|` in a value or formula is written as `\|` (§4.1.3). Bytes the edit
+does not change are kept even when they are not NFC, with one exception: a
+line that `rename_column` changes is written in NFC as a whole, because the
+names it finds are compared in NFC.
 
 Errors are `rowspec.Malformed`, whose `refusal` attribute is the §9
 identifier when there is one. `rowspec.edit.EditRefused` is the subclass for
@@ -201,6 +216,16 @@ through real merges. In summary, with stock git:
   pairing in the test produces a clean merge to a different number.
 
 ## Measured limits
+
+**There is no `move_row`, because a moved row can come back after a delete.**
+A move is a deletion and an insertion of the same line. Moving `r_06` to the
+top on one branch while the other branch deletes `r_06` merges cleanly in
+stock git: the deletion removes the old line and the insertion survives, so
+the merged table still has `r_06`, which applying the two edits in either
+order would not give. The same happens with the move on either side and the
+row moved to the end. No `#REF!` and no refusal says so. A row's position is
+never an input to a value (§6), so a move gains nothing but appearance, and
+it is not offered.
 
 **Edits to adjacent lines conflict, and the format cannot change that.**
 Git's merge treats two changes as overlapping unless an unchanged line lies
