@@ -11,7 +11,7 @@ path.
 
 ## Where it is
 
-**Draft 0**, released as `v0.1.0`, `v0.2.0` and `v0.3.0` (latest), on PyPI,
+**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0` and `v0.4.0` (latest), on PyPI,
 with a GitHub Action.
 
     619 conformance cases     find conformance/cases -name expect.json | wc -l
@@ -22,16 +22,43 @@ with a GitHub Action.
     0 broken                  just mutants
     112 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
-    548 passed, 2 skipped     just test
-    20 passed                 just test-xlsx
+    216 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
+    0 failures                just conform-csv
+    41 killed, 3 equivalent   just mutants-csv (csv profile)
+    11 killed, 0 equivalent   just mutants-csv (sidecar profile)
+    1105 passed, 2 skipped    just test
+    28 passed                 just test-xlsx
     1 passed                  just test-libreoffice
-    280 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
+    305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
                                 pytest tests/test_xlsx_libreoffice.py -q -s
 
 The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
+
+## Shipped in 0.4.0
+
+**Breaking:** every SPEC.md §9 refusal now has a stable identifier, such as
+`duplicate-row-id`, and an implementation MUST report it (#61). An
+implementation that claims conformance and does not report identifiers no
+longer conforms.
+
+SPEC.md settles questions draft 0 left open. The project owner decided the
+first-row `delta`, `delta` when both rows hold an error, the ranking of several
+`#REF!` values, an overlong literal, ASCII-only trimming of CSV names, signed
+non-finite spellings in an order column, and the CSV sidecar's `order`,
+`order_type` and `columns`. §13 also defines the sidecar's `delimiter` and
+refuses any other member.
+
+The reference now evaluates every computed column over one dependency graph,
+reads only LF and CRLF as line ends, as §4.1 says, and agrees with the second
+implementation on the disagreements this release found and fixed. The xlsx
+export (`python -m rowspec_xlsx`) writes live formulas over structured
+references (#35), and a test recalculates the workbooks in LibreOffice and
+compares them with `rowspec eval` (#36). The suites grew to 619 `.mdtbl` and
+216 CSV cases, written without reading the implementation, and the mutation
+gate now covers `sidecar.py`. See the CHANGELOG for the full list.
 
 ## Shipped in 0.3.0
 
