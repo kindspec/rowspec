@@ -1311,14 +1311,21 @@ def _group_column(nm, fn, col, ptext, seq, formulas, cols):
         for r in seq:
             r[nm] = f"#REF!({missing})"
         return
+    # Grouped once rather than scanned once per row, which was quadratic
+    # (#195). Row `o` is in row `r`'s group exactly when the text of each
+    # predicate column of `o` equals what `r` asks for, so the rows are indexed
+    # by that text and each distinct group is aggregated once. Both keep `seq`
+    # order, so a group's operands are the list the scan built.
+    index, done = {}, {}
+    for o in seq:
+        index.setdefault(tuple(str(o.get(pc, "")) for pc, _at, _lit in preds), []).append(
+            o.get(col)
+        )
     for r in seq:
-
-        def hit(o, r=r, preds=preds):
-            return all(
-                str(o.get(pc, "")) == (str(r.get(at, "")) if at else lit) for pc, at, lit in preds
-            )
-
-        r[nm] = _agg(fn, [o.get(col) for o in seq if hit(o)], col)
+        want = tuple(str(r.get(at, "")) if at else lit for _pc, at, lit in preds)
+        if want not in done:
+            done[want] = _agg(fn, index.get(want, []), col)
+        r[nm] = done[want]
 
 
 def _evaluate_columns(seq, cols, formulas):
@@ -1623,12 +1630,21 @@ def set_cell(st, row_key, col, value):
         raise Malformed(f"no column {col!r}")
     if col in st["formulas"]:
         raise Malformed(f"{col!r} is a computed column", refusal="value-in-computed-cell")
+    if "\r" in str(value) or "\n" in str(value):
+        # §4.1: `char` excludes CR and LF, so no cell can hold one. Written,
+        # it splits the row in two and the file is refused.
+        raise Malformed(f"a cell cannot hold a line break (CR or LF): {str(value)!r}")
     idx = st["cols"].index(col)
     for i, r in enumerate(st["rows"]):
         if str(r.get(key)) == str(row_key):
             r[col] = str(value)
-            cells = split_row(st["row_raws"][i])
+            raw = st["row_raws"][i]
+            cells = split_row(raw)
             cells[idx] = str(value)
-            st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |\n"
+            # The line keeps its own terminator (§3), and an unterminated last
+            # line stays unterminated (§4.1.1): an edit to one cell must not
+            # show as a changed line ending.
+            eol = raw[len(raw.rstrip("\r\n")) :]
+            st["row_raws"][i] = "| " + " | ".join(escape_cell(c) for c in cells) + " |" + eol
             return st
     raise Malformed(f"no row with {key}={row_key!r}")

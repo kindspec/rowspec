@@ -201,13 +201,30 @@ def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
             file=sys.stderr,
         )
         return 1
+    broken = [v for v in values if "\r" in v or "\n" in v]
+    if broken:
+        # §4.1: `char` excludes CR and LF, so no cell can hold one. Written,
+        # it splits the row in two and the file is refused.
+        print(
+            f"{path}: a cell cannot hold a line break (CR or LF): {broken[0]!r}",
+            file=sys.stderr,
+        )
+        return 1
     supplied = dict(zip(fillable, values, strict=True))
     cells = [rid if c == key else "" if c in formulas else supplied.get(c, "") for c in cols]
     line = "| " + " | ".join(escape_cell(c) for c in cells) + " |"
     lines = split_lines(text, keepends=True)
     last = max(i for i, ln in enumerate(lines) if ln.lstrip(" 	").startswith("|"))
-    eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
-    lines.insert(last + 1, line + eol)
+    if lines[last].endswith("\n"):
+        eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
+        lines.insert(last + 1, line + eol)
+    else:
+        # The table ends the file with no terminator (§4.1.1). The row it ended
+        # with takes the file's line ending, and the new last row keeps the
+        # missing terminator; appended bare, the two rows became one line.
+        eol = "\r\n" if "\r\n" in text else "\n"
+        lines[last] += eol
+        lines.append(line)
     open(path, "w", encoding="utf-8", newline="").write("".join(lines))
     print(f"{path}: added {key}={rid}", file=out)
     return 0
