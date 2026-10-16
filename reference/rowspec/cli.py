@@ -14,8 +14,9 @@ import argparse
 import os
 import sys
 
+from . import edit
 from .csvmode import Finding, check_file
-from .table import Malformed, _why_not_a_number, canon, escape_cell, evaluate, parse, split_lines
+from .table import Malformed, _why_not_a_number, canon, evaluate, parse
 
 CSV_EXT = (".csv", ".tsv", ".tab")
 TABLE_EXT = (".mdtbl",)
@@ -175,91 +176,197 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
     return 1 if bad else 0
 
 
-def cmd_add_row(path: str, values: list[str], out=sys.stdout) -> int:
-    """Append a row, minting the opaque id §6 requires and nothing produced.
+def _rewrite(path, change, out, done):
+    """Read `path`, apply `change` to its text, and write the result back. A
+    refused edit raises before anything is written, so the file is untouched;
+    the refusal is printed with its identifier, a §9 one or the editing
+    API's own reason, which a program can read without parsing the message."""
+    try:
+        text = open(path, encoding="utf-8", newline="").read()
+        new, what = change(text)
+    except Malformed as e:
+        code = e.refusal or getattr(e, "reason", None)
+        print(f"{path}: {e}" + (f" [{code}]" if code else ""), file=sys.stderr)
+        return 1
+    open(path, "w", encoding="utf-8", newline="").write(new)
+    print(f"{path}: {done(what)}", file=out or sys.stdout)
+    return 0
+
+
+def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, end=False):
+    """Add a row, minting the opaque id §6 requires unless one is given.
 
     The spec insists row ids are machine-generated; before this, they were hand
-    typed, which is how a cross-branch id collision got made by hand.
+    typed, which is how a cross-branch id collision got made by hand. `rid`
+    chooses the id instead. With no position the row goes where its key sorts
+    when the rows are already in key order, and at the end otherwise: two
+    concurrent appends at the end always collide. `after`/`before` place it
+    beside a key, and `end` at the end.
     """
-    import secrets
 
-    text = open(path, encoding="utf-8", newline="").read()
-    cols, formulas, rows, _d, _o, key = parse(text)
-    if key is None:
-        print(f"{path}: no `key :=` declaration, so there is no id to mint", file=sys.stderr)
-        return 1
-    taken = {str(r.get(key)) for r in rows}
-    while True:
-        rid = "r_" + secrets.token_hex(3)
-        if rid not in taken:
-            break
-    fillable = [c for c in cols if c != key and c not in formulas]
-    if len(values) != len(fillable):
-        print(
-            f"{path}: expected {len(fillable)} value(s) for {', '.join(fillable)}; "
-            f"got {len(values)}",
-            file=sys.stderr,
+    def change(text):
+        cols, formulas, _r, _d, _o, key = parse(text)
+        if key is None:
+            raise Malformed("no `key :=` declaration, so there is no id to mint")
+        fillable = [c for c in cols if c != key and c not in formulas]
+        if len(values) != len(fillable):
+            raise Malformed(
+                f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}"
+            )
+        new, got = edit.insert_row(
+            text,
+            dict(zip(fillable, values, strict=True)),
+            id=rid,
+            after=after,
+            before=before,
+            end=end,
         )
-        return 1
-    broken = [v for v in values if "\r" in v or "\n" in v]
-    if broken:
-        # §4.1: `char` excludes CR and LF, so no cell can hold one. Written,
-        # it splits the row in two and the file is refused.
-        print(
-            f"{path}: a cell cannot hold a line break (CR or LF): {broken[0]!r}",
-            file=sys.stderr,
+        return new, f"{key}={got}"
+
+    return _rewrite(path, change, out, lambda what: f"added {what}")
+
+
+COMMANDS = {
+    "check": "validate .csv, .tsv and .mdtbl tables (the default command)",
+    "eval": "print computed values, and fail on any #REF!",
+    "add-row": "add a row with a minted or chosen id, where its key sorts or beside a key",
+    "add-column": "add a stored or computed column, editing every row",
+    "delete-column": "delete a column that no formula or declaration names",
+    "rename-column": "rename a column everywhere a formula or declaration names it",
+}
+
+
+def _help():
+    width = max(len(c) for c in COMMANDS)
+    lines = [f"  {c:<{width}}  {d}" for c, d in COMMANDS.items()]
+    return (
+        "usage: rowspec [COMMAND] [-h] ...\n\n"
+        "Validate, evaluate and edit rowspec tables.\n\n"
+        "commands:\n" + "\n".join(lines) + "\n\n"
+        "Without a command, rowspec runs check. `rowspec COMMAND --help` describes one."
+    )
+
+
+def _parser(cmd):
+    p = argparse.ArgumentParser(prog=f"rowspec {cmd}", description=COMMANDS[cmd])
+    if cmd in ("check", "eval"):
+        # `eval` accepts check's options and ignores all but --format; they
+        # stay accepted so no existing command line breaks, and stay out of
+        # its help, which would otherwise describe options that do nothing.
+        quiet = argparse.SUPPRESS if cmd == "eval" else None
+        p.add_argument("paths", nargs="+", help="files or directories")
+        p.add_argument(
+            "--fmt", action="store_true", help=quiet or "rewrite .mdtbl files into canonical form"
         )
-        return 1
-    supplied = dict(zip(fillable, values, strict=True))
-    cells = [rid if c == key else "" if c in formulas else supplied.get(c, "") for c in cols]
-    line = "| " + " | ".join(escape_cell(c) for c in cells) + " |"
-    lines = split_lines(text, keepends=True)
-    last = max(i for i, ln in enumerate(lines) if ln.lstrip(" 	").startswith("|"))
-    if lines[last].endswith("\n"):
-        eol = "\r\n" if lines[last].endswith("\r\n") else "\n"
-        lines.insert(last + 1, line + eol)
-    else:
-        # The table ends the file with no terminator (§4.1.1). The row it ended
-        # with takes the file's line ending, and the new last row keeps the
-        # missing terminator; appended bare, the two rows became one line.
-        eol = "\r\n" if "\r\n" in text else "\n"
-        lines[last] += eol
-        lines.append(line)
-    open(path, "w", encoding="utf-8", newline="").write("".join(lines))
-    print(f"{path}: added {key}={rid}", file=out)
-    return 0
+        p.add_argument(
+            "--fmt-check",
+            action="store_true",
+            help=quiet or "report files that are not in canonical form, without rewriting them",
+        )
+        p.add_argument(
+            "--strict",
+            action="store_true",
+            help=quiet or "treat warnings (CRLF, BOM, lone CR) as refusals",
+        )
+        p.add_argument(
+            "--format", choices=("plain", "github"), default="plain", help="output format"
+        )
+        return p
+    p.add_argument("file", help="the .mdtbl file to edit in place")
+    if cmd == "add-row":
+        p.add_argument(
+            "values",
+            nargs="*",
+            help="one value per stored column other than the key, in header order",
+        )
+        p.add_argument("--id", help="the new row's id, instead of a minted one")
+    elif cmd == "add-column":
+        p.add_argument("name", help="the new column's name")
+        p.add_argument("--formula", help="make it a computed column with this formula")
+        p.add_argument("--value", default="", help="the value of every cell of a stored column")
+        p.add_argument(
+            "--align",
+            default="---",
+            help="the alignment cell (default ---); a value starting with - is written "
+            "with =, as in --align=--:",
+        )
+    elif cmd == "delete-column":
+        p.add_argument("name", help="the column to delete")
+    elif cmd == "rename-column":
+        p.add_argument("old", help="the column's name")
+        p.add_argument("new", help="its new name")
+    if cmd in ("add-row", "add-column"):
+        what = "row's key" if cmd == "add-row" else "column"
+        where = p.add_mutually_exclusive_group()
+        where.add_argument(
+            "--after",
+            metavar="KEY" if cmd == "add-row" else "COLUMN",
+            help=f"place it after this {what}",
+        )
+        where.add_argument(
+            "--before",
+            metavar="KEY" if cmd == "add-row" else "COLUMN",
+            help=f"place it before this {what}",
+        )
+        if cmd == "add-row":
+            where.add_argument(
+                "--end",
+                action="store_true",
+                help="place it last; without a position, it goes where its key sorts "
+                "if the rows are in key order, and last otherwise",
+            )
+    return p
 
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] in (["-h"], ["--help"]):
+        print(_help())
+        return 0
     # Pull the subcommand off BEFORE argparse. Leaving it as a `nargs="?"`
     # positional beside a `nargs="+"` one made argparse mis-split
     # `eval --format github DIR` -- it reported "unrecognized arguments: DIR"
     # and the same line worked only with the option written after the path.
     cmd = "check"
-    if argv and argv[0] in ("check", "eval", "add-row"):
+    if argv and argv[0] in COMMANDS:
         cmd = argv.pop(0)
-
-    p = argparse.ArgumentParser(
-        prog="rowspec check", description="Validate .csv, .tsv and .mdtbl tables."
-    )
-    p.add_argument("paths", nargs="+", help="files or directories")
-    p.add_argument("--fmt", action="store_true", help="rewrite .mdtbl files into canonical form")
-    p.add_argument(
-        "--fmt-check",
-        action="store_true",
-        help="report files that are not in canonical form, without rewriting them",
-    )
-    p.add_argument(
-        "--strict", action="store_true", help="treat warnings (CRLF, BOM, lone CR) as refusals"
-    )
-    p.add_argument("--format", choices=("plain", "github"), default="plain", help="output format")
-    a = p.parse_args(argv)
+    a = _parser(cmd).parse_args(argv)
     if cmd == "eval":
         return cmd_eval(a.paths, fmt=a.format)
     if cmd == "add-row":
-        return cmd_add_row(a.paths[0], a.paths[1:])
-
+        return cmd_add_row(a.file, a.values, rid=a.id, after=a.after, before=a.before, end=a.end)
+    if cmd == "add-column":
+        return _rewrite(
+            a.file,
+            lambda t: (
+                edit.add_column(
+                    t,
+                    a.name,
+                    formula=a.formula,
+                    value=a.value,
+                    after=a.after,
+                    before=a.before,
+                    align=a.align,
+                ),
+                a.name,
+            ),
+            sys.stdout,
+            lambda n: f"added column {n}",
+        )
+    if cmd == "delete-column":
+        return _rewrite(
+            a.file,
+            lambda t: (edit.delete_column(t, a.name), a.name),
+            sys.stdout,
+            lambda n: f"deleted column {n}",
+        )
+    if cmd == "rename-column":
+        return _rewrite(
+            a.file,
+            lambda t: (edit.rename_column(t, a.old, a.new), a.new),
+            sys.stdout,
+            lambda n: f"renamed column {a.old} to {n}",
+        )
     files = collect(a.paths)
     emit = _print_github if a.format == "github" else _print_plain
     explained: set[str] = set()

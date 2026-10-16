@@ -74,7 +74,7 @@ def test_set_cell_refuses_a_line_break(impl, value):
 def test_add_row_gives_the_new_row_the_files_ending(tmp_path, text):
     p = tmp_path / "t.mdtbl"
     p.write_bytes(text.encode())
-    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO()) == 0
+    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO(), end=True) == 0
     out = p.read_bytes().decode()
     eol = "\r\n" if "\r\n" in text else "\n"
     lines = out.split(eol)
@@ -87,7 +87,7 @@ def test_add_row_after_an_unterminated_last_row(tmp_path, eol):
     text = f"key := id{eol}{eol}| id | a |{eol}| --- | --- |{eol}| r_1 | x |"
     p = tmp_path / "t.mdtbl"
     p.write_bytes(text.encode())
-    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO()) == 0
+    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO(), end=True) == 0
     out = p.read_bytes().decode()
     assert out.startswith(text + eol + "| r_") and out.endswith(" | z |")
     assert [r["a"] for r in parse(out)[2]] == ["x", "z"]
@@ -100,3 +100,13 @@ def test_add_row_refuses_a_line_break(tmp_path, capsys, value):
     assert cli.cmd_add_row(str(p), [value], out=io.StringIO()) == 1
     assert "line break" in capsys.readouterr().err
     assert p.read_bytes() == CRLF.encode()
+
+
+def test_add_row_after_an_unterminated_last_row_in_a_mixed_file_takes_crlf(tmp_path):
+    """#200's rule: the row that stops being last takes CRLF if the file has
+    any, whatever ending the file's first line has."""
+    text = "key := id\n\n| id | a |\r\n| --- | --- |\r\n| r_1 | x |"
+    p = tmp_path / "t.mdtbl"
+    p.write_bytes(text.encode())
+    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO(), rid="r_2", end=True) == 0
+    assert p.read_bytes().decode() == text + "\r\n| r_2 | z |"

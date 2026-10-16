@@ -62,7 +62,7 @@ def test_canon_keeps_the_line_whole(ch):
 def test_add_row_appends_after_the_whole_last_line(tmp_path, ch):
     p = tmp_path / "t.mdtbl"
     p.write_text(STORED.format(ch), encoding="utf-8", newline="")
-    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO()) == 0
+    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO(), end=True) == 0
     _, _, rows, _, _, _ = parse(p.read_text(encoding="utf-8"))
     assert [r["a"] for r in rows] == [f"x{ch}y", "z"]
 
