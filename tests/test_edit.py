@@ -438,6 +438,24 @@ def test_a_rename_in_a_line_that_is_not_nfc_finds_every_reference():
     )
 
 
+def test_a_string_literal_in_a_header_if_is_not_renamed():
+    src = (
+        '| id | qty | t = if(qty = "qty", 1, 0) |\n'
+        "| --- | --- | --- |\n| r1 | qty |  |\n\nkey := id\n"
+    )
+    out = edit.rename_column(src, "qty", "n")
+    assert out.splitlines()[0] == '| id | n | t = if(n = "qty", 1, 0) |'
+
+
+def test_a_row_that_would_not_read_back_is_refused(monkeypatch):
+    """The read-back is the last check, for a gap in the writer: here one that
+    forgets to escape a pipe while keeping the field count."""
+    monkeypatch.setattr(edit, "escape_cell", lambda c: c.replace("|", "/"))
+    with pytest.raises(edit.EditRefused) as e:
+        edit.insert_row(BASE, {"item": "a|b"}, id="r_09")
+    assert e.value.reason == "not-representable"
+
+
 def test_a_rename_that_changes_which_name_an_aggregate_reports_is_allowed():
     """§8 reports the first name by code point among an aggregate's errors, so
     renaming `id` to `é` moves `#REF!(id)` behind `#REF!(qty)`. Both are the
