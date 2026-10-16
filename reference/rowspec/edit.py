@@ -254,8 +254,10 @@ class _Doc:
     def table_lines(self):
         return [self.header, self.align, *self.data]
 
-    def first_eol(self):
-        return next((_eol(ln) for ln in self.lines if _eol(ln)), "\n")
+    def file_eol(self):
+        """CRLF if any line of the file ends in one, else LF: the ending a line
+        takes when the line before it has none, as `rowspec add-row` gave it."""
+        return "\r\n" if any(ln.endswith("\r\n") for ln in self.lines) else "\n"
 
     def column(self, name):
         name = _nfc(name)
@@ -322,7 +324,7 @@ class _Doc:
         it does. A last line with no terminator gains one, and the new line goes
         without, so the file still ends as it did."""
         prev = self.lines[at - 1]
-        eol = eol or _eol(prev) or self.first_eol()
+        eol = eol or _eol(prev) or self.file_eol()
         if at == len(self.lines) and not _eol(prev):
             self.lines[at - 1] = prev + eol
             self.lines.insert(at, body)
@@ -534,20 +536,17 @@ def delete_column(text, name):
     return d.result()
 
 
-_SHAPES = ("#REF!(cycle)", "#REF!(/0)", "#REF!(empty)", "#REF!(overflow)")
-
-
 def _values_under(text, old, new):
-    """The evaluated table, with column `old` read as `new`. Every `#REF!` that
-    names a column reads as one value: of several among an aggregate's
-    operands, §8 reports the name that sorts first, so a rename can change
-    which name an aggregate reports without changing that it is an error."""
+    """The evaluated table, with column `old` read as `new`, and every computed
+    `#REF!` read as one value. The check is that a rename changes no number:
+    §8 reports, among an aggregate's errors, the name that sorts first, so a
+    rename can change which error is reported, and the spelling cannot tell a
+    shape from a name, since `cycle`, `empty` and `overflow` are column names
+    too (§8). A stored cell spelled like an error is text, and stays itself."""
     seq, aggs = evaluate(text)
 
     def v(x):
-        if type(x) is str and x.startswith("#REF!(") and x not in _SHAPES:
-            return "#REF!(name)"
-        return x
+        return "#REF!" if type(x) is str and x.startswith("#REF!(") else x
 
     rows = [{(new if c == old else c): v(x) for c, x in r.items()} for r in seq]
     return rows, {k: v(x) for k, x in aggs.items()}
