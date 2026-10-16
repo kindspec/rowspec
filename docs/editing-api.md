@@ -169,7 +169,10 @@ An edit is refused, with nothing returned, in four ways:
    is a refusal rather than a wrong file.
 
 Values, names and formulas are NFC-normalised before they are written (§3),
-and a `|` in a value or formula is written as `\|` (§4.1.3).
+and a `|` in a value or formula is written as `\|` (§4.1.3). Bytes the edit
+does not change are kept even when they are not NFC, with one exception: a
+line that `rename_column` changes is written in NFC as a whole, because the
+names it finds are compared in NFC.
 
 Errors are `rowspec.Malformed`, whose `refusal` attribute is the §9
 identifier when there is one. `rowspec.edit.EditRefused` is the subclass for

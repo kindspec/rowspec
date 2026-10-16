@@ -11,6 +11,7 @@ import difflib
 import os
 import re
 import sys
+import unicodedata
 
 import pytest
 
@@ -413,3 +414,32 @@ def test_a_new_declaration_above_the_table_goes_after_the_last_one():
     assert edit.set_declaration(src, "g", "sum(a)") == (
         "key := id\ng := sum(a)\n| id | a |\n| --- | --- |\n| r1 | 1 |\n"
     )
+
+
+def test_untouched_cells_keep_their_bytes_when_not_nfc():
+    nfd = unicodedata.normalize("NFD", "caf\u00e9")
+    src = f"| id | a | {nfd} |\n| --- | --- | --- |\n| r1 | 1 | {nfd} |\n\nkey := id\n"
+    out, _ = edit.insert_row(src, {"a": "2"}, id="r2")
+    assert out.startswith(src.split("\n\n")[0])
+    out = edit.add_column(src, "z")
+    assert out.splitlines()[2] == f"| r1 | 1 | {nfd} |  |"
+
+
+def test_a_rename_in_a_line_that_is_not_nfc_finds_every_reference():
+    nfd = unicodedata.normalize("NFD", "caf\u00e9")
+    src = (
+        f"| id | {nfd} | t = {nfd} * 2 |\n| --- | --- | --- |\n| r1 | 1 |  |\n\n"
+        f"key := id\ng := sum({nfd})\n"
+    )
+    out = edit.rename_column(src, "caf\u00e9", "n")
+    assert (
+        out
+        == "| id | n | t = n * 2 |\n| --- | --- | --- |\n| r1 | 1 |  |\n\nkey := id\ng := sum(n)\n"
+    )
+
+
+def test_a_declaration_whose_name_is_not_nfc_is_replaced_in_place():
+    nfd = unicodedata.normalize("NFD", "caf\u00e9")
+    src = f"| id | a |\n| --- | --- |\n| r1 | 1 |\n\nkey := id\n{nfd} := sum(a)\n"
+    out = edit.set_declaration(src, "caf\u00e9", "max(a)")
+    assert out == src.replace("sum(a)", "max(a)")
