@@ -473,3 +473,27 @@ def test_a_declaration_whose_name_is_not_nfc_is_replaced_in_place():
     src = f"| id | a |\n| --- | --- |\n| r1 | 1 |\n\nkey := id\n{nfd} := sum(a)\n"
     out = edit.set_declaration(src, "caf\u00e9", "max(a)")
     assert out == src.replace("sum(a)", "max(a)")
+
+
+@pytest.mark.parametrize("name", ["empty", "cycle", "overflow"])
+@pytest.mark.parametrize("onto", [False, True], ids=["from", "onto"])
+def test_a_column_named_like_an_error_shape_can_be_renamed(name, onto):
+    """`cycle`, `empty` and `overflow` are column names as well as `#REF!`
+    shapes (§8), so `#REF!(empty)` may be a broken reference to a column."""
+    old, new = ("a", name) if onto else (name, "e2")
+    src = (
+        f"| id | {old} | t = {old} + 1 | u = nope |\n| --- | --- | --- | --- |\n"
+        f"| r_1 | x |  |  |\n| r_2 | 2 |  |  |\n\nkey := id\ng := sum({old})\n"
+    )
+    out = edit.rename_column(src, old, new)
+    assert evaluate(out)[1] == {"g": f"#REF!({new})"}
+
+
+def test_a_rename_that_turns_a_number_into_an_error_is_refused(monkeypatch):
+    """The value check still catches a rename that would change a number into
+    an error: here the renamer is made to miss the reference in a formula."""
+    monkeypatch.setattr(edit, "_formula_refs", lambda f: [])
+    src = "| id | a | t = a + 1 |\n| --- | --- | --- |\n| r_1 | 2 |  |\n\nkey := id\n"
+    with pytest.raises(edit.EditRefused) as e:
+        edit.rename_column(src, "a", "b")
+    assert e.value.reason == "rename-changes-values"
