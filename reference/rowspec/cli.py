@@ -284,7 +284,12 @@ def _parser(cmd):
         p.add_argument("name", help="the new column's name")
         p.add_argument("--formula", help="make it a computed column with this formula")
         p.add_argument("--value", default="", help="the value of every cell of a stored column")
-        p.add_argument("--align", default="---", help="the alignment cell, such as --: (---)")
+        p.add_argument(
+            "--align",
+            default="---",
+            help="the alignment cell (default ---); a value starting with - is written "
+            "with =, as in --align=--:",
+        )
     elif cmd == "delete-column":
         p.add_argument("name", help="the column to delete")
     elif cmd == "rename-column":
