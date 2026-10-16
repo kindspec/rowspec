@@ -156,18 +156,6 @@ SCENARIOS = {
         ins("r_03"),
         "conflict",
     ),
-    "move r_06 to top / edit r_06": (
-        BASE,
-        lambda t: edit.move_row(t, "r_06", before="r_01"),
-        cell("r_06", "qty", "9"),
-        "conflict",
-    ),
-    "move r_06 to top / edit r_03": (
-        BASE,
-        lambda t: edit.move_row(t, "r_06", before="r_01"),
-        cell("r_03", "qty", "9"),
-        "clean",
-    ),
     "edit r_01 / edit r_02": (BASE, cell("r_01", "qty", "9"), cell("r_02", "qty", "9"), "conflict"),
     "edit r_01 / edit r_03": (BASE, cell("r_01", "qty", "9"), cell("r_03", "qty", "9"), "clean"),
     "rename qty / insert row": (

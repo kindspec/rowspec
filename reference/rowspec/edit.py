@@ -341,14 +341,11 @@ class _Doc:
         return text
 
 
-def _row_position(d, after, before, skip=None):
+def _row_position(d, after, before):
     """The line index a row goes at: after or before a key, else after the last
-    row. `skip` is a row being moved, which cannot be its own anchor."""
+    row."""
     if after is not None and before is not None:
         raise EditRefused("bad-position", "give after= or before=, not both")
-    anchor = after if after is not None else before
-    if anchor is not None and skip is not None and _nfc(anchor) == _nfc(skip):
-        raise EditRefused("bad-position", f"row {anchor!r} cannot be placed relative to itself")
     if after is not None:
         return d.row(after) + 1
     if before is not None:
@@ -439,19 +436,6 @@ def delete_row(text, id):
     """Delete the row keyed `id`. The diff is one removed line."""
     d = _Doc(text)
     d.remove(d.row(id))
-    return d.result()
-
-
-def move_row(text, id, *, after=None, before=None):
-    """Move the row keyed `id`, bytes unchanged, after or before another row, or
-    after the last row. A row's position is never an input to a value (§6), so
-    this changes the diff and nothing else. The diff is one removed line and
-    one added."""
-    d = _Doc(text)
-    _row_position(d, after, before, skip=id)  # refuse before changing anything
-    line = d.remove(d.row(id))
-    at = _row_position(d, after, before, skip=id)
-    d.insert(at, _body(line), _eol(line) or None)
     return d.result()
 
 
@@ -680,7 +664,6 @@ __all__ = [
     "delete_declaration",
     "delete_row",
     "insert_row",
-    "move_row",
     "rename_column",
     "set_declaration",
     "set_formula",

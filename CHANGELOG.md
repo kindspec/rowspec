@@ -10,7 +10,7 @@ prose, and where the two disagree the suite wins.
 ### Added
 
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
-  `insert_row`, `delete_row`, `move_row`, `add_column`, `delete_column`,
+  `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
   `delete_declaration`. Each one is text in, text out, and changes only the
   lines its operation is about. Inserting, deleting or replacing a row or a

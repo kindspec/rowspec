@@ -50,7 +50,6 @@ The resulting shapes, for a table of `N` data rows:
 | --- | --- |
 | `insert_row` | 1 added |
 | `delete_row` | 1 removed |
-| `move_row` | 1 removed, 1 added |
 | `add_column` | `N + 2` changed: header, alignment row, every data row |
 | `delete_column` | `N + 2` changed |
 | `rename_column` | 1 (the header) plus 1 per declaration naming it |
@@ -74,7 +73,6 @@ from rowspec import edit
 
 text, rid = edit.insert_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
 text = edit.delete_row(text, "r_0003")
-text = edit.move_row(text, "r_0003", before="r_0001")
 text = edit.add_column(text, "unit", after="qty")
 text = edit.add_column(text, "total", formula="qty * unit")
 text = edit.rename_column(text, "qty", "quantity")
@@ -94,9 +92,10 @@ text = edit.delete_declaration(text, "grand")
 - **Position is `after=` or `before=` a key (rows) or a column name (columns),
   or the end.** A row's position is never an input to a value (§6), so
   position is only about the diff: it decides which gap the new line lands
-  in, and so which concurrent edits it can collide with. For columns and
-  `move_row`, no position means the end. For `insert_row`, the end is
-  `end=True`, and no position means the default below.
+  in, and so which concurrent edits it can collide with. For columns, no
+  position means the end. For `insert_row`, the end is `end=True`, and no
+  position means the default below. There is no operation that moves a row:
+  see "Measured limits".
 - **By default a new row goes where its key sorts.** When the rows are
   already in key order, compared by code point, `insert_row` with no
   position puts the row before the first row whose key sorts after its own;
@@ -137,8 +136,7 @@ An edit is refused, with nothing returned, in four ways:
    built, and carry an API reason rather than a §9 identifier:
    - `no-such-row`, `no-such-column`, `no-such-declaration`;
    - `no-key`: an id, or a position relative to a key, on a table with no key;
-   - `bad-position`: both `after=` and `before=`, or a row placed relative
-     to itself;
+   - `bad-position`: more than one of `after=`, `before=` and `end=True`;
    - `conflicting-id`: an `id=` that differs from the key column's entry in
      the values;
    - `line-break`: CR or LF in a value, formula or declaration (§4.1);
@@ -201,6 +199,16 @@ through real merges. In summary, with stock git:
   pairing in the test produces a clean merge to a different number.
 
 ## Measured limits
+
+**There is no `move_row`, because a moved row can come back after a delete.**
+A move is a deletion and an insertion of the same line. Moving `r_06` to the
+top on one branch while the other branch deletes `r_06` merges cleanly in
+stock git: the deletion removes the old line and the insertion survives, so
+the merged table still has `r_06`, which applying the two edits in either
+order would not give. The same happens with the move on either side and the
+row moved to the end. No `#REF!` and no refusal says so. A row's position is
+never an input to a value (§6), so a move gains nothing but appearance, and
+it is not offered.
 
 **Edits to adjacent lines conflict, and the format cannot change that.**
 Git's merge treats two changes as overlapping unless an unchanged line lies

@@ -71,7 +71,6 @@ OPS = {
     "insert_row end": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_09", end=True)[0],
     "insert_row by key": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_015")[0],
     "delete_row": lambda t: edit.delete_row(t, "r_02"),
-    "move_row": lambda t: edit.move_row(t, "r_03", before="r_01"),
     "rename_column": lambda t: edit.rename_column(t, "qty", "quantity"),
     "set_formula": lambda t: edit.set_formula(t, "total", "qty * unit * 2"),
     "set_declaration replace": lambda t: edit.set_declaration(t, "grand", "max(total)"),
@@ -89,7 +88,6 @@ WANT = {
     "insert_row end": lambda n: (0, 1),
     "insert_row by key": lambda n: (0, 1),
     "delete_row": lambda n: (1, 0),
-    "move_row": lambda n: (1, 1),
     "rename_column": lambda n: (1, 1),
     "set_formula": lambda n: (1, 1),
     "set_declaration replace": lambda n: (1, 1),
@@ -177,13 +175,6 @@ def test_a_padded_table_gets_a_padded_column():
         "| ---- | --: | ------ | --: | ----: | -----------------: |",
         "| r_01 |   1 | widget |  10 | 12.00 |                    |",
     ]
-
-
-def test_move_row_keeps_the_line_byte_for_byte():
-    src = BASE.replace("| r_03 | bolt |", "|  r_03|bolt   |")
-    out = edit.move_row(src, "r_03", after="r_04")
-    assert out.splitlines()[6] == "|  r_03|bolt   | EU | 100 | 0.10 |  |"
-    assert values(out) == values(src)
 
 
 @pytest.mark.parametrize(
@@ -306,7 +297,6 @@ def test_a_result_spec_refuses_is_refused_with_its_identifier(call, refusal):
         (lambda: edit.insert_row(BASE, {}, after="r_01", before="r_02"), "bad-position"),
         (lambda: edit.insert_row("| a |\n| - |\n", {}, id="r_1"), "no-key"),
         (lambda: edit.delete_row(BASE, "r_99"), "no-such-row"),
-        (lambda: edit.move_row(BASE, "r_01", after="r_01"), "bad-position"),
         (lambda: edit.insert_row(BASE, {"id": "r_10"}, id="r_11"), "conflicting-id"),
         (lambda: edit.delete_column(BASE, "qty"), "column-referenced"),
         (lambda: edit.delete_column(BASE, "region"), "column-referenced"),
@@ -347,13 +337,6 @@ def test_a_column_named_only_by_its_own_formula_can_be_deleted():
     assert edit.delete_column(src, "x") == "| id |\n| - |\n| r_1 |\n\nkey := id\n"
 
 
-def test_moving_a_row_to_the_end_of_a_file_with_no_final_terminator():
-    src = BASE.split("\n\n")[0].replace("# parts on hand\n", "key := id\n\n")
-    out = edit.move_row(src, "r_01")
-    assert out.endswith("| r_01 | widget | EU | 10 | 12.00 |  |")
-    assert values(out) == values(src)
-
-
 def keys_of(text):
     return [r["id"] for r in parse(text)[2]]
 
@@ -366,7 +349,8 @@ def test_a_row_goes_where_its_key_sorts_when_the_rows_are_in_key_order():
 
 
 def test_a_row_goes_last_when_the_rows_are_not_in_key_order():
-    src = edit.move_row(BASE, "r_01", after="r_03")
+    r01 = "| r_01 | widget | EU | 10 | 12.00 |  |\n"
+    src = BASE.replace(r01, "").replace("| r_04 |", r01 + "| r_04 |")
     out, _ = edit.insert_row(src, {"item": "x"}, id="r_025")
     assert keys_of(out) == ["r_02", "r_03", "r_01", "r_04", "r_025"]
 
@@ -386,10 +370,9 @@ UNTERMINATED = "key := id\n\n" + BASE.split("\n\n")[0].replace("# parts on hand\
     "op",
     [
         lambda t: edit.delete_row(t, "r_04"),
-        lambda t: edit.move_row(t, "r_04", before="r_01"),
         lambda t: edit.delete_declaration(t + "\ng := sum(qty)", "g"),
     ],
-    ids=["delete_row", "move_row", "delete_declaration"],
+    ids=["delete_row", "delete_declaration"],
 )
 def test_removing_an_unterminated_last_line_keeps_the_file_unterminated(op):
     assert not UNTERMINATED.endswith("\n")
