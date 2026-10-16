@@ -157,7 +157,7 @@ prose, and where the two disagree the suite wins.
   refused, as SPEC.md §13's reading of §9.6 and RFC 4180 §2. The csv module
   read both without complaint and guessed what the field held. Measured across
   2,063 files in three public data repositories: the first occurs nowhere, the
-  second in one file.
+  second in one file. The finding names its row and quotes only its own field.
 
 - **xlsx export writes live formulas** (#35). The sheet holds a spreadsheet
   table named `rowspec`; computed columns are formulas over structured
@@ -374,10 +374,6 @@ prose, and where the two disagree the suite wins.
 - **Two mutation-gate runs in one tree no longer collide** (#81). The gate
   holds a lock for the whole run, so a second run waits, and a scratch file
   left by a killed run is refused rather than overwritten.
-
-- **A CSV stray-quote finding names its row and quotes only its field**
-  (#94). It used to quote forty characters from the field's start, which
-  could run into the next field.
 
 - **A sidecar `delimiter` of `"`, CR, LF or a lone surrogate is refused**
   (#178). SPEC.md §13 admits one Unicode scalar value other than those
