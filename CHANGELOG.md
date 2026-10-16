@@ -7,6 +7,14 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A per-row group aggregate is linear in the row count** (#195). The
+  reference scanned every row for every row, so `sum(v where k = @k)` was
+  quadratic: `rowspec check` on 10,000 rows took about 33 s. It now groups
+  the rows once by their predicate values and aggregates each distinct
+  group once. No value changes.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed
