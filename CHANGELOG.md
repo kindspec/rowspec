@@ -200,6 +200,10 @@ prose, and where the two disagree the suite wins.
   reason, and none survive. It runs in CI and in the release gate. Eleven of
   the 33 first survived and waited, ungated: one was killed once stray quotes
   became a refusal (#96), and ten by the cases written from the spec for #94.
+  Those figures are from when the gate landed; later entries below add
+  mutants and a `sidecar.py` profile, and at this release `just mutants-csv`
+  reports 41 killed, 0 survived, 3 equivalent, then 11 killed for
+  `sidecar.py`.
 
 - **216 CSV-profile conformance cases** (#63, #94, #92, #118, #162) in
   `conformance/cases-csv/`, written from SPEC.md by authors who did not write
@@ -323,7 +327,7 @@ prose, and where the two disagree the suite wins.
   the empty-file check, the header check and the grouped-header check. The
   cases kill the first two; the third is claimed equivalent, since the file
   is refused either way. `just mutants-csv`
-  reports 35 killed, 0 survived, 3 equivalent.
+  reported 35 killed, 0 survived, 3 equivalent when these landed.
 
 - **The mutation gate covers the order, number and sidecar fixes** (#164,
   #165, #170, #177, #185, #186, #187, #189). Each new mutant either undoes
@@ -362,10 +366,18 @@ prose, and where the two disagree the suite wins.
 - **The runner takes `--profile mdtbl|csv`** (#63). `csv` runs
   `conformance/cases-csv/`, a tree of its own for SPEC.md §13's CSV profile,
   against `rowspec.csvmode`; its one case kind, `check`, is described in that
-  tree's README. The tree holds no case yet, so `just conform-csv` exits 2.
+  tree's README.
   `rowspec_alt` claims the `.mdtbl` profile only, and its commands now say so.
 
 ### Fixed
+
+- **Two mutation-gate runs in one tree no longer collide** (#81). The gate
+  holds a lock for the whole run, so a second run waits, and a scratch file
+  left by a killed run is refused rather than overwritten.
+
+- **A CSV stray-quote finding names its row and quotes only its field**
+  (#94). It used to quote forty characters from the field's start, which
+  could run into the next field.
 
 - **A sidecar `delimiter` of `"`, CR, LF or a lone surrogate is refused**
   (#178). SPEC.md §13 admits one Unicode scalar value other than those
@@ -409,7 +421,7 @@ prose, and where the two disagree the suite wins.
   such as U+00A0, is still part of the name.
 
 - **An order column holding a signed non-finite spelling is refused**
-  (#175). SPEC.md §9.10 now refuses `inf`, `nan` and `infinity` in any
+  (#175, #177). SPEC.md §9.10 now refuses `inf`, `nan` and `infinity` in any
   case after one leading `+` or `-`, as it refuses the bare spelling. The
   reference read `-inf`, `+NaN` and `-Infinity` as text, so it accepted
   an order column of them, or one beside other text, which `rowspec_alt`

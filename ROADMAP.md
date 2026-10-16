@@ -39,16 +39,26 @@ questions where the two disagreed, the independent implementation was right.
 
 ## Shipped in 0.4.0
 
-SPEC.md settles questions draft 0 left open, each decided by the project owner:
-the first-row `delta`, the ranking of several `#REF!` values, an overlong
-literal, ASCII-only trimming of CSV names, signed non-finite spellings in an
-order column, and the CSV sidecar's `order`, `order_type`, `columns` and
-`delimiter` (§13). The reference now evaluates every computed column over one
-dependency graph, and reads only LF and CRLF as line ends, as §4.1 says. The
-differential fuzzing behind this release's fixes found the two implementations
-differing only where both refuse and name different §9 identifiers. The suites
-grew to 619 `.mdtbl` and 216 CSV cases written from SPEC.md alone, and the
-mutation gate now covers `sidecar.py`. See the CHANGELOG for the full list.
+**Breaking:** every SPEC.md §9 refusal now has a stable identifier, such as
+`duplicate-row-id`, and an implementation MUST report it (#61). An
+implementation that claims conformance and does not report identifiers no
+longer conforms.
+
+SPEC.md settles questions draft 0 left open. The project owner decided the
+first-row `delta`, `delta` when both rows hold an error, the ranking of several
+`#REF!` values, an overlong literal, ASCII-only trimming of CSV names, signed
+non-finite spellings in an order column, and the CSV sidecar's `order`,
+`order_type` and `columns`. §13 also defines the sidecar's `delimiter` and
+refuses any other member.
+
+The reference now evaluates every computed column over one dependency graph,
+reads only LF and CRLF as line ends, as §4.1 says, and agrees with the second
+implementation on the disagreements this release found and fixed. The xlsx
+export (`python -m rowspec_xlsx`) writes live formulas over structured
+references (#35), and a test recalculates the workbooks in LibreOffice and
+compares them with `rowspec eval` (#36). The suites grew to 619 `.mdtbl` and
+216 CSV cases, written without reading the implementation, and the mutation
+gate now covers `sidecar.py`. See the CHANGELOG for the full list.
 
 ## Shipped in 0.3.0
 
