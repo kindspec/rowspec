@@ -74,7 +74,7 @@ def test_set_cell_refuses_a_line_break(impl, value):
 def test_add_row_gives_the_new_row_the_files_ending(tmp_path, text):
     p = tmp_path / "t.mdtbl"
     p.write_bytes(text.encode())
-    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO()) == 0
+    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO(), end=True) == 0
     out = p.read_bytes().decode()
     eol = "\r\n" if "\r\n" in text else "\n"
     lines = out.split(eol)
@@ -87,7 +87,7 @@ def test_add_row_after_an_unterminated_last_row(tmp_path, eol):
     text = f"key := id{eol}{eol}| id | a |{eol}| --- | --- |{eol}| r_1 | x |"
     p = tmp_path / "t.mdtbl"
     p.write_bytes(text.encode())
-    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO()) == 0
+    assert cli.cmd_add_row(str(p), ["z"], out=io.StringIO(), end=True) == 0
     out = p.read_bytes().decode()
     assert out.startswith(text + eol + "| r_") and out.endswith(" | z |")
     assert [r["a"] for r in parse(out)[2]] == ["x", "z"]
