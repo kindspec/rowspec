@@ -381,6 +381,14 @@ def test_removing_an_unterminated_last_line_keeps_the_file_unterminated(op):
     evaluate(out)
 
 
+def test_removing_an_unterminated_last_line_after_a_blank_line_keeps_the_blank_line():
+    """A blank line without its terminator is no line, so the file then ends in
+    the blank line's terminator: the caveat docs/editing-api.md states."""
+    src = BASE + "\ng := sum(qty)"
+    out = edit.delete_declaration(src, "g")
+    assert out == BASE + "\n"
+
+
 @pytest.mark.parametrize(
     "op",
     [

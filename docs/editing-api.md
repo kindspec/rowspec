@@ -42,7 +42,9 @@ disjoint edits into a conflict.
 5. **A file's lack of a final terminator is kept** (§4.1.1). Appending after
    a last line that has none adds one to it, so that the new line is the one
    without: one changed line and one added. Removing a last line that has
-   none takes the terminator off the line before it.
+   none takes the terminator off the line before it, with one exception: when
+   that line is blank it is kept whole, since a blank line without its
+   terminator is no line at all, and the file then ends in a terminator.
 
 The resulting shapes, for a table of `N` data rows:
 

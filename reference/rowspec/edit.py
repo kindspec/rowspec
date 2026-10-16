@@ -331,9 +331,11 @@ class _Doc:
     def remove(self, i):
         """Remove line `i` and return it. Removing the last line, when it has no
         terminator, takes the terminator off the line before it, so the file
-        still ends as it did (§4.1.1)."""
+        still ends as it did (§4.1.1) -- unless that line is blank, since a
+        blank line without its terminator is no line at all. It is then kept
+        whole, and the file ends in its terminator."""
         line = self.lines.pop(i)
-        if i == len(self.lines) and not _eol(line) and self.lines:
+        if i == len(self.lines) and not _eol(line) and _body(self.lines[-1]):
             self.lines[-1] = _body(self.lines[-1])
         return line
 
