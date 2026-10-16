@@ -104,17 +104,29 @@ text = edit.delete_declaration(text, "grand")
   otherwise it appends at the end. This is a convention of this writer,
   chosen for merge behaviour, and not a rule of the format: SPEC.md says
   nothing about row order in the file, and a table in any order stays valid.
-  A generated id is random, so two rows added on two branches land in
-  different gaps. Measured by `uv run python tests/test_edit_merge.py` on a
-  table of 50 rows in key order, 100 pairs of concurrent inserts with random
-  ids of the generated shape:
+  It helps only under two conditions, both of which have to hold already:
+  the existing rows are in key order, and the ids are random-shaped, so that
+  new ids spread across the gaps. A table whose rows are out of key order
+  gets every new row at the end, so one insert placed with `after=`,
+  `before=` or `end=True` out of key order turns the default off for that
+  table until its rows are put back in order. Sequential ids are in key
+  order, but a random-shaped new id sorts after all of them. Measured by
+  `uv run python tests/test_edit_merge.py`, 100 pairs of concurrent inserts
+  per row, each new row with a random id of the generated shape:
 
-  | placement | clean | conflict |
-  | --- | --- | --- |
-  | at the end | 0 | 100 |
-  | where the key sorts | 97 | 3 |
+  | existing rows | placement | clean | conflict |
+  | --- | --- | --- | --- |
+  | 50 random-shape ids in key order, seed 1 | at the end | 0 | 100 |
+  | 50 random-shape ids in key order, seed 1 | default | 97 | 3 |
+  | 50 random-shape ids in key order, seed 7 | at the end | 0 | 100 |
+  | 50 random-shape ids in key order, seed 7 | default | 91 | 9 |
+  | 50 sequential ids `r_0001`..`r_0050` | default | 0 | 100 |
+  | 50 random-shape ids, one adjacent pair swapped | default | 0 | 100 |
+  | 50 random-shape ids in the order they were appended | default | 0 | 100 |
+  | no rows | default | 0 | 100 |
 
-  The three conflicts are pairs whose keys sort into the same gap.
+  The conflicts under the default are pairs whose keys sort into the same
+  gap; with no rows there is one gap.
 - `insert_row` takes the id as `id=`. Without one it generates `r_` followed
   by six hex digits, as `rowspec add-row` does, and returns the id it used.
   Without a declared `key` there is no id, and only the end position is
