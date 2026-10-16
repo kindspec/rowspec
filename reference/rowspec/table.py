@@ -1311,14 +1311,21 @@ def _group_column(nm, fn, col, ptext, seq, formulas, cols):
         for r in seq:
             r[nm] = f"#REF!({missing})"
         return
+    # Grouped once rather than scanned once per row, which was quadratic
+    # (#195). Row `o` is in row `r`'s group exactly when the text of each
+    # predicate column of `o` equals what `r` asks for, so the rows are indexed
+    # by that text and each distinct group is aggregated once. Both keep `seq`
+    # order, so a group's operands are the list the scan built.
+    index, done = {}, {}
+    for o in seq:
+        index.setdefault(tuple(str(o.get(pc, "")) for pc, _at, _lit in preds), []).append(
+            o.get(col)
+        )
     for r in seq:
-
-        def hit(o, r=r, preds=preds):
-            return all(
-                str(o.get(pc, "")) == (str(r.get(at, "")) if at else lit) for pc, at, lit in preds
-            )
-
-        r[nm] = _agg(fn, [o.get(col) for o in seq if hit(o)], col)
+        want = tuple(str(r.get(at, "")) if at else lit for _pc, at, lit in preds)
+        if want not in done:
+            done[want] = _agg(fn, index.get(want, []), col)
+        r[nm] = done[want]
 
 
 def _evaluate_columns(seq, cols, formulas):
