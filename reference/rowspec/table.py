@@ -242,6 +242,14 @@ def parse(text):
         if ww:
             nm_, fn_, inner = mw.groups()
             col_, ptext = inner[: ww.start()], inner[ww.end() :]
+            if nm_ == "order":
+                # §4.1.11, §9.12: `order := by(c)` is order's only form, so a
+                # `where` here is no aggregate named `order` but a malformed
+                # declaration.
+                raise Malformed(
+                    f"line {n}: order must be by(<column>): {line.strip(WSP)!r}",
+                    refusal="malformed-declaration",
+                )
             if not _is_ident(col_.lstrip(WSP)):
                 # §4.1: only WSP may pad the aggregated column, never U+00A0,
                 # and the column is an `ident`: a control or Cf character in
@@ -1445,6 +1453,13 @@ def evaluate(text):
                 "without one, tied order values fall back to physical "
                 "file position, which is a coordinate",
                 refusal="order-without-key",
+            )
+        if order not in cols:
+            # §9.10, whatever the row count: with rows the blank-cell check
+            # below happened to refuse this, and with none nothing did.
+            raise Malformed(
+                f"order := by({order}) but there is no column {order!r}",
+                refusal="bad-order-column",
             )
         if order in formulas:
             raise Malformed(
