@@ -141,6 +141,21 @@ prose, and where the two disagree the suite wins.
   `bad-order-column` (§9.10) whatever the row count. `rowspec_alt` already
   refused both.
 
+- **9 conformance cases for `order` declarations** (#202) in
+  `conformance/cases/`, written from SPEC.md without the implementation.
+  `order := count(a where a = "1")` is `malformed-declaration`;
+  `order := by(a where a = "1")` may be reported as `malformed-declaration`,
+  `bad-identifier` or `bad-order-column`, reading the text inside `by(...)`
+  as the `order` argument as `order := by(id-x)` already does; SPEC.md names
+  no identifier for an `order` line that parses but is not `by(c)` (#225).
+  `order := by(n)` naming no column, and
+  `order := by(g)` naming an aggregate, are `bad-order-column` with and
+  without rows. With no `key`, `order := by(n)` may be reported as
+  `order-without-key` or `bad-order-column`, with and without rows, and a
+  valid `order := by(a)` followed by `order := count(...)` as
+  `malformed-declaration` or `duplicate-declaration`. The floor is now 628
+  cases.
+
 - **A `.mdtbl` conflict marker is reported by entity, not by line**
   (#196). `line 1: unresolved conflict marker` is now
   `unresolved conflict marker '<<<<<<< ours' near row id='r_2'`: the
