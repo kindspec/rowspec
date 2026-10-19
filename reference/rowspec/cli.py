@@ -16,6 +16,7 @@ import sys
 
 from . import edit
 from .csvmode import Finding, check_file
+from .sidecar import _undecodable_line
 from .table import Malformed, _why_not_a_number, canon, evaluate, parse
 
 CSV_EXT = (".csv", ".tsv", ".tab")
@@ -47,7 +48,15 @@ def validate(path: str) -> list[Finding]:
     try:
         text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
-        return [_TableRefusal(f"not valid UTF-8: {e}", "bad-encoding")]
+        # By content, never by offset (#234), as a sidecar's message (#216).
+        return [
+            _TableRefusal(
+                f"not valid UTF-8: the line {_undecodable_line(path)} holds byte "
+                f"0x{e.object[e.start]:02X}, which is not part of a valid sequence "
+                f"({e.reason})",
+                "bad-encoding",
+            )
+        ]
     try:
         evaluate(text)
     except Malformed as e:

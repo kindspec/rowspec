@@ -100,6 +100,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A `.mdtbl` that is not UTF-8 is refused by content, not by offset**
+  (#234). `rowspec check` printed Python's codec text, `'utf-8' codec
+  can't decode byte 0xe9 in position 36: invalid continuation byte`. It
+  now quotes the first line holding such a byte and names the byte, as
+  a sidecar's refusal does: `not valid UTF-8: the line '| r_1 | caf\xe9
+  |' holds byte 0xE9, which is not part of a valid sequence (invalid
+  continuation byte) [bad-encoding]`. The refusal and exit status are
+  unchanged.
+
 - **`rowspec check --fmt-check --format github` annotates a file that is
   not in canonical form** (#219). It printed a plain line whatever the
   format, so in CI the job failed with nothing attached to the file. It
