@@ -187,9 +187,12 @@ def _quote_faults(text, delimiter):
         # an odd number after it, up to `start`, is inside one.
         seg = quoted.sub('"', text[pos:start])
         rec += seg.count("\n") + seg.count("\r") - seg.count("\r\n")
+        # Each search resumes below the break it found, so the walk back is
+        # linear however many line breaks the quoted fields hold.
         at, quotes = start, 0
+        cr, lf = text.rfind("\r", pos, at), text.rfind("\n", pos, at)
         while True:
-            br = max(text.rfind("\r", pos, at), text.rfind("\n", pos, at))
+            br = max(cr, lf)
             if br < 0:
                 break
             quotes += text.count('"', br, at)
@@ -197,6 +200,10 @@ def _quote_faults(text, delimiter):
             if quotes % 2 == 0:
                 rec_start = br + 1
                 break
+            if br == cr:
+                cr = text.rfind("\r", pos, br)
+            else:
+                lf = text.rfind("\n", pos, br)
         stray.append(start)
         where[start] = (rec, rec_start)
         pos = rest.match(text, m.end()).end()
