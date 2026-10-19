@@ -243,6 +243,18 @@ rowspec check .    # will this table survive being edited by several people?
 rowspec eval  .    # does it currently say anything false?
 ```
 
+A refused `.mdtbl` names its §9 identifier, so a program can tell the
+refusals apart without parsing the message. Plain output ends the line with
+it, and `--format github` puts it in the annotation's title:
+
+```
+data/parts.mdtbl: duplicate key id='r_1' [duplicate-row-id]
+::error file=data/parts.mdtbl,title=rowspec [duplicate-row-id]::duplicate key id='r_1'
+```
+
+Warnings and CSV-mode findings carry no identifier yet
+([#103](https://github.com/kindspec/rowspec/issues/103)).
+
 ## Licensing
 
 Per directory, deliberately — see [LICENSE](LICENSE). The fixtures are CC0 so
