@@ -97,7 +97,7 @@ stock `git merge`, evaluates the merged file, and asserts on the computed
 number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
-    619 conformance cases          two implementations, both passing
+    630 conformance cases          two implementations, both passing
     112 mutants, all distinct      110 killed, 2 equivalent
                                      0 survived, 0 stale, 0 broken
 
@@ -242,6 +242,18 @@ Run both:
 rowspec check .    # will this table survive being edited by several people?
 rowspec eval  .    # does it currently say anything false?
 ```
+
+A refused `.mdtbl` names its §9 identifier, so a program can tell the
+refusals apart without parsing the message. Plain output ends the line with
+it, and `--format github` puts it in the annotation's title:
+
+```
+data/parts.mdtbl: duplicate key id='r_1' [duplicate-row-id]
+::error file=data/parts.mdtbl,title=rowspec [duplicate-row-id]::duplicate key id='r_1'
+```
+
+Warnings carry no identifier. CSV-mode findings carry none yet
+([#103](https://github.com/kindspec/rowspec/issues/103)).
 
 ## Licensing
 

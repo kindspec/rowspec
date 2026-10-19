@@ -27,7 +27,9 @@ def test_eval_github_annotates_a_refused_table(tmp_path):
     p.write_text(DUP)
     r = rowspec("eval", "--format", "github", str(p))
     assert r.returncode == 1
-    assert r.stdout == f"::error file={p},title=rowspec::duplicate key id='r_1'\n"
+    assert r.stdout == (
+        f"::error file={p},title=rowspec [duplicate-row-id]::duplicate key id='r_1'\n"
+    )
     assert r.stderr == ""
 
 
@@ -37,4 +39,17 @@ def test_eval_plain_still_prints_the_refusal_on_stderr(tmp_path):
     r = rowspec("eval", str(p))
     assert r.returncode == 1
     assert r.stdout == ""
-    assert r.stderr == f"{p}: duplicate key id='r_1'\n"
+    assert r.stderr == f"{p}: duplicate key id='r_1' [duplicate-row-id]\n"
+
+
+def test_eval_github_refusal_escapes_the_file_name(tmp_path):
+    """The refusal goes through the same formatter as `check`'s, so a comma
+    in the name cannot end the `file=` property early (#220)."""
+    p = tmp_path / "a,b.mdtbl"
+    p.write_text(DUP)
+    r = rowspec("eval", "--format", "github", str(p))
+    assert r.returncode == 1
+    assert r.stdout == (
+        f"::error file={tmp_path}/a%2Cb.mdtbl,title=rowspec [duplicate-row-id]"
+        "::duplicate key id='r_1'\n"
+    )

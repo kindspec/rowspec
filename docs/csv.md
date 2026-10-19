@@ -94,7 +94,7 @@ SPEC.md §9.4 exists to prevent, so `{"key": "id", "key": "name"}` is an error.
 
 ## Which refusals apply
 
-This table classifies refusals 1 to 13 and 25 of SPEC.md §9, each by its
+This table classifies refusals 1 to 13, 25 and 27 of SPEC.md §9, each by its
 number and the identifier §9 gives it, and §9's list goes on past them. Of
 the later entries this page covers §9.14 (`bad-encoding`) and part of §9.16
 (below the table), and §9.26 (`leading-bom`) and §9.15 (`lone-cr`), which in
@@ -116,11 +116,12 @@ profile: what it cannot apply, and how it reads §9.16, RFC 4180's records and
 | 9 | `rowrel-without-order`: row-relative operator, no order | | | ● |
 | 10 | `bad-order-column`: `order` column absent, mixed, blank or non-finite | | ● | |
 | 11 | `unknown-aggregate`: unknown aggregate function | | | ● |
-| 12 | `malformed-declaration`: malformed declaration | | | ● |
+| 12 | `malformed-declaration`: malformed declaration | | ● | |
 | 13 | `no-table`: no table | ● | | |
 | 25 | `order-without-key`: `order` with no `key` | | ● | |
+| 27 | `column-type-mismatch`: value not of its declared type | | ● | |
 
-Four, four and six. §3's encoding rules add two more to the bare-CSV column —
+Four, six and five. §3's encoding rules add two more to the bare-CSV column —
 invalid UTF-8, and a `Cf` format character inside a column name — for six
 checks on a file with no declarations at all. Three rows read the CSV
 differently from `.mdtbl`, as SPEC.md §13 states:
@@ -150,12 +151,22 @@ same column as `first name` with a space, and nothing refuses it. Key values
 are exempt from the allowlist for the same reason: `002RadioTV.do` is a real
 registry id.
 
-The six `.mdtbl`-only refusals are not a gap in CSV mode. Three of them are
-about an alignment row and formulas, neither of which CSV has; two are about
-aggregate declarations, which the sidecar deliberately does not grow; and
-§9.12 is about a declaration line, which a sidecar is not. SPEC.md §13
-refuses a malformed sidecar in its own right. A CSV with no computed column
-cannot violate them.
+The five `.mdtbl`-only refusals are not a gap in CSV mode. Three of them are
+about an alignment row and formulas, neither of which CSV has, and two are
+about aggregate declarations, which the sidecar deliberately does not grow. A
+CSV with no computed column cannot violate them.
+
+**The sidecar is the profile's set of declarations**, so SPEC.md §13 reads a
+sidecar that does not parse, or that declares what cannot be checked, as
+§9.12 (`malformed-declaration`): invalid JSON, a member the profile does not
+define, a name that is not a string, and a `key` or `columns` member naming
+no column of the file. A sidecar `order` naming no column is §9.10, and a
+sidecar whose bytes are not UTF-8 is §9.14 (`bad-encoding`). §9.27
+(`column-type-mismatch`), a value that is not of the type `columns` or
+`order_type` declares, has no `.mdtbl` form, since `.mdtbl` declares no
+types. §13 lists
+the identifier every CSV-mode refusal is reported with. CSV mode does not
+print them yet (#103), so the sample output below has none.
 
 ## Two warnings, not refusals
 

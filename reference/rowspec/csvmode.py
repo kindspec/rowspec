@@ -96,7 +96,48 @@ def _delimiter(path, side):
     return "\t" if path.lower().endswith((".tsv", ".tab")) else ","
 
 
-def _decode(raw, name):
+#: What `surrogateescape` decodes a byte that is not UTF-8 to. Valid UTF-8
+#: never decodes to a lone surrogate, so one of these is such a byte.
+_UNDECODED = re.compile("[\udc80-\udcff]")
+
+
+def _spell_bytes(s):
+    """`s` with each byte `surrogateescape` kept spelled as `\\xNN`."""
+    return s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
+
+
+def _undecodable(raw, delimiter, key):
+    """Where the first byte that is not UTF-8 sits, by entity, never by
+    offset (#216): the header row, or the row as `_name_row` names it, and
+    the field holding the byte, each such byte spelled `\\xNN`. A long field
+    is shown from just before that byte, so the quote cannot cut it off.
+    Records the csv module cannot read, such as a field over its size
+    limit, leave only the file to name."""
+    text = raw.decode("utf-8", "surrogateescape")
+    reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
+    names = []
+    try:
+        for n, rec in enumerate(reader):
+            bad = next((f for f in rec if _UNDECODED.search(f)), None)
+            rec = [_spell_bytes(f) for f in rec]
+            if n == 0:
+                names = [unicodedata.normalize("NFC", h.strip(" \t")) for h in rec]
+            if bad is None:
+                continue
+            at = _UNDECODED.search(bad).start()
+            if at > 20:
+                bad = "\u2026" + bad[at - 10 :]
+            field = _show(_spell_bytes(bad))
+            if n == 0:
+                return f"the header row: the field {field}"
+            key_idx = next((i for i, h in enumerate(names) if h == key), None)
+            return f"{_name_row(rec, names, key_idx, n)}: the field {field}"
+    except csv.Error:
+        pass
+    return "the file"
+
+
+def _decode(raw, name, delimiter=",", key=None):
     """SPEC.md §3. Invalid UTF-8 is a refusal; a BOM is a warning, because
     Excel writes one and it cannot change a value once it is stripped."""
     warnings = []
@@ -114,8 +155,8 @@ def _decode(raw, name):
         text = raw.decode("utf-8")
     except UnicodeDecodeError as e:
         raise Malformed(
-            f"not valid UTF-8: byte 0x{raw[e.start]:02X} at offset {e.start} is not "
-            f"part of a valid sequence ({e.reason})"
+            f"{_undecodable(raw, delimiter, key)} is not valid UTF-8: byte "
+            f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})"
         ) from None
     return text, warnings
 
@@ -447,7 +488,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     if side and side.key is not None:
         if side.key not in names:
             raise Malformed(
-                f"{sidecar_mod.SUFFIX.lstrip('.')} declares key {_show(side.key)} but "
+                f"{side.path.rsplit('/', 1)[-1]} declares key {_show(side.key)} but "
                 f"{name} has no such column" + _near(side.key, names)
             )
         key_idx = names.index(side.key)
@@ -699,7 +740,7 @@ def check_file(path):
     # ASCII space, tab and line breaks only: VT or FF alone is a column name.
     if not raw.strip(b" \t\r\n"):
         raise Malformed("file contains no table: the file is empty")
-    text, warnings = _decode(raw, "the file")
+    text, warnings = _decode(raw, "the file", _delimiter(path, side), side and side.key)
     if "\r\n" in text:
         warnings.append(
             _warn(
