@@ -38,6 +38,15 @@ prose, and where the two disagree the suite wins.
   A refused edit leaves the file untouched and prints the refusal's
   identifier in brackets.
 
+- **The CSV mutation gate covers the quoted-LF and empty `order` name
+  cases** (#192). Three mutants in `csvmode.py`: a date matched with
+  `match` instead of `fullmatch`, which lets `DATE_RE`'s `$` accept a
+  final LF; `table.py`'s number pattern anchored with `$` instead of
+  `\Z`, patched in from csvmode's import since the gate splices one
+  file; and an empty `order` name read as no order. Each is killed on a
+  wrong answer: `mutants.py --profile csv` reports 44 killed, 0
+  survived, 3 equivalent.
+
 ### Changed
 
 - **SPEC.md §13 gives every CSV-mode refusal a §9 identifier** (#103).
@@ -72,6 +81,13 @@ prose, and where the two disagree the suite wins.
   shape and write a row into a file that was already refused.
 
 ### Fixed
+
+- **A sidecar key naming no column names the sidecar's own file**
+  (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
+  naming a file that does not exist. It now says
+  `data.csv.rowspec.json declares key ...`, or `.rowspec.json declares
+  key ...` for the directory form, as the `order` and `columns`
+  refusals already did.
 
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
@@ -150,6 +166,13 @@ prose, and where the two disagree the suite wins.
   about 8 s on 0.4.0 and about 2 s now. It uses the `re` engine with no
   possessive quantifier, which CPython before 3.11.5 can match wrongly.
   No finding changes.
+
+- **A non-string `order_type` or `delimiter` in a sidecar is told what
+  it must be** (#215). Both were refused as `must be a column name`,
+  which neither is. `{"order_type": 3}` now gives `'order_type' must be
+  one of the strings 'number', 'date' or 'text', not int`, and
+  `{"delimiter": 9}` gives `'delimiter' must be a string of one Unicode
+  scalar value, not int`. `key` and `order` still say `a column name`.
 
 ## [0.4.0] — 2026-10-16
 
