@@ -129,6 +129,13 @@ prose, and where the two disagree the suite wins.
   name in `row <name>=...`, `duplicate key <name>=...` and the key-value
   findings was printed as it stood.
 
+- **CSV mode's quote scan no longer walks the file one character at a
+  time** (#93). On a 98 MB CSV with a quoted field on every row it cost
+  more than the rest of the check: on one machine, `check_file` took
+  about 8 s on 0.4.0 and about 2 s now. It uses the `re` engine with no
+  possessive quantifier, which CPython before 3.11.5 can match wrongly.
+  No finding changes.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed
