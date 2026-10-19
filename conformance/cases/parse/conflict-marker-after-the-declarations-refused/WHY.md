@@ -21,7 +21,11 @@ table line follows it.
   first alternative of `line` in §4.1, and "the first that matches decides
   what the line is". §4.1 sends to §9.19 only "a line matching no
   alternative". Every other line is a table line, the blank line, or a
-  declaration.
+  declaration. §9.19's own wording, "a line that is none of annotation,
+  table line, declaration, or blank", does not name `conflict`, but it does
+  not reach this line either: §4.1.12 classifies a conflict line "before any
+  other classification", so the line is a conflict line, refused as §9.1,
+  and never reaches the four-way test.
 - §9.12 `malformed-declaration` reaches only "a line containing `:=`". The
   marker line holds none, and both declarations match `declaration`.
 - §9.18 `malformed-table-line`: the marker line's first character is `>`,
