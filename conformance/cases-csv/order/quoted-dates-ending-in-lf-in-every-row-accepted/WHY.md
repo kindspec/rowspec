@@ -1,0 +1,32 @@
+The control for `order/quoted-date-ending-in-lf-beside-a-date-refused`.
+`o` is the order column and `id` the key. Both rows hold a quoted date
+followed by a line feed: `"2024-01-02<LF>"` and `"2024-01-03<LF>"`.
+
+§13: "`order` names the column that orders the rows, and §6's order
+rules apply to it. `key` is then required (§9.25). Each value of the
+column is trimmed of ASCII space and tab only (§4.1.4), so a leading or
+trailing non-ASCII space is part of it. A trimmed value is a `number` if
+it matches §4.1.6's `number`, a `date` if it matches §4.1.7's `date`, and
+`text` otherwise; no value matches both."
+
+§13: "The column is refused (§6, §9.10) when it mixes types, [...]"
+
+§4.1: "ABNF, with `WSP = SP / HTAB` — ASCII space U+0020 and horizontal
+tab U+0009, never the Unicode `White_Space` property — and `DIGIT =
+%x30-39`, ASCII only." The productions are
+
+    number      = [ "-" ] 1*DIGIT [ "." 1*DIGIT ]
+    date        = 1*4DIGIT "-" 1*2DIGIT "-" 1*2DIGIT
+                / 1*4DIGIT "/" 1*2DIGIT "/" 1*2DIGIT
+
+Neither generates a trailing LF, and trimming removes only space and
+tab, so a value ending in LF matches neither.
+
+§13: "record boundaries are RFC 4180's. A quoted field runs to its
+closing quote", so the LF inside the quotes is part of the value.
+
+Both values are text, so the column has one type. Neither is blank,
+and neither is a non-finite spelling §9.10 lists. Nothing else in the
+file or its sidecar is refused, so the file is accepted. A reader that
+refuses any order value holding a line feed, rather than typing it as
+text, refuses this file.

@@ -22,7 +22,7 @@ with a GitHub Action.
     0 broken                  just mutants
     112 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
-    216 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
+    224 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
     0 failures                just conform-csv
     41 killed, 3 equivalent   just mutants-csv (csv profile)
     11 killed, 0 equivalent   just mutants-csv (sidecar profile)
