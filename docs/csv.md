@@ -68,6 +68,15 @@ fifty CSVs keyed the same way should not need fifty sidecars, so a single
 A per-file `<file>.rowspec.json` wins over the directory file. The two forms
 are told apart by filename, never by inspecting content.
 
+Within the directory file, an entry naming the file exactly wins over any
+glob, wherever it is listed, so `channels.csv` above gets its `order` check
+and every other CSV gets `key` alone. A file that more than one glob matches,
+with no exact entry, is refused, and the refusal names the file and the globs.
+Taking the first match would be a silent choice by position, and that
+choice is what once hid an exact entry listed after a glob. Every entry is
+validated whenever the directory file is read, so a malformed entry is
+reported even while checking a file it does not apply to.
+
 The directory form is rowspec's convenience and outside SPEC.md §13's CSV
 profile, which uses the per-file sidecar only.
 

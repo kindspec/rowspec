@@ -79,6 +79,15 @@ prose, and where the two disagree the suite wins.
   `rowspec check`. `rowspec eval --help` no longer lists the options `eval`
   accepts and ignores.
 
+- **A directory `.rowspec.json` applies an exact entry over a glob**
+  (#190). It applied the first entry whose glob matched, so an entry
+  naming the file, listed after a broader glob, was silently ignored:
+  `docs/csv.md`'s own example never ran `channels.csv`'s `order` check.
+  An entry naming the file exactly now wins wherever it is listed. A file
+  that more than one glob matches, with no exact entry, is refused,
+  naming the file and the globs. Every entry is validated, not only the
+  one that applies, so a malformed entry for another file is reported.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed
