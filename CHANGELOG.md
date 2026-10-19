@@ -216,12 +216,16 @@ prose, and where the two disagree the suite wins.
   scalar value, not int`. `key` and `order` still say `a column name`.
 
 - **A sidecar that is not valid JSON is reported by content, not by
-  line** (#232). For `{"key": "id",}`, `Expecting property name enclosed
-  in double quotes (line 1)` is now `... in the line '{"key": "id",}'`:
-  the line where parsing stopped is quoted, from
-  just before that point when it is long, and a parse that stops at the
-  end of the file, as for an empty sidecar, says `at the end of the
-  file`. It is still a refusal, with the same exit status.
+  line** (#232). For `{"key": "id" "order": "v"}`, `Expecting ','
+  delimiter (line 1)` is now `Expecting ',' delimiter in the line
+  '{"key": "id" "order": "v"}'`: the line where parsing stopped is
+  quoted, from just before that point when it is long, and a parse that
+  stops at the end of the file, as for an empty sidecar, says `at the end
+  of the file`. A parser message ending in `at`, such as `Invalid control
+  character at`, drops that word. It is still a refusal, with the same
+  exit status. The sidecar's invalid-UTF-8 quote (#216) now takes its
+  window from the shown text too, so a run of characters spelled as
+  escapes, such as U+200B, cannot push the byte out of the quote.
 
 ## [0.4.0] — 2026-10-16
 
