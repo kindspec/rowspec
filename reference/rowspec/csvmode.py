@@ -156,57 +156,80 @@ def _quote_faults(text, delimiter):
     The csv module reads both without complaint, and what the field then
     holds is that module's guess.
 
-    The scan is left to the `re` engine: `run` matches every well-formed
-    field up to the first faulty one, so Python only sees the faults (#93).
+    The scan is left to the `re` engine (#93): `run` matches well-formed
+    fields, and Python looks only at a field it stops at. It uses no
+    possessive quantifier, which CPython before 3.11.5 can match wrongly
+    (gh-106052), and its one group repeat is bounded, because the engine
+    keeps backtracking state for every iteration of one.
     """
     if '"' not in text:
         return None, [], {}
-    ends = re.escape(delimiter) + "\r\n"
-    quoted = re.compile(r'"(?:[^"]|"")*+"')
-    unquoted = re.compile(rf'[^"{ends}]*+')
-    run = re.compile(rf"(?:(?:{quoted.pattern}|{unquoted.pattern})[{ends}])*+")
-    rest = re.compile(rf"[^{ends}]*+")
-    stray, where, rec, rec_start, pos, n = [], {}, 1, 0, 0, len(text)
+    seps = delimiter + "\r\n"
+    ends = re.escape(seps)
+    # A quoted field holding no `""`, or an unquoted one, and what ends it.
+    run = re.compile(rf'(?:(?:"[^"]*"|[^"{ends}]*)[{ends}]){{0,{_RUN_FIELDS}}}')
+    unquoted = re.compile(rf'[^"{ends}]*')
+    rest = re.compile(rf"[^{ends}]*")
+    stray, where, rec, rec_start, counted, pos, n = [], {}, 1, 0, 0, 0, len(text)
     while True:
-        # Every field from `pos` to `start` ends at a delimiter or line break.
         start = run.match(text, pos).end()
         if start == n:
             return None, stray, where
         if text[start] == '"':
-            m = quoted.match(text, start)
-            if m is None:
+            end = _closing(text, start)
+            if end < 0:
                 return text[start : start + 20], stray, where
         else:
-            m = unquoted.match(text, start)
-        if m.end() == n:
+            end = unquoted.match(text, start).end()
+        if end == n:
             return None, stray, where
-        # The field at `start` is not ended where it should be: by a quote
-        # inside an unquoted field, or by anything after a closing quote.
-        # Count the record boundaries before it outside quoted fields; a
-        # quoted field holds an even number of quotes, so a line break with
-        # an odd number after it, up to `start`, is inside one.
-        seg = quoted.sub('"', text[pos:start])
-        rec += seg.count("\n") + seg.count("\r") - seg.count("\r\n")
-        # Each search resumes below the break it found, so the walk back is
-        # linear however many line breaks the quoted fields hold.
-        at, quotes = start, 0
-        cr, lf = text.rfind("\r", pos, at), text.rfind("\n", pos, at)
-        while True:
-            br = max(cr, lf)
-            if br < 0:
-                break
-            quotes += text.count('"', br, at)
-            at = br
-            if quotes % 2 == 0:
-                rec_start = br + 1
-                break
-            if br == cr:
-                cr = text.rfind("\r", pos, br)
-            else:
-                lf = text.rfind("\n", pos, br)
+        if text[end] in seps:
+            # Well formed: a quoted field holding `""`, or `run`'s bound.
+            pos = end
+            continue
+        # A quote inside an unquoted field, or anything after a closing quote.
+        rec, rec_start = _records(text, counted, start, rec, rec_start)
         stray.append(start)
         where[start] = (rec, rec_start)
-        pos = rest.match(text, m.end()).end()
+        pos = counted = rest.match(text, end).end()
+
+
+#: Fields per `run` match in `_quote_faults`: enough that Python's share of
+#: the loop is negligible, few enough that the engine's state stays small.
+_RUN_FIELDS = 4096
+_QUOTES = re.compile('"*')
+
+
+def _closing(text, i):
+    """Just past the quote that closes the quoted field opening at `i`, or
+    -1 if the text ends first. Inside the field a run of quotes of even
+    length is that many halves of `""`; an odd run's last quote closes it."""
+    while True:
+        i = text.find('"', i + 1)
+        if i < 0:
+            return -1
+        j = _QUOTES.match(text, i).end()
+        if (j - i) % 2:
+            return j
+        i = j - 1
+
+
+def _records(text, i, stop, rec, rec_start):
+    """`(rec, rec_start)` advanced over the record boundaries in
+    `text[i:stop]` that are outside quoted fields. `i` is a field start or
+    the line break or delimiter before one, and every field up to `stop`
+    is well formed."""
+    while i < stop:
+        q = text.find('"', i, stop)
+        end = stop if q < 0 else q
+        rec += text.count("\n", i, end) + text.count("\r", i, end) - text.count("\r\n", i, end)
+        br = max(text.rfind("\r", i, end), text.rfind("\n", i, end))
+        if br >= 0:
+            rec_start = br + 1
+        if q < 0:
+            break
+        i = _closing(text, q)
+    return rec, rec_start
 
 
 def _field_text(text, start, delimiter):
