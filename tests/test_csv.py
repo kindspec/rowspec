@@ -611,3 +611,15 @@ def test_shipped_workflow_invokes_a_command_the_cli_accepts(tmp_path, capsys):
         args = line.split()[1:-1] + [str(tmp_path)]  # drop `rowspec`, swap the path
         assert cli.main(args) == 1, line
     assert "::error file=" in capsys.readouterr().err
+
+
+def test_fmt_check_github_is_an_annotation(tmp_path, capsys):
+    """#219: `--fmt-check` printed its line plain under `--format github`."""
+    p = tmp_path / "fmt.mdtbl"
+    p.write_text("| id |  n |\n| --- | --- |\n| r_1 | 1 |\n")
+    assert cli.main(["check", "--fmt-check", "--format", "github", str(p)]) == 1
+    assert capsys.readouterr().err == (
+        f"::error file={p},title=rowspec::not in canonical form (run --fmt)\n"
+    )
+    assert cli.main(["check", "--fmt-check", str(p)]) == 1
+    assert capsys.readouterr().err == f"{p}: not in canonical form (run --fmt)\n"

@@ -391,7 +391,12 @@ def main(argv: list[str] | None = None) -> int:
             c = canon(text)
             if c != text:
                 if a.fmt_check:
-                    print(f"{f}: not in canonical form (run --fmt)", file=sys.stderr)
+                    emit(
+                        f,
+                        [Finding("not-canonical", "not in canonical form (run --fmt)")],
+                        explained,
+                        sys.stderr,
+                    )
                     refused += 1
                 else:
                     open(f, "w", encoding="utf-8", newline="").write(c)
