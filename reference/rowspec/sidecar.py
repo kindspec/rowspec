@@ -35,7 +35,7 @@ import os
 import re
 import unicodedata
 
-from .table import Malformed, _show
+from .table import Malformed, _escape, _show
 
 SUFFIX = ".rowspec.json"
 DIR_NAME = ".rowspec.json"
@@ -156,10 +156,23 @@ def _undecodable_line(path):
         text = fh.read().decode("utf-8", "surrogateescape")
     bad = re.compile("[\udc80-\udcff]")
     line = next(ln for ln in text.split("\n") if bad.search(ln)).rstrip("\r")
-    at = bad.search(line).start()
-    if at > 20:
-        line = "…" + line[at - 10 :]
-    return _show(line.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace"), 60)
+    return _quote_at(line, bad.search(line).start())
+
+
+def _quote_at(line, at):
+    """`line` quoted as `_show` quotes it, each byte `surrogateescape` kept
+    spelled `\\xNN`, and shown from just before `at` when the text shown
+    before it is long. The window is cut from the shown text, not the raw
+    line, so a character `_show` spells out, such as U+200B as `\\u200b`,
+    cannot push `at` past the end of the quote."""
+
+    def shown(s):
+        return _escape(s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace"))
+
+    before = shown(line[:at])
+    if len(before) > 20:
+        before = "\u2026" + before[-10:]
+    return _show(before + shown(line[at:]), 60)
 
 
 def _read(path):
@@ -177,8 +190,25 @@ def _read(path):
         raise Malformed(f"{os.path.basename(path)}: {e}") from None
     except json.JSONDecodeError as e:
         raise Malformed(
-            f"{os.path.basename(path)} is not valid JSON: {e.msg} (line {e.lineno})"
+            f"{os.path.basename(path)} is not valid JSON: "
+            f"{e.msg.removesuffix(' at')} {_where_json_stops(e)}"
         ) from None
+
+
+def _where_json_stops(e):
+    """Where a JSON parse stopped, by content, never by line number (#232):
+    the line it stopped in, quoted, from just before that point when the
+    line is long, or the end of the file when there is no line to quote.
+    Some of the parser's messages end in "at", as in "Invalid control
+    character at", and `_read` drops that word, since what follows here
+    is not a position."""
+    # JSON's whitespace only (RFC 8259 §2), so a form feed or a no-break
+    # space after the stop is quoted rather than read as the end.
+    if not e.doc[e.pos :].strip(" \t\n\r"):
+        return "at the end of the file"
+    # `_read` opens the file in text mode, so a CRLF is already a LF here.
+    line = e.doc.split("\n")[e.lineno - 1]
+    return f"in the line {_quote_at(line, e.colno - 1)}"
 
 
 def find(data_path):
