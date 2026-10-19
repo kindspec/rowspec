@@ -189,6 +189,14 @@ prose, and where the two disagree the suite wins.
   `{"delimiter": 9}` gives `'delimiter' must be a string of one Unicode
   scalar value, not int`. `key` and `order` still say `a column name`.
 
+- **A sidecar that is not valid JSON is reported by content, not by
+  line** (#232). For `{"key": "id",}`, `Expecting property name enclosed
+  in double quotes (line 1)` is now `... in the line '{"key": "id",}'`:
+  the line where parsing stopped is quoted, from
+  just before that point when it is long, and a parse that stops at the
+  end of the file, as for an empty sidecar, says `at the end of the
+  file`. It is still a refusal, with the same exit status.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed

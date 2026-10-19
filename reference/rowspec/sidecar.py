@@ -34,7 +34,7 @@ import json
 import os
 import unicodedata
 
-from .table import Malformed
+from .table import Malformed, _show
 
 SUFFIX = ".rowspec.json"
 DIR_NAME = ".rowspec.json"
@@ -157,8 +157,22 @@ def _read(path):
         raise Malformed(f"{os.path.basename(path)}: {e}") from None
     except json.JSONDecodeError as e:
         raise Malformed(
-            f"{os.path.basename(path)} is not valid JSON: {e.msg} (line {e.lineno})"
+            f"{os.path.basename(path)} is not valid JSON: {e.msg} {_where_json_stops(e)}"
         ) from None
+
+
+def _where_json_stops(e):
+    """Where a JSON parse stopped, by content, never by line number (#232):
+    the line it stopped in, quoted, from just before that point when the
+    line is long, or the end of the file when there is no line to quote."""
+    if not e.doc[e.pos :].strip():
+        return "at the end of the file"
+    # `_read` opens the file in text mode, so a CRLF is already a LF here.
+    line = e.doc.split("\n")[e.lineno - 1]
+    at = e.colno - 1
+    if at > 20:
+        line = "\u2026" + line[at - 10 :]
+    return f"in the line {_show(line, 60)}"
 
 
 def find(data_path):
