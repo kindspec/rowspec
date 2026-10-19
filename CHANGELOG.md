@@ -102,6 +102,14 @@ prose, and where the two disagree the suite wins.
   every file checked through it**, so a run that passed before can now
   fail.
 
+- **The reference refuses two `order` declarations it accepted** (#202).
+  `order := count(a where a = "1")` was read as an aggregate named `order`;
+  `order := by(c)` is the only form `order` has (§4.1.11), so any `where`
+  form is now `malformed-declaration` (§9.12). `order := by(n)` naming no
+  column was accepted when the table had no rows; it is now
+  `bad-order-column` (§9.10) whatever the row count. `rowspec_alt` already
+  refused both.
+
 - **A `.mdtbl` conflict marker is reported by entity, not by line**
   (#196). `line 1: unresolved conflict marker` is now
   `unresolved conflict marker '<<<<<<< ours' near row id='r_2'`: the
