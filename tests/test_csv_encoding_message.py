@@ -22,6 +22,7 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reference")
 )
 
+from rowspec import csvmode  # noqa: E402
 from rowspec.csvmode import check_file  # noqa: E402
 from rowspec.table import Malformed  # noqa: E402
 
@@ -93,7 +94,10 @@ def test_a_long_csv_field_is_shown_around_the_byte(tmp_path):
     assert msg.startswith("row id='1': the field '…xxxxxxxxxx\\xff' is not valid UTF-8"), msg
 
 
-def test_a_field_too_large_for_the_csv_module_names_the_file(tmp_path):
+def test_a_field_too_large_for_the_csv_module_names_the_file(tmp_path, monkeypatch):
+    # CSV mode lifts the csv module's limit (#235), so a field over the
+    # lifted limit is put in reach by lowering it to the module's default.
+    monkeypatch.setattr(csvmode, "_FIELD_LIMIT", 131_072)
     msg = refusal(tmp_path, b"id,v\n1," + b"x" * 200_000 + b"\xff\n")
     assert msg == (
         "the file is not valid UTF-8: byte 0xFF is not part of a valid sequence "
