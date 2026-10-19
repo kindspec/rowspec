@@ -78,6 +78,16 @@ def _print_plain(path, findings, explained, out):
             print(f"    {f.detail}", file=out)
 
 
+def _gh_data(s):
+    """A workflow command's message, escaped as GitHub requires."""
+    return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _gh_prop(s):
+    """A workflow command's property value, such as `file=`."""
+    return _gh_data(s).replace(":", "%3A").replace(",", "%2C")
+
+
 def _print_github(path, findings, explained, out):
     """GitHub Actions annotations. The message still names the entity; the file
     is the only location given, because a line number would be a coordinate and
@@ -89,7 +99,7 @@ def _print_github(path, findings, explained, out):
         if f.detail:
             msg += " — " + f.detail
         title = "rowspec" + _code(getattr(f, "refusal", None))
-        print(f"::{kind} file={path},title={title}::{msg}", file=out)
+        print(f"::{kind} file={_gh_prop(path)},title={_gh_prop(title)}::{_gh_data(msg)}", file=out)
 
 
 def _offending_cell(rows, col):
@@ -135,7 +145,10 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
         except Malformed as e:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            print(f"{path}: {e}{_code(e.refusal)}", file=sys.stderr)
+            if fmt == "github":
+                _print_github(path, [_TableRefusal(str(e), e.refusal)], None, out)
+            else:
+                print(f"{path}: {e}{_code(e.refusal)}", file=sys.stderr)
             bad += 1
             continue
 
@@ -167,13 +180,12 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
                 # does that a CSV cannot is invisible in the place it matters.
                 for rowkey, col, v in refs:
                     where = f"row {rowkey}, " if rowkey is not None else ""
-                    print(
-                        f"::error file={path},title=rowspec::{where}{col} = {v}"
-                        f" — a computed value did not resolve. `check` does not"
-                        f" see this: the file is well formed and its total is"
-                        f" wrong.",
-                        file=out,
+                    msg = (
+                        f"{where}{col} = {v} — a computed value did not resolve."
+                        " `check` does not see this: the file is well formed and"
+                        " its total is wrong."
                     )
+                    print(f"::error file={_gh_prop(path)},title=rowspec::{_gh_data(msg)}", file=out)
             print(f"  {len(refs)} unresolved reference(s):", file=sys.stderr)
             seen = set()
             for rowkey, col, v in refs:

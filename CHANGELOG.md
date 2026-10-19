@@ -47,6 +47,10 @@ prose, and where the two disagree the suite wins.
   wrong answer: `mutants.py --profile csv` reports 44 killed, 0
   survived, 3 equivalent.
 
+- **2 conformance cases that each assert one §9 identifier alone** (#99),
+  written from SPEC.md without the implementation: `conflict-marker` and
+  `alignment-row-in-data`. The floor is now 630 cases.
+
 ### Changed
 
 - **`rowspec check` and `rowspec eval` print a refused `.mdtbl`'s §9
@@ -94,6 +98,22 @@ prose, and where the two disagree the suite wins.
   shape and write a row into a file that was already refused.
 
 ### Fixed
+
+- **`rowspec eval --format github` annotates a refused `.mdtbl`** (#218).
+  It printed the refusal as a plain line on stderr whatever the format,
+  so in CI the job failed with nothing attached to the file. It now
+  prints the annotation `check` prints, `::error file=...,title=rowspec
+  [identifier]::...`, on stdout, where its `#REF!` annotations go, in
+  place of the plain line. Plain output is unchanged.
+
+- **`--format github` escapes what GitHub's workflow commands require**
+  (#220). A `%`, CR or LF in an annotation's message, and those or a `:`
+  or `,` in its file name, were written as they stood, so GitHub could
+  read a different file name or message: a file named `a,b.csv` was
+  annotated as `a`, and a key `50%25` was shown as `50%`. They are now
+  escaped as `%25`, `%0D`, `%0A`, `%3A` and `%2C`, in `check`, in
+  `eval`'s `#REF!` annotations and in its refusal annotation (#218). `check` still replaces an LF in a
+  finding's message with a space first, so that text stays on one line.
 
 - **A sidecar key naming no column names the sidecar's own file**
   (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
