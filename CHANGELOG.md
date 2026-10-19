@@ -85,8 +85,13 @@ prose, and where the two disagree the suite wins.
   `docs/csv.md`'s own example never ran `channels.csv`'s `order` check.
   An entry naming the file exactly now wins wherever it is listed. A file
   that more than one glob matches, with no exact entry, is refused,
-  naming the file and the globs. Every entry is validated, not only the
-  one that applies, so a malformed entry for another file is reported.
+  naming the file and the globs. Both matches are case-sensitive on every
+  host; glob matching used to fold case on Windows. Every entry's
+  declarations are validated, not only the one that applies, and a key
+  holding `/` or `\`, which can never match a file name, is refused.
+  **A malformed entry anywhere in a directory `.rowspec.json` now refuses
+  every file checked through it**, so a run that passed before can now
+  fail.
 
 ## [0.4.0] — 2026-10-16
 

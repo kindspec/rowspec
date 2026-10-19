@@ -73,9 +73,17 @@ glob, wherever it is listed, so `channels.csv` above gets its `order` check
 and every other CSV gets `key` alone. A file that more than one glob matches,
 with no exact entry, is refused, and the refusal names the file and the globs.
 Taking the first match would be a silent choice by position, and that
-choice is what once hid an exact entry listed after a glob. Every entry is
-validated whenever the directory file is read, so a malformed entry is
-reported even while checking a file it does not apply to.
+choice is what once hid an exact entry listed after a glob. Both the exact
+match and the glob match are case-sensitive on every host, Windows included,
+so `Channels.csv` names neither `channels.csv` nor a glob matching it.
+
+Every entry's declarations are validated whenever the directory file is
+read, so a malformed entry refuses every file checked through that
+directory file, not only the file it names. Keys are checked only for a
+path separator: a key holding `/` or `\` is refused, because entries match
+file names in this directory and such a key could never apply. A key that
+differs from a file's name only in case, trailing space or Unicode
+normalization is not refused. It simply matches nothing.
 
 The directory form is rowspec's convenience and outside SPEC.md §13's CSV
 profile, which uses the per-file sidecar only.

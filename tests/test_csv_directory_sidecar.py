@@ -77,5 +77,30 @@ def test_a_malformed_entry_for_another_file_is_reported(tmp_path):
         check_file(p)
 
 
+def test_a_non_object_entry_for_another_file_is_reported(tmp_path):
+    p = write(tmp_path, {"channels.csv": EXACT, "y.csv": None})
+    with pytest.raises(Malformed, match=r"\[y\.csv\]: declarations must be a JSON object"):
+        check_file(p)
+
+
+@pytest.mark.parametrize("key", ["sub/channels.csv", "sub\\channels.csv", "*/x.csv"])
+def test_a_key_holding_a_path_separator_is_refused_naming_it(tmp_path, key):
+    p = write(tmp_path, {"*.csv": GLOB, key: EXACT})
+    with pytest.raises(Malformed, match="holds a path separator") as e:
+        check_file(p)
+    assert repr(key) in str(e.value)
+
+
+def test_glob_matching_is_case_sensitive_on_every_host(tmp_path, monkeypatch):
+    """`fnmatch.fnmatch` folds case through `os.path.normcase`, which is
+    lower-casing on Windows; the exact step never folds. Simulating that
+    host here: `Channels.csv` must not be taken as a glob matching
+    `channels.csv`, which would make two matches and a refusal."""
+    p = write(tmp_path, {"*.csv": GLOB, "Channels.csv": EXACT})
+    monkeypatch.setattr(os.path, "normcase", str.lower)
+    side = sidecar.find(p)
+    assert (side.key, side.order) == ("id", None)
+
+
 def test_a_file_no_entry_matches_has_no_sidecar(tmp_path):
     assert sidecar.find(write(tmp_path, {"other.csv": EXACT, "*.tsv": GLOB})) is None
