@@ -58,6 +58,12 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`rowspec eval --format github` annotates a refused `.mdtbl`** (#218).
+  It printed the refusal as a plain line on stderr whatever the format,
+  so in CI the job failed with nothing attached to the file. It now
+  prints an `::error` annotation on stdout, where its `#REF!`
+  annotations go, in place of the plain line. Plain output is unchanged.
+
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
   in a CRLF file, and with a terminator the file's unterminated last line

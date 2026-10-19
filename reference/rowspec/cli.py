@@ -121,7 +121,11 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
         except Malformed as e:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            print(f"{path}: {e}", file=sys.stderr)
+            if fmt == "github":
+                msg = str(e).replace("\n", " ")
+                print(f"::error file={path},title=rowspec::{msg}", file=out)
+            else:
+                print(f"{path}: {e}", file=sys.stderr)
             bad += 1
             continue
 
