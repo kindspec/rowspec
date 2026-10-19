@@ -848,8 +848,8 @@ CSV_MUTANTS = {
         "    if False:",
     ),
     "csv-quote-scan-ignores-the-delimiter": (
-        '        elif ch == delimiter or ch in "\\r\\n":',
-        '        elif ch in "\\r\\n":',
+        '    ends = re.escape(delimiter) + "\\r\\n"',
+        '    ends = "\\r\\n"',
     ),
     "csv-blank-line-between-rows-is-skipped": (
         '    body = [r if r else [""] for r in rest]',
@@ -919,8 +919,8 @@ CSV_MUTANTS = {
     # at a doubled quote now leaves a stray quote behind it, which the
     # doubled-quote cases see.
     "csv-doubled-quote-closes-the-field": (
-        "                if text[i + 1 : i + 2] == '\"':",
-        "                if False:",
+        '    quoted = re.compile(r\'"(?:[^"]|"")*+"\')',
+        '    quoted = re.compile(r\'"[^"]*+"\')',
     ),
     # --- refused either way: see CSV_EQUIVALENT ------------------------------
     "csv-empty-file-check-removed": (
@@ -945,12 +945,12 @@ CSV_MUTANTS = {
         '        raw = unicodedata.normalize("NFC", rec[key_idx].strip())',
     ),
     "csv-quote-opens-mid-field": (
-        "        elif at_start and ch == '\"':",
-        "        elif ch == '\"':",
+        '    quoted = re.compile(r\'"(?:[^"]|"")*+"\')',
+        '    quoted = re.compile(rf\'[^"{ends}]*+"(?:[^"]|"")*+"\')',
     ),
     "csv-quote-scan-ignores-a-lone-cr": (
-        '        elif ch == delimiter or ch in "\\r\\n":',
-        '        elif ch == delimiter or ch == "\\n":',
+        '    ends = re.escape(delimiter) + "\\r\\n"',
+        '    ends = re.escape(delimiter) + "\\n"',
     ),
     "csv-trailing-empty-line-refused": (
         "    rest = records[1:-1] if len(records) > 1 and records[-1] == [] else records[1:]",
@@ -965,12 +965,12 @@ CSV_MUTANTS = {
         "    if False:",
     ),
     "csv-quote-inside-an-unquoted-field-allowed": (
-        "            if (closed or ch == '\"') and (not stray or stray[-1] != start):",
-        "            if closed and (not stray or stray[-1] != start):",
+        "    unquoted = re.compile(rf'[^\"{ends}]*+')",
+        "    unquoted = re.compile(rf'(?:[^\"{ends}][^{ends}]*+)?')",
     ),
     "csv-text-after-a-closing-quote-allowed": (
-        "            if (closed or ch == '\"') and (not stray or stray[-1] != start):",
-        "            if ch == '\"' and (not stray or stray[-1] != start):",
+        '    quoted = re.compile(r\'"(?:[^"]|"")*+"\')',
+        '    quoted = re.compile(rf\'"(?:[^"]|"")*+"[^"{ends}]*+\')',
     ),
     "csv-marker-after-leading-space": (
         "        if not _MARKER.match(line):\n            continue",

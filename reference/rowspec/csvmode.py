@@ -155,34 +155,51 @@ def _quote_faults(text, delimiter):
     5), or anything but the delimiter or a line break after a closing quote.
     The csv module reads both without complaint, and what the field then
     holds is that module's guess.
+
+    The scan is left to the `re` engine: `run` matches every well-formed
+    field up to the first faulty one, so Python only sees the faults (#93).
     """
-    quoted, at_start, closed, opened, start, i = False, True, False, 0, 0, 0
-    stray, where, rec, rec_start = [], {}, 1, 0
-    while i < len(text):
-        ch = text[i]
-        if not quoted and ch in "\r\n":
-            if ch == "\n" or text[i + 1 : i + 2] != "\n":
-                rec += 1
-            rec_start = i + 1
-        if quoted:
-            if ch == '"':
-                if text[i + 1 : i + 2] == '"':
-                    i += 2
-                    continue
-                quoted, closed = False, True
-        elif ch == delimiter or ch in "\r\n":
-            at_start, closed = True, False
-        elif at_start and ch == '"':
-            quoted, at_start, opened, start = True, False, i, i
+    if '"' not in text:
+        return None, [], {}
+    ends = re.escape(delimiter) + "\r\n"
+    quoted = re.compile(r'"(?:[^"]|"")*+"')
+    unquoted = re.compile(rf'[^"{ends}]*+')
+    run = re.compile(rf"(?:(?:{quoted.pattern}|{unquoted.pattern})[{ends}])*+")
+    rest = re.compile(rf"[^{ends}]*+")
+    stray, where, rec, rec_start, pos, n = [], {}, 1, 0, 0, len(text)
+    while True:
+        # Every field from `pos` to `start` ends at a delimiter or line break.
+        start = run.match(text, pos).end()
+        if start == n:
+            return None, stray, where
+        if text[start] == '"':
+            m = quoted.match(text, start)
+            if m is None:
+                return text[start : start + 20], stray, where
         else:
-            if at_start:
-                start = i
-            if (closed or ch == '"') and (not stray or stray[-1] != start):
-                stray.append(start)
-                where[start] = (rec, rec_start)
-            at_start = False
-        i += 1
-    return (text[opened : opened + 20] if quoted else None), stray, where
+            m = unquoted.match(text, start)
+        if m.end() == n:
+            return None, stray, where
+        # The field at `start` is not ended where it should be: by a quote
+        # inside an unquoted field, or by anything after a closing quote.
+        # Count the record boundaries before it outside quoted fields; a
+        # quoted field holds an even number of quotes, so a line break with
+        # an odd number after it, up to `start`, is inside one.
+        seg = quoted.sub('"', text[pos:start])
+        rec += seg.count("\n") + seg.count("\r") - seg.count("\r\n")
+        at, quotes = start, 0
+        while True:
+            br = max(text.rfind("\r", pos, at), text.rfind("\n", pos, at))
+            if br < 0:
+                break
+            quotes += text.count('"', br, at)
+            at = br
+            if quotes % 2 == 0:
+                rec_start = br + 1
+                break
+        stray.append(start)
+        where[start] = (rec, rec_start)
+        pos = rest.match(text, m.end()).end()
 
 
 def _field_text(text, start, delimiter):
