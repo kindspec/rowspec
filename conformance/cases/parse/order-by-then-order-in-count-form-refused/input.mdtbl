@@ -1,0 +1,8 @@
+| id | a |
+| --- | --: |
+| r_1 | 1 |
+| r_2 | 2 |
+
+key := id
+order := by(a)
+order := count(a where a = "1")

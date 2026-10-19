@@ -357,3 +357,30 @@ the case's `WHY.md`.
   `parse/order-text-column-with-one-{inf,infinity,nan}-cell-refused` up to
   the text that settled the signed spelling, without changing any expected
   outcome. Its CSV-profile cases are listed in `cases-csv/README.md`.
+- **The eleventh batch** (#202) was written by an author who was not the
+  author of either implementation and did not read either, against SPEC.md
+  at `81df2ad` in a worktree of that commit, opening only SPEC.md,
+  AGENTS.md, CONTRIBUTING.md, this tree, `conformance/run_cases.py`, the
+  text of #202, the lines of README.md and ROADMAP.md that state the case
+  count, and CHANGELOG.md. #202 lists the identifier it expects for each
+  of these inputs. Each outcome here was derived from SPEC.md and then
+  checked against that list; where SPEC.md admits more identifiers than
+  #202 names, the case lists them all and its `WHY.md` says why. The
+  widening of `parse/order-by-with-a-where-refused` to three identifiers
+  was made after its author had read the `order` branch of the `where`
+  guard in `reference/rowspec/table.py`, to disable it for a mutation
+  check; that branch reports `malformed-declaration`, which the case named
+  before and after. Its cases are these, named exactly:
+  - An `order` declaration that is not `by(c)`:
+    `parse/order-in-count-form-with-where-refused` and
+    `parse/order-by-with-a-where-refused`.
+  - `order := by(c)` where `c` is no column, or an aggregate, with and
+    without rows:
+    `parse/order-by-a-missing-column-with-no-rows-refused`,
+    `parse/order-by-a-missing-column-with-rows-refused`,
+    `parse/order-by-an-aggregate-name-with-no-rows-refused` and
+    `parse/order-by-an-aggregate-name-with-rows-refused`.
+  - Two refusals that both apply, either of which passes:
+    `parse/order-by-a-missing-column-without-key-refused`,
+    `parse/order-by-a-missing-column-without-key-with-no-rows-refused` and
+    `parse/order-by-then-order-in-count-form-refused`.
