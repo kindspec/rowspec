@@ -38,10 +38,9 @@ prose, and where the two disagree the suite wins.
   A refused edit leaves the file untouched and prints the refusal's
   identifier in brackets.
 
-- **3 conformance cases that each assert one §9 identifier alone** (#99),
-  written from SPEC.md without the implementation: `conflict-marker`,
-  `alignment-field-count` and `alignment-row-in-data`. The floor is now
-  622 cases.
+- **2 conformance cases that each assert one §9 identifier alone** (#99),
+  written from SPEC.md without the implementation: `conflict-marker` and
+  `alignment-row-in-data`. The floor is now 621 cases.
 
 ### Changed
 

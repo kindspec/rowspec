@@ -364,14 +364,15 @@ the case's `WHY.md`.
   issue #99. Each case is a file to which exactly one §9 entry applies, and
   asserts that identifier alone:
   - `parse/conflict-marker-after-the-declarations-refused` (`conflict-marker`);
-  - `parse/alignment-row-with-fewer-fields-than-the-header-refused`
-    (`alignment-field-count`);
   - `parse/alignment-style-data-row-without-a-key-refused`
     (`alignment-row-in-data`).
 
-  It writes no such case for `lone-cr`, `malformed-table-line` or
-  `ident-compared-in-if`, because SPEC.md leaves none possible. A lone `CR`
-  is not a `char`, so its line matches no alternative of `line` and §9.19,
-  §9.18 or §9.12 applies with §9.15. §9.18 says of its own lines that they
-  meet §9.19 too. And §9.24 says its comparison "*is* reachable by the
-  grammar", so the header cell holding it is also §9.20.
+  It writes no such case for `lone-cr`, `malformed-table-line`,
+  `ident-compared-in-if` or `alignment-field-count`, because SPEC.md leaves
+  none possible. A lone `CR` is not a `char`, so its line matches no
+  alternative of `line` and §9.19, §9.18 or §9.12 applies with §9.15.
+  §9.18 says of its own lines that they meet §9.19 too. §9.24 says its
+  comparison "*is* reachable by the grammar", so the header cell holding it
+  is also §9.20. And §4 puts the alignment row's field count among what makes
+  it valid, so a count mismatch is also §9.21, as `parse/align-mismatch`
+  already says.
