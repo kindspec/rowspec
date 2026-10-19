@@ -357,3 +357,49 @@ the case's `WHY.md`.
   `parse/order-text-column-with-one-{inf,infinity,nan}-cell-refused` up to
   the text that settled the signed spelling, without changing any expected
   outcome. Its CSV-profile cases are listed in `cases-csv/README.md`.
+- **The eleventh batch** (#202) was written by an author who was not the
+  author of either implementation and did not read either, against SPEC.md
+  at `81df2ad` in a worktree of that commit, opening only SPEC.md,
+  AGENTS.md, CONTRIBUTING.md, this tree, `conformance/run_cases.py`, the
+  text of #202, the lines of README.md and ROADMAP.md that state the case
+  count, and CHANGELOG.md. #202 lists the identifier it expects for each
+  of these inputs. Each outcome here was derived from SPEC.md and then
+  checked against that list; where SPEC.md admits more identifiers than
+  #202 names, the case lists them all and its `WHY.md` says why. The
+  widening of `parse/order-by-with-a-where-refused` to three identifiers
+  was made after its author had read the `order` branch of the `where`
+  guard in `reference/rowspec/table.py`, to disable it for a mutation
+  check; that branch reports `malformed-declaration`, which the case named
+  before and after. Its cases are these, named exactly:
+  - An `order` declaration that is not `by(c)`:
+    `parse/order-in-count-form-with-where-refused` and
+    `parse/order-by-with-a-where-refused`.
+  - `order := by(c)` where `c` is no column, or an aggregate, with and
+    without rows:
+    `parse/order-by-a-missing-column-with-no-rows-refused`,
+    `parse/order-by-a-missing-column-with-rows-refused`,
+    `parse/order-by-an-aggregate-name-with-no-rows-refused` and
+    `parse/order-by-an-aggregate-name-with-rows-refused`.
+  - Two refusals that both apply, either of which passes:
+    `parse/order-by-a-missing-column-without-key-refused`,
+    `parse/order-by-a-missing-column-without-key-with-no-rows-refused` and
+    `parse/order-by-then-order-in-count-form-refused`.
+- **The twelfth batch** (#99) was written by an author who was not the
+  author of either implementation and did not read either, against SPEC.md
+  at `81df2ad` in a worktree of that commit, opening only SPEC.md,
+  AGENTS.md, CONTRIBUTING.md, this tree, `conformance/run_cases.py` and
+  issue #99. Each case is a file to which exactly one §9 entry applies, and
+  asserts that identifier alone:
+  - `parse/conflict-marker-after-the-declarations-refused` (`conflict-marker`);
+  - `parse/alignment-style-data-row-without-a-key-refused`
+    (`alignment-row-in-data`).
+
+  It writes no such case for `lone-cr`, `malformed-table-line`,
+  `ident-compared-in-if` or `alignment-field-count`, because SPEC.md leaves
+  none possible. A lone `CR` is not a `char`, so its line matches no
+  alternative of `line` and §9.19, §9.18 or §9.12 applies with §9.15.
+  §9.18 says of its own lines that they meet §9.19 too. §9.24 says its
+  comparison "*is* reachable by the grammar", so the header cell holding it
+  is also §9.20. And §4 puts the alignment row's field count among what makes
+  it valid, so a count mismatch is also §9.21, as `parse/align-mismatch`
+  already says.

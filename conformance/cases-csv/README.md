@@ -99,6 +99,30 @@ would test one implementation's phrasing rather than the profile.
 A `refusal_contains: ""` case must be built so that exactly one refusal
 applies, or it cannot tell which rule refused the file.
 
+### Asserting the identifier
+
+SPEC.md §13 requires every CSV-mode refusal to be reported with a §9
+identifier, and says which entry each refusal of the profile is read as. A
+refusing case asserts it with `refusal` in place of `refusal_contains`:
+
+- `refusal` is the identifier that opens the refusal's entry in SPEC.md §9,
+  such as `"row-field-count"`, or a list of every identifier that applies
+  where the file meets more than one entry.
+- **The case passes only when at least one refusal is reported and every
+  refusal reported carries an identifier the case lists** (§13). CSV mode may
+  report several refusals for one file, so an implementation that reports
+  one of the listed refusals passes, and one that also refuses for an
+  unlisted reason fails. Warnings are not refusals and are not checked
+  against `refusal`.
+- The message is never asserted on, as in `cases/`. A Python implementation
+  reports the identifier as the `refusal` attribute of each refusing finding,
+  and of the `Malformed` it raises for a file it cannot read at all; a runner
+  in another language reads it from wherever that language's binding puts it.
+
+Until the runner reads `refusal` for this tree (#103), it still asserts
+`refusal_contains` and refuses `refusal` as a field not in the table above,
+so the cases here still carry `refusal_contains`.
+
 ## Ground rules
 
 - **Fixtures are exact bytes.** A byte-order mark, a CRLF, a lone CR or bytes
@@ -172,7 +196,10 @@ no column in its own right. On 5: §13 now states every failure the reading
 listed, and the case for a non-string `key` it left open: invalid JSON, a
 sidecar that is not an object, a repeated member, and a name that is not a
 string or names no column are each refused, by §13's text rather than by
-analogy. The cases already written still read as before.
+analogy. The cases already written still read as before. Since #103, §13
+reads the sidecar as the profile's set of declarations, so §9.12
+(`malformed-declaration`) does apply to it, and names the identifier each
+of these refusals is reported with.
 
 The rest stand as the cases read them.
 

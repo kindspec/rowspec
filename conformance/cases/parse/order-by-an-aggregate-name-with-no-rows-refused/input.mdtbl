@@ -1,0 +1,6 @@
+| id | a |
+| --- | --: |
+
+key := id
+g := sum(a)
+order := by(g)

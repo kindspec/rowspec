@@ -32,9 +32,10 @@ import difflib
 import fnmatch
 import json
 import os
+import re
 import unicodedata
 
-from .table import Malformed
+from .table import Malformed, _show
 
 SUFFIX = ".rowspec.json"
 DIR_NAME = ".rowspec.json"
@@ -85,9 +86,16 @@ def _validate(obj, where):
     for k in obj:
         if k not in FIELDS:
             raise Malformed(f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}")
-    for k in ("key", "order", "order_type", "delimiter"):
+    # Each member is a string, and a non-string is told what that string is.
+    must_be = {
+        "key": "a column name",
+        "order": "a column name",
+        "order_type": f"one of the strings {', '.join(map(repr, TYPES[:-1]))} or {TYPES[-1]!r}",
+        "delimiter": "a string of one Unicode scalar value",
+    }
+    for k, want in must_be.items():
         if k in obj and not isinstance(obj[k], str):
-            raise Malformed(f"{where}: {k!r} must be a column name, not {type(obj[k]).__name__}")
+            raise Malformed(f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}")
     if "order_type" in obj and obj["order_type"] not in TYPES:
         raise Malformed(
             f"{where}: order_type {obj['order_type']!r} is not one of "
@@ -139,11 +147,30 @@ def _validate(obj, where):
     return obj
 
 
+def _undecodable_line(path):
+    """The first line holding a byte that is not UTF-8, quoted, never an
+    offset (#216). `surrogateescape` decodes such a byte to a lone
+    surrogate, which valid UTF-8 never gives, and the quote spells it
+    `\\xNN`. A long line is shown from just before that byte."""
+    with open(path, "rb") as fh:
+        text = fh.read().decode("utf-8", "surrogateescape")
+    bad = re.compile("[\udc80-\udcff]")
+    line = next(ln for ln in text.split("\n") if bad.search(ln)).rstrip("\r")
+    at = bad.search(line).start()
+    if at > 20:
+        line = "…" + line[at - 10 :]
+    return _show(line.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace"), 60)
+
+
 def _read(path):
     try:
         text = open(path, encoding="utf-8").read()
     except UnicodeDecodeError as e:
-        raise Malformed(f"{os.path.basename(path)} is not valid UTF-8: {e}") from None
+        raise Malformed(
+            f"{os.path.basename(path)} is not valid UTF-8: the line "
+            f"{_undecodable_line(path)} holds byte 0x{e.object[e.start]:02X}, which is "
+            f"not part of a valid sequence ({e.reason})"
+        ) from None
     try:
         return json.loads(text, object_pairs_hook=_no_duplicate_keys)
     except Malformed as e:

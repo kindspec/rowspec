@@ -29,6 +29,17 @@ def test_eval_refuses_non_utf8_like_check(tmp_path):
     assert "Traceback" not in r.stderr, r.stderr
     assert (r.returncode, r.stderr) == (check.returncode, check.stderr)
     assert r.stderr.startswith(f"{p}: not valid UTF-8: ")
+    assert r.stderr.endswith(" [bad-encoding]\n")
+
+
+def test_eval_github_annotates_non_utf8_like_check(tmp_path):
+    p = tmp_path / "enc.mdtbl"
+    p.write_bytes(b"| id\xff | n |\n| --- | --- |\n| r_1 | 1 |\n")
+    check = rowspec("check", "--format", "github", str(p))
+    r = rowspec("eval", "--format", "github", str(p))
+    assert r.returncode == 1
+    assert (r.stdout, r.stderr) == (check.stderr, "")
+    assert r.stdout.startswith(f"::error file={p},title=rowspec [bad-encoding]::not valid UTF-8")
 
 
 def test_eval_skips_a_non_utf8_file_it_does_not_evaluate(tmp_path):
