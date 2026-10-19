@@ -1,0 +1,7 @@
+| item | qty |
+| --- | --: |
+| widget | 1 |
+| :-: | --- |
+| gadget | 2 |
+
+n := count(item)
