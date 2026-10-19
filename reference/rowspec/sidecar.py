@@ -167,11 +167,35 @@ def find(data_path):
         table = _read(shared)
         if not isinstance(table, dict):
             raise Malformed(f"{DIR_NAME}: must be a JSON object of glob -> declarations")
+        # Every entry's declarations are validated, not only the one that
+        # applies, so a malformed entry for another file is reported rather
+        # than left to wait for the one file that would reach it. A key is
+        # matched against a basename, so one holding a path separator can
+        # never apply and is refused rather than ignored.
+        for p in table:
+            if "/" in p or "\\" in p:
+                raise Malformed(
+                    f"{DIR_NAME}: entry {p!r} holds a path separator, so it can never "
+                    f"match a file. Entries match file names in this directory only"
+                )
+        table = {p: _validate(obj, f"{DIR_NAME} [{p}]") for p, obj in table.items()}
         base = os.path.basename(data_path)
-        for pattern, obj in table.items():
-            if fnmatch.fnmatch(base, pattern):
-                obj = _validate(obj, f"{DIR_NAME} [{pattern}]")
-                return _build(shared, obj)
+        # An entry naming the file exactly wins over any glob. Without one,
+        # more than one matching glob is refused: picking one by position is
+        # the silent choice that hid an exact entry listed after a glob (#190).
+        # Both steps are case-sensitive on every host: `fnmatchcase`, because
+        # `fnmatch` folds case on Windows while `in` never does.
+        if base in table:
+            return _build(shared, table[base])
+        matches = [p for p in table if fnmatch.fnmatchcase(base, p)]
+        if len(matches) > 1:
+            raise Malformed(
+                f"{DIR_NAME}: {base!r} matches more than one glob, "
+                f"{', '.join(repr(p) for p in matches)}, and none is chosen by "
+                f"position. Add an entry naming {base!r} exactly, or narrow the globs"
+            )
+        if matches:
+            return _build(shared, table[matches[0]])
     return None
 
 

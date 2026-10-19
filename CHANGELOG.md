@@ -68,6 +68,15 @@ prose, and where the two disagree the suite wins.
   than write a table that no longer parses. `rowspec_alt`'s `set_cell`
   refuses it too.
 
+- **8 CSV-profile conformance cases for a quoted value ending in LF and
+  an empty `order` name** (#192). A quoted `"2024-01-02<LF>"` or `"5<LF>"`
+  keeps its line feed, so it is text: refused beside a date or number in
+  an order column and in a `columns` entry typed `date`, admitted in one
+  typed `text` and in an order column where every value is of that shape.
+  `"order": ""` is refused when no header cell is empty, and names the
+  empty-headed column when one is, so `inf` in that column is refused.
+  The floor of `just conform-csv` is now 224 cases.
+
 - **A per-row group aggregate is linear in the row count** (#195). The
   reference scanned every row for every row, so `sum(v where k = @k)` was
   quadratic: `rowspec check` on 10,000 rows took about 33 s. It now groups
@@ -78,6 +87,20 @@ prose, and where the two disagree the suite wins.
   names that command** (#197). Every command printed the usage of
   `rowspec check`. `rowspec eval --help` no longer lists the options `eval`
   accepts and ignores.
+
+- **A directory `.rowspec.json` applies an exact entry over a glob**
+  (#190). It applied the first entry whose glob matched, so an entry
+  naming the file, listed after a broader glob, was silently ignored:
+  `docs/csv.md`'s own example never ran `channels.csv`'s `order` check.
+  An entry naming the file exactly now wins wherever it is listed. A file
+  that more than one glob matches, with no exact entry, is refused,
+  naming the file and the globs. Both matches are case-sensitive on every
+  host; glob matching used to fold case on Windows. Every entry's
+  declarations are validated, not only the one that applies, and a key
+  holding `/` or `\`, which can never match a file name, is refused.
+  **A malformed entry anywhere in a directory `.rowspec.json` now refuses
+  every file checked through it**, so a run that passed before can now
+  fail.
 
 - **A `.mdtbl` conflict marker is reported by entity, not by line**
   (#196). `line 1: unresolved conflict marker` is now
