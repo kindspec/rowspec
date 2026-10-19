@@ -23,6 +23,19 @@ TABLE_EXT = (".mdtbl",)
 SKIP_DIRS = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
 
 
+class _TableRefusal(Finding):
+    """A `.mdtbl` refusal, carrying its SPEC §9 identifier. CSV-mode findings
+    carry none until the CSV profile has §9 identifiers of its own (#103)."""
+
+    def __init__(self, message, refusal):
+        super().__init__("refused", message)
+        self.refusal = refusal
+
+
+def _code(refusal):
+    return f" [{refusal}]" if refusal else ""
+
+
 def validate(path: str) -> list[Finding]:
     """Every finding for one file. A refusal that stops the file being read at
     all arrives as a Malformed and becomes a single finding."""
@@ -34,11 +47,11 @@ def validate(path: str) -> list[Finding]:
     try:
         text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
-        return [Finding("encoding", f"not valid UTF-8: {e}")]
+        return [_TableRefusal(f"not valid UTF-8: {e}", "bad-encoding")]
     try:
         evaluate(text)
     except Malformed as e:
-        return [Finding("refused", str(e))]
+        return [_TableRefusal(str(e), e.refusal)]
     return []
 
 
@@ -59,10 +72,20 @@ def collect(targets: list[str]) -> list[str]:
 def _print_plain(path, findings, explained, out):
     for f in findings:
         tag = "" if f.level == "refuse" else "warning: "
-        print(f"{path}: {tag}{f}", file=out)
+        print(f"{path}: {tag}{f}{_code(getattr(f, 'refusal', None))}", file=out)
         if f.detail and f.rule not in explained:
             explained.add(f.rule)
             print(f"    {f.detail}", file=out)
+
+
+def _gh_data(s):
+    """A workflow command's message, escaped as GitHub requires."""
+    return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _gh_prop(s):
+    """A workflow command's property value, such as `file=`."""
+    return _gh_data(s).replace(":", "%3A").replace(",", "%2C")
 
 
 def _print_github(path, findings, explained, out):
@@ -75,7 +98,8 @@ def _print_github(path, findings, explained, out):
         msg = str(f).replace("\n", " ")
         if f.detail:
             msg += " — " + f.detail
-        print(f"::{kind} file={path},title=rowspec::{msg}", file=out)
+        title = "rowspec" + _code(getattr(f, "refusal", None))
+        print(f"::{kind} file={_gh_prop(path)},title={_gh_prop(title)}::{_gh_data(msg)}", file=out)
 
 
 def _offending_cell(rows, col):
@@ -121,7 +145,7 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
         except Malformed as e:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            print(f"{path}: {e}", file=sys.stderr)
+            print(f"{path}: {e}{_code(e.refusal)}", file=sys.stderr)
             bad += 1
             continue
 
@@ -153,13 +177,12 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
                 # does that a CSV cannot is invisible in the place it matters.
                 for rowkey, col, v in refs:
                     where = f"row {rowkey}, " if rowkey is not None else ""
-                    print(
-                        f"::error file={path},title=rowspec::{where}{col} = {v}"
-                        f" — a computed value did not resolve. `check` does not"
-                        f" see this: the file is well formed and its total is"
-                        f" wrong.",
-                        file=out,
+                    msg = (
+                        f"{where}{col} = {v} — a computed value did not resolve."
+                        " `check` does not see this: the file is well formed and"
+                        " its total is wrong."
                     )
+                    print(f"::error file={_gh_prop(path)},title=rowspec::{_gh_data(msg)}", file=out)
             print(f"  {len(refs)} unresolved reference(s):", file=sys.stderr)
             seen = set()
             for rowkey, col, v in refs:
