@@ -109,3 +109,11 @@ def test_the_first_of_two_bad_fields_in_a_record_is_named(tmp_path):
 def test_a_crlf_sidecar_line_is_quoted_without_its_cr(tmp_path):
     msg = refusal(tmp_path, b"id,v\n1,a\n", sidecar_bytes=b'{\r\n  "key": "caf\xe9"\r\n}\r\n')
     assert 'the line \'  "key": "caf\\xe9"\' holds byte 0xE9' in msg, msg
+
+
+def test_a_sidecar_window_is_cut_from_the_shown_text(tmp_path):
+    # Each U+200B is shown as `\\u200b`: a window cut from the raw line
+    # pushed the byte past the end of the quote.
+    side = ('{"key": "' + "\u200b" * 20).encode() + b'\xe9"}'
+    msg = refusal(tmp_path, b"id,v\n1,a\n", sidecar_bytes=side)
+    assert "\\xe9" in msg, msg
