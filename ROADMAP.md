@@ -24,7 +24,7 @@ with a GitHub Action.
                               (the gate exits 2 if two mutate identically)
     224 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
     0 failures                just conform-csv
-    41 killed, 3 equivalent   just mutants-csv (csv profile)
+    44 killed, 3 equivalent   just mutants-csv (csv profile)
     11 killed, 0 equivalent   just mutants-csv (sidecar profile)
     1375 passed, 2 skipped    just test
     28 passed                 just test-xlsx
