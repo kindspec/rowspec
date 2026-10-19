@@ -1447,6 +1447,16 @@ An implementation MUST refuse:
     character of line 1. It is its own entry because a profile can treat it
     differently from malformed UTF-8: §13's CSV profile warns on a BOM and
     still refuses bytes that are not UTF-8
+27. `column-type-mismatch`: a stored value whose type is not the type declared
+    for its column — in §13's CSV profile, by the sidecar's `columns` or its
+    `order_type` (§13). A `.mdtbl` table declares no column types, so no
+    `.mdtbl` file reaches this entry. It is here because this list claims to
+    be complete for every profile, and no other entry means it: §9.10 refuses
+    an order column that has no single type, and this one a column whose type,
+    single or not, is not the declared one. One entry covers both members,
+    because a `columns` type on the order column and `order_type` are the same
+    check, and a program counting type errors should not have to merge two
+    identifiers
 
 **Every refusal is reported with its identifier.** The identifier is the
 code-formatted name that opens each entry above, and an implementation MUST
@@ -1692,12 +1702,61 @@ relaxation**, and the difference must be stated rather than discovered:
   inside a quoted field included. A shorter run, or one that does not start
   the line, is data.
 
-**The CSV profile does not carry §9's identifiers yet.** A CSV-mode refusal is
-not required to report one, its conformance cases assert only that a file is
-refused, and most of the refusals a sidecar brings, such as invalid JSON, a
-sidecar `key` naming no column, or a value of a typed column of another type,
-have no §9 entry to name. §9.12 refuses a
-`key :=` line naming no column, and a sidecar is not a declaration line.
+**Every CSV-mode refusal is reported with a §9 identifier**, under §9's
+rules for reporting one. Each refusal this profile makes is read as a §9
+entry, as follows, and is reported with that entry's identifier:
+
+- a conflict marker line, inside a quoted field included: §9.1
+  `conflict-marker`.
+- two column names that compare alike, two empty header cells included:
+  §9.2 `duplicate-column`.
+- a `Cf` format character in a column name, and a declared key's value that
+  is empty or holds whitespace or a `Cf` format character: §9.16
+  `bad-identifier`.
+- a record whose field count differs from the header's, an empty line
+  between rows included, a quoted field the file ends inside, and a stray
+  quote: §9.6 `row-field-count`.
+- two rows with one value of the declared key: §9.5 `duplicate-row-id`.
+- a file with no header row, an empty file included: §9.13 `no-table`.
+- a CSV that is not well-formed UTF-8: §9.14 `bad-encoding`.
+- **the sidecar is this profile's set of declarations**, so a sidecar that
+  does not parse, or that declares what cannot be checked, is a malformed
+  declaration, §9.12 `malformed-declaration`: one that is not valid JSON, a
+  leading BOM included; one that is not a JSON object; a member the profile
+  does not define; a `key`, `order`, `order_type` or `delimiter` that is not
+  a string; an `order_type` that is not `number`, `date` or `text`; a
+  `delimiter` the `delimiter` rule above refuses; a `columns` that is not
+  an object, or that declares any other type; `order_type` without `order`;
+  and a `key` or a `columns` member naming no column of the file. The last is
+  the CSV form of §9.12's `key := col` naming no stored column.
+- a sidecar that is not well-formed UTF-8, one encoded as UTF-16 or UTF-32
+  included: §9.14 `bad-encoding`, which is a property of bytes in whichever
+  file holds them. A sidecar's leading BOM is not §9.26: that entry is a
+  warning in this profile, and the sidecar's BOM is refused, so it is
+  `malformed-declaration` as above.
+- a member repeated within one object of the sidecar, and two `columns`
+  members naming one column: §9.4 `duplicate-declaration`.
+- an `order` naming no column of the file, and an order column that mixes
+  types, is blank in any row, or holds a non-finite value: §9.10
+  `bad-order-column`, whose "`c` is not a stored column" is the first.
+- `order` without `key`: §9.25 `order-without-key`.
+- a value of a column typed by `columns` that is not of that type, and an
+  order column holding a value that is not of its `order_type`: §9.27
+  `column-type-mismatch`.
+
+A file can meet more than one of these, and then each applies, as §9 says:
+an order column of mixed types under an `order_type`, or under a `columns`
+type, meets both §9.10 and §9.27, because some of its values are not of the
+declared type.
+
+**CSV mode may report more than one refusal for one file**, each with its
+identifier. A CSV-profile conformance case lists every identifier that
+applies to its file, and it passes only when at least one refusal is
+reported and **every refusal reported carries an identifier the case
+lists**. An implementation that reports one refusal still passes, as §9
+allows, and one that also refuses for a reason that does not apply fails. A
+warning, §9.26's and §9.15's included, is not a refusal, and is not checked
+against the case's identifiers.
 
 An implementation claiming CSV-mode conformance states which profile it means.
 
