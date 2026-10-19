@@ -46,8 +46,8 @@ prose, and where the two disagree the suite wins.
   `dup.mdtbl: duplicate key id='r_1'` is now
   `dup.mdtbl: duplicate key id='r_1' [duplicate-row-id]`. With
   `--format github` the annotation's title changes from `rowspec` to
-  `rowspec [duplicate-row-id]`; the message is unchanged. A `.mdtbl` that
-  is not UTF-8 is `[bad-encoding]`. Warnings, `--fmt-check`'s "not in
+  `rowspec [duplicate-row-id]`; the message is unchanged. `rowspec check`
+  reports a `.mdtbl` that is not UTF-8 as `[bad-encoding]`. Warnings, `--fmt-check`'s "not in
   canonical form" line and every CSV-mode line are unchanged and carry no
   identifier. A script that matches a whole plain line, or an annotation
   title equal to `rowspec`, needs updating; one that matches a substring

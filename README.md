@@ -252,7 +252,7 @@ data/parts.mdtbl: duplicate key id='r_1' [duplicate-row-id]
 ::error file=data/parts.mdtbl,title=rowspec [duplicate-row-id]::duplicate key id='r_1'
 ```
 
-Warnings and CSV-mode findings carry no identifier yet
+Warnings carry no identifier. CSV-mode findings carry none yet
 ([#103](https://github.com/kindspec/rowspec/issues/103)).
 
 ## Licensing
