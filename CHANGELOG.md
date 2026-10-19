@@ -61,9 +61,10 @@ prose, and where the two disagree the suite wins.
   `--format github` the annotation's title changes from `rowspec` to
   `rowspec [duplicate-row-id]`; the message is unchanged. `rowspec check`
   and `rowspec eval` report a `.mdtbl` that is not UTF-8 as
-  `[bad-encoding]` (#230). Warnings,
-  `--fmt-check`'s "not in canonical form" line and every CSV-mode line
-  are unchanged and carry no identifier. A script that matches a whole
+  `[bad-encoding]` (#230). Warnings and every CSV-mode line are
+  unchanged and carry no identifier. `--fmt-check`'s "not in canonical
+  form" line carries none either; under `--format github` it is now an
+  annotation titled `rowspec` (#219). A script that matches a whole
   plain line, or an annotation title equal to `rowspec`, needs updating;
   one that matches a substring of the message does not.
 
@@ -107,6 +108,12 @@ prose, and where the two disagree the suite wins.
   exits 1. A non-UTF-8 file that `eval` does not evaluate, such as a
   `.csv` in a directory it was given, is skipped instead of aborting the
   run.
+
+- **`rowspec check --fmt-check --format github` annotates a file that is
+  not in canonical form** (#219). It printed a plain line whatever the
+  format, so in CI the job failed with nothing attached to the file. It
+  now prints `::error file=...,title=rowspec::not in canonical form (run
+  --fmt)`. Plain output is unchanged.
 
 - **`rowspec eval --format github` annotates a refused `.mdtbl`** (#218).
   It printed the refusal as a plain line on stderr whatever the format,
