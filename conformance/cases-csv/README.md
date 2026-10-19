@@ -62,8 +62,9 @@ to declarations (`docs/csv.md`). That is a convenience of one implementation,
 not part of the profile: no case here uses it, and an implementation claiming
 the profile need not read it. It stays out because glob matching is not the
 same across languages, or even across platforms: Python's own `fnmatch` is
-case-insensitive on Windows and case-sensitive elsewhere. Cases about it would
-test one library's matcher rather than SPEC.md.
+case-insensitive on Windows and case-sensitive elsewhere (rowspec uses
+`fnmatchcase`, case-sensitive on every host, for that reason). Cases about it
+would test one library's matcher rather than SPEC.md.
 
 ## Kinds
 
@@ -339,3 +340,25 @@ file named `.tsv` or `.tab` cannot be reached by this tree, and no case
 tests it. Each refusing case's `WHY.md` says which rule is the only one the
 file breaks, and what the bare `refusal_contains: ""` assertion does not
 pin. `cases/README.md` records that batch's other cases.
+
+Eight cases (#192) were written by an author who was not the author of
+`csvmode.py` and did not read it, against SPEC.md at `5e992d8`, opening
+only SPEC.md, AGENTS.md, CONTRIBUTING.md, this tree, the case-count floor
+in `conformance/run_cases.py`, and the lines of ROADMAP.md and
+CHANGELOG.md that state the count:
+
+- A quoted value ending in LF keeps the LF, which §4.1.6's `number` and
+  §4.1.7's `date` do not generate and ASCII space-and-tab trimming does not
+  remove, so it is text:
+  `order/quoted-date-ending-in-lf-beside-a-date-refused`,
+  `order/quoted-number-ending-in-lf-beside-a-number-refused`,
+  `order/quoted-dates-ending-in-lf-in-every-row-accepted`,
+  `types/date-column-with-a-quoted-date-ending-in-lf-refused` and
+  `types/text-column-with-a-quoted-date-ending-in-lf-accepted`.
+- `"order": ""` names an empty-headed column, or no column:
+  `order/empty-name-with-no-empty-header-cell-refused`,
+  `order/empty-name-names-an-empty-header-cell-accepted` and
+  `order/empty-name-names-an-empty-header-cell-with-inf-refused`.
+
+Each `WHY.md` quotes the sentences of SPEC.md that decide it, and records
+no new open question.
