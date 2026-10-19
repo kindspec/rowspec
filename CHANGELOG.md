@@ -58,6 +58,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`--format github` escapes what GitHub's workflow commands require**
+  (#220). A `%`, CR or LF in an annotation's message, and those or a `:`
+  or `,` in its file name, were written as they stood, so GitHub could
+  read a different file name or message: a file named `a,b.csv` was
+  annotated as `a`, and a key `50%25` was shown as `50%`. They are now
+  escaped as `%25`, `%0D`, `%0A`, `%3A` and `%2C`, in `check` and in
+  `eval`'s `#REF!` annotations. `check` still replaces an LF in a
+  finding's message with a space first, so that text stays on one line.
+
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
   in a CRLF file, and with a terminator the file's unterminated last line
