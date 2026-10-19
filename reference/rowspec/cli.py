@@ -118,10 +118,12 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
             cols, formulas, _r, decls, _o, _k = parse(
                 open(path, encoding="utf-8", newline="").read()
             )
-        except Malformed as e:
+        except (Malformed, UnicodeDecodeError) as e:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            print(f"{path}: {e}", file=sys.stderr)
+            # A decode error gets check's message, from `validate`.
+            msg = f"not valid UTF-8: {e}" if isinstance(e, UnicodeDecodeError) else e
+            print(f"{path}: {msg}", file=sys.stderr)
             bad += 1
             continue
 

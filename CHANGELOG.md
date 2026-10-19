@@ -67,6 +67,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`rowspec eval` refuses a `.mdtbl` that is not UTF-8 instead of
+  crashing** (#230). It raised a `UnicodeDecodeError` traceback; it now
+  prints the line `rowspec check` prints, `file: not valid UTF-8: ...`,
+  and exits 1. A non-UTF-8 file that `eval` does not evaluate, such as a
+  `.csv` in a directory it was given, is skipped instead of aborting the
+  run.
+
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
   in a CRLF file, and with a terminator the file's unterminated last line
