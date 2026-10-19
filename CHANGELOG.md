@@ -49,9 +49,37 @@ prose, and where the two disagree the suite wins.
 
 - **2 conformance cases that each assert one §9 identifier alone** (#99),
   written from SPEC.md without the implementation: `conflict-marker` and
-  `alignment-row-in-data`. The floor is now 621 cases.
+  `alignment-row-in-data`. The floor is now 630 cases.
 
 ### Changed
+
+- **`rowspec check` and `rowspec eval` print a refused `.mdtbl`'s §9
+  identifier** (#101). Plain output ends the line with it in brackets,
+  the form the editing commands print:
+  `dup.mdtbl: duplicate key id='r_1'` is now
+  `dup.mdtbl: duplicate key id='r_1' [duplicate-row-id]`. With
+  `--format github` the annotation's title changes from `rowspec` to
+  `rowspec [duplicate-row-id]`; the message is unchanged. `rowspec check`
+  reports a `.mdtbl` that is not UTF-8 as `[bad-encoding]`. Warnings,
+  `--fmt-check`'s "not in canonical form" line and every CSV-mode line
+  are unchanged and carry no identifier. A script that matches a whole
+  plain line, or an annotation title equal to `rowspec`, needs updating;
+  one that matches a substring of the message does not.
+
+- **SPEC.md §13 gives every CSV-mode refusal a §9 identifier** (#103).
+  §13 said the CSV profile did not carry §9's identifiers yet. It now reads
+  each of the profile's refusals as a §9 entry: a sidecar that does not
+  parse or that declares something unusable, and a sidecar `key` or
+  `columns` member naming no column, is `malformed-declaration` (§9.12),
+  since the sidecar is the profile's set of declarations; a sidecar `order`
+  naming no column is `bad-order-column` (§9.10); a sidecar that is not
+  UTF-8 is `bad-encoding` (§9.14). **§9 gains entry 27,
+  `column-type-mismatch`**, for a value that is not of the type `columns`
+  or `order_type` declares, which no `.mdtbl` file can reach. A
+  CSV-profile case passes only when every refusal reported carries an
+  identifier the case lists. Decided by the project owner. CSV mode does
+  not report identifiers yet, and `conformance/cases-csv/` still asserts
+  `refusal_contains`; the cases and the code follow separately.
 
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
@@ -70,6 +98,13 @@ prose, and where the two disagree the suite wins.
   shape and write a row into a file that was already refused.
 
 ### Fixed
+
+- **A sidecar key naming no column names the sidecar's own file**
+  (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
+  naming a file that does not exist. It now says
+  `data.csv.rowspec.json declares key ...`, or `.rowspec.json declares
+  key ...` for the directory form, as the `order` and `columns`
+  refusals already did.
 
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
@@ -123,6 +158,21 @@ prose, and where the two disagree the suite wins.
   `bad-order-column` (§9.10) whatever the row count. `rowspec_alt` already
   refused both.
 
+- **9 conformance cases for `order` declarations** (#202) in
+  `conformance/cases/`, written from SPEC.md without the implementation.
+  `order := count(a where a = "1")` is `malformed-declaration`;
+  `order := by(a where a = "1")` may be reported as `malformed-declaration`,
+  `bad-identifier` or `bad-order-column`, reading the text inside `by(...)`
+  as the `order` argument as `order := by(id-x)` already does; SPEC.md names
+  no identifier for an `order` line that parses but is not `by(c)` (#225).
+  `order := by(n)` naming no column, and
+  `order := by(g)` naming an aggregate, are `bad-order-column` with and
+  without rows. With no `key`, `order := by(n)` may be reported as
+  `order-without-key` or `bad-order-column`, with and without rows, and a
+  valid `order := by(a)` followed by `order := count(...)` as
+  `malformed-declaration` or `duplicate-declaration`. The floor is now 628
+  cases.
+
 - **A `.mdtbl` conflict marker is reported by entity, not by line**
   (#196). `line 1: unresolved conflict marker` is now
   `unresolved conflict marker '<<<<<<< ours' near row id='r_2'`: the
@@ -148,6 +198,13 @@ prose, and where the two disagree the suite wins.
   about 8 s on 0.4.0 and about 2 s now. It uses the `re` engine with no
   possessive quantifier, which CPython before 3.11.5 can match wrongly.
   No finding changes.
+
+- **A non-string `order_type` or `delimiter` in a sidecar is told what
+  it must be** (#215). Both were refused as `must be a column name`,
+  which neither is. `{"order_type": 3}` now gives `'order_type' must be
+  one of the strings 'number', 'date' or 'text', not int`, and
+  `{"delimiter": 9}` gives `'delimiter' must be a string of one Unicode
+  scalar value, not int`. `key` and `order` still say `a column name`.
 
 ## [0.4.0] — 2026-10-16
 
