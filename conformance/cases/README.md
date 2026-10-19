@@ -365,8 +365,12 @@ the case's `WHY.md`.
   count, and CHANGELOG.md. #202 lists the identifier it expects for each
   of these inputs. Each outcome here was derived from SPEC.md and then
   checked against that list; where SPEC.md admits more identifiers than
-  #202 names, the case lists them all and its `WHY.md` says why. Its cases
-  are these, named exactly:
+  #202 names, the case lists them all and its `WHY.md` says why. The
+  widening of `parse/order-by-with-a-where-refused` to three identifiers
+  was made after its author had read the `order` branch of the `where`
+  guard in `reference/rowspec/table.py`, to disable it for a mutation
+  check; that branch reports `malformed-declaration`, which the case named
+  before and after. Its cases are these, named exactly:
   - An `order` declaration that is not `by(c)`:
     `parse/order-in-count-form-with-where-refused` and
     `parse/order-by-with-a-where-refused`.
