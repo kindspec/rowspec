@@ -99,20 +99,20 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
-- **A CSV field over 131,072 characters is checked, not a crash** (#235).
-  Python's csv module stops at that length by default, and `rowspec
-  check` died with `_csv.Error: field larger than field limit`. SPEC.md
-  sets no limit on a field and §9 has no refusal for a long one, so CSV
-  mode now lifts the module's limit while it reads a file, and puts the
-  old limit back after.
+- **`rowspec eval --format github` annotates a refused `.mdtbl`** (#218).
+  It printed the refusal as a plain line on stderr whatever the format,
+  so in CI the job failed with nothing attached to the file. It now
+  prints the annotation `check` prints, `::error file=...,title=rowspec
+  [identifier]::...`, on stdout, where its `#REF!` annotations go, in
+  place of the plain line. Plain output is unchanged.
 
 - **`--format github` escapes what GitHub's workflow commands require**
   (#220). A `%`, CR or LF in an annotation's message, and those or a `:`
   or `,` in its file name, were written as they stood, so GitHub could
   read a different file name or message: a file named `a,b.csv` was
   annotated as `a`, and a key `50%25` was shown as `50%`. They are now
-  escaped as `%25`, `%0D`, `%0A`, `%3A` and `%2C`, in `check` and in
-  `eval`'s `#REF!` annotations. `check` still replaces an LF in a
+  escaped as `%25`, `%0D`, `%0A`, `%3A` and `%2C`, in `check`, in
+  `eval`'s `#REF!` annotations and in its refusal annotation (#218). `check` still replaces an LF in a
   finding's message with a space first, so that text stays on one line.
 
 - **A sidecar key naming no column names the sidecar's own file**
@@ -121,6 +121,13 @@ prose, and where the two disagree the suite wins.
   `data.csv.rowspec.json declares key ...`, or `.rowspec.json declares
   key ...` for the directory form, as the `order` and `columns`
   refusals already did.
+
+- **A CSV field over 131,072 characters is checked, not a crash** (#235).
+  Python's csv module stops at that length by default, and `rowspec
+  check` died with `_csv.Error: field larger than field limit`. SPEC.md
+  sets no limit on a field and §9 has no refusal for a long one, so CSV
+  mode now lifts the module's limit while it reads a file, and puts the
+  old limit back after.
 
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
