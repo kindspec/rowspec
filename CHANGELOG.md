@@ -49,6 +49,19 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **`rowspec check` and `rowspec eval` print a refused `.mdtbl`'s §9
+  identifier** (#101). Plain output ends the line with it in brackets,
+  the form the editing commands print:
+  `dup.mdtbl: duplicate key id='r_1'` is now
+  `dup.mdtbl: duplicate key id='r_1' [duplicate-row-id]`. With
+  `--format github` the annotation's title changes from `rowspec` to
+  `rowspec [duplicate-row-id]`; the message is unchanged. `rowspec check`
+  reports a `.mdtbl` that is not UTF-8 as `[bad-encoding]`. Warnings,
+  `--fmt-check`'s "not in canonical form" line and every CSV-mode line
+  are unchanged and carry no identifier. A script that matches a whole
+  plain line, or an annotation title equal to `rowspec`, needs updating;
+  one that matches a substring of the message does not.
+
 - **SPEC.md §13 gives every CSV-mode refusal a §9 identifier** (#103).
   §13 said the CSV profile did not carry §9's identifiers yet. It now reads
   each of the profile's refusals as a §9 entry: a sidecar that does not
