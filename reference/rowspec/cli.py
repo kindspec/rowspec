@@ -36,6 +36,12 @@ def _code(refusal):
     return f" [{refusal}]" if refusal else ""
 
 
+def _not_utf8(e):
+    """The refusal for a `.mdtbl` that is not UTF-8, which the CLI decodes
+    itself. `check` and `eval` both build it here, so they say the same."""
+    return _TableRefusal(f"not valid UTF-8: {e}", "bad-encoding")
+
+
 def validate(path: str) -> list[Finding]:
     """Every finding for one file. A refusal that stops the file being read at
     all arrives as a Malformed and becomes a single finding."""
@@ -47,7 +53,7 @@ def validate(path: str) -> list[Finding]:
     try:
         text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
-        return [_TableRefusal(f"not valid UTF-8: {e}", "bad-encoding")]
+        return [_not_utf8(e)]
     try:
         evaluate(text)
     except Malformed as e:
@@ -146,7 +152,7 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
             if isinstance(e, UnicodeDecodeError):
-                found = validate(path)[0]  # check's message and `bad-encoding`
+                found = _not_utf8(e)
             else:
                 found = _TableRefusal(str(e), e.refusal)
             if fmt == "github":

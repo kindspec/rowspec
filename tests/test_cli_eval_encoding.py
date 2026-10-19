@@ -43,8 +43,11 @@ def test_eval_github_annotates_non_utf8_like_check(tmp_path):
 
 
 def test_eval_skips_a_non_utf8_file_it_does_not_evaluate(tmp_path):
-    (tmp_path / "x.csv").write_bytes(b"a,b\n\xff,2\n")
+    """`a.csv` sorts before `ok.mdtbl`, so a run that stopped at the CSV
+    instead of skipping it would never print the table."""
+    (tmp_path / "a.csv").write_bytes(b"a,b\n\xff,2\n")
     (tmp_path / "ok.mdtbl").write_text(OK)
     r = rowspec("eval", str(tmp_path))
     assert "Traceback" not in r.stderr, r.stderr
     assert r.returncode == 0
+    assert f"{tmp_path / 'ok.mdtbl'}\n" in r.stdout, r.stdout
