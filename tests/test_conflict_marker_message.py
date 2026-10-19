@@ -81,7 +81,7 @@ def test_a_row_with_no_value_to_name_it_by_gives_the_marker_alone():
 
 
 def test_control_characters_in_the_marker_line_are_escaped():
-    msg = _refuse("<<<<<<< \x1b[31mours\x07‮\x85\n| id |\n| -- |\n")
+    msg = _refuse("<<<<<<< \x1b[31mours\x07\u202e\x85\n| id |\n| -- |\n")
     assert msg == (
         "unresolved conflict marker '<<<<<<< \\x1b[31mours\\x07\\u202e\\x85' near the header row"
     )
