@@ -58,6 +58,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A sidecar key naming no column names the sidecar's own file**
+  (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
+  naming a file that does not exist. It now says
+  `data.csv.rowspec.json declares key ...`, or `.rowspec.json declares
+  key ...` for the directory form, as the `order` and `columns`
+  refusals already did.
+
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF
   in a CRLF file, and with a terminator the file's unterminated last line
