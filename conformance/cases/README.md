@@ -362,7 +362,11 @@ the case's `WHY.md`.
   at `81df2ad` in a worktree of that commit, opening only SPEC.md,
   AGENTS.md, CONTRIBUTING.md, this tree, `conformance/run_cases.py`, the
   text of #202, the lines of README.md and ROADMAP.md that state the case
-  count, and CHANGELOG.md. Its cases are these, named exactly:
+  count, and CHANGELOG.md. #202 lists the identifier it expects for each
+  of these inputs. Each outcome here was derived from SPEC.md and then
+  checked against that list; where SPEC.md admits more identifiers than
+  #202 names, the case lists them all and its `WHY.md` says why. Its cases
+  are these, named exactly:
   - An `order` declaration that is not `by(c)`:
     `parse/order-in-count-form-with-where-refused` and
     `parse/order-by-with-a-where-refused`.

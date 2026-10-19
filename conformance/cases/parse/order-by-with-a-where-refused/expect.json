@@ -1,5 +1,9 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal": "malformed-declaration"
+  "refusal": [
+    "bad-identifier",
+    "bad-order-column",
+    "malformed-declaration"
+  ]
 }
