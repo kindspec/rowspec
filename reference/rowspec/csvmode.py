@@ -32,6 +32,7 @@ CSV. It stays a warning so that `--strict` can refuse it for a repository
 that enforces LF, which is what the action's `strict` input documents.
 """
 
+import contextlib
 import csv
 import io
 import re
@@ -106,6 +107,26 @@ def _spell_bytes(s):
     return s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
 
 
+#: The largest `csv.field_size_limit` every platform takes: it is a C long,
+#: which is 32 bits on Windows.
+_FIELD_LIMIT = 2**31 - 1
+
+
+@contextlib.contextmanager
+def _no_field_limit():
+    """Lift the csv module's field size limit, 131,072 characters by
+    default, while CSV mode reads a file (#235). SPEC.md sets no limit on a
+    field and §9 has no refusal for a long one, so a reader-imposed limit
+    would turn a file the specification accepts into a crash. The old
+    limit is put back after, because it is process-wide state."""
+    old = csv.field_size_limit(_FIELD_LIMIT)
+    try:
+        yield
+    finally:
+        csv.field_size_limit(old)
+
+
+@_no_field_limit()
 def _undecodable(raw, delimiter, key):
     """Where the first byte that is not UTF-8 sits, by entity, never by
     offset (#216): the header row, or the row as `_name_row` names it, and
@@ -410,6 +431,7 @@ def _cap(findings, rule, items, render, detail, unit="row(s)"):
         )
 
 
+@_no_field_limit()
 def check_text(text, name="<input>", side=None, delimiter=","):
     """Every CSV-mode finding for already-decoded text. Raises Malformed only
     for the conditions that stop the file being read at all."""

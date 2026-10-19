@@ -95,6 +95,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A CSV field over 131,072 characters is checked, not a crash** (#235).
+  Python's csv module stops at that length by default, and `rowspec
+  check` died with `_csv.Error: field larger than field limit`. SPEC.md
+  sets no limit on a field and §9 has no refusal for a long one, so CSV
+  mode now lifts the module's limit while it reads a file, and puts the
+  old limit back after.
+
 - **A sidecar key naming no column names the sidecar's own file**
   (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
   naming a file that does not exist. It now says
