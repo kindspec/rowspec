@@ -12,6 +12,11 @@ needs is in the files; nothing is in Python.
         <other>.mdtbl        companion artifacts, if the case needs them
         WHY.md               prose, ignored by the runner
 
+A `parse` case whose artifact is not UTF-8 (SPEC §9.14) holds `input.bin`
+in place of `input.mdtbl`. A runner reads every `.mdtbl` file as UTF-8, so
+those bytes cannot be one; the `parse` handler reads `input.bin` as bytes
+and hands them to the implementation undecoded.
+
 A directory is a case **iff** it contains `expect.json`. A directory without
 one is walked past — that is what makes companion subdirectories possible, and
 `conformance/reserved/_outside/`, if those cases are ever run.
@@ -367,7 +372,9 @@ the case's `WHY.md`.
   - `parse/alignment-row-with-fewer-fields-than-the-header-refused`
     (`alignment-field-count`);
   - `parse/alignment-style-data-row-without-a-key-refused`
-    (`alignment-row-in-data`).
+    (`alignment-row-in-data`);
+  - `parse/latin-1-byte-in-a-cell-refused` (`bad-encoding`), the first case
+    held as `input.bin`.
 
   It writes no such case for `lone-cr`, `malformed-table-line` or
   `ident-compared-in-if`, because SPEC.md leaves none possible. A lone `CR`

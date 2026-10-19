@@ -56,7 +56,7 @@ sys.path.insert(0, os.path.join(HERE, "..", "reference"))
 #: most of itself -- a filter, a bad path, a half-checked-out tree. It is a
 #: FLOOR measured with `find conformance/cases -name expect.json | wc -l`, so
 #: adding cases never touches it and removing them has to be deliberate.
-MIN_CASES = 622
+MIN_CASES = 623
 
 #: The same floor for SPEC.md §13's CSV tree, measured the same way over
 #: `conformance/cases-csv`.
@@ -68,6 +68,14 @@ CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-ca
 #: always one file. Which stem is the base and which are the branches is
 #: rowspec's filing convention, which is why the kit is handed texts.
 ARTIFACT = "a.mdtbl"
+
+#: A `parse` case's artifact as raw bytes, for §9.14: kindkit decodes every
+#: `.mdtbl` fixture as UTF-8 before a handler runs, so bytes that are not
+#: UTF-8 cannot be one -- that is a fault in the whole tree, not a case. The
+#: CSV profile works around the same thing with CSV_NOT_A_FIXTURE. A case
+#: holding this file instead of `input.mdtbl` hands the implementation the
+#: bytes, undecoded.
+MDTBL_BYTES = "input.bin"
 
 
 def ev_at(ref, text, base):
@@ -110,8 +118,16 @@ def adapter_for(impl):
             # to the old schema assert less than its author meant.
             yield "`refusal_contains` is no longer read; name the §9 identifier in `refusal`"
             return
+        artifact = case.files.get("input")
+        if artifact is None:
+            path = os.path.join(case.dir, MDTBL_BYTES)
+            if not os.path.isfile(path):
+                yield f"no input.mdtbl or {MDTBL_BYTES} in the case; nothing would have run"
+                return
+            with open(path, "rb") as handle:
+                artifact = handle.read()
         try:
-            ev_at(ref, case.files["input"], case.dir)
+            ev_at(ref, artifact, case.dir)
             got = None
         except ref.Malformed as ex:
             # SPEC §9: the identifier is read from the refusal, never parsed
