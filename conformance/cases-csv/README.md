@@ -62,8 +62,9 @@ to declarations (`docs/csv.md`). That is a convenience of one implementation,
 not part of the profile: no case here uses it, and an implementation claiming
 the profile need not read it. It stays out because glob matching is not the
 same across languages, or even across platforms: Python's own `fnmatch` is
-case-insensitive on Windows and case-sensitive elsewhere. Cases about it would
-test one library's matcher rather than SPEC.md.
+case-insensitive on Windows and case-sensitive elsewhere (rowspec uses
+`fnmatchcase`, case-sensitive on every host, for that reason). Cases about it
+would test one library's matcher rather than SPEC.md.
 
 ## Kinds
 
