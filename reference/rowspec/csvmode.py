@@ -42,6 +42,7 @@ from rowspec import sidecar as sidecar_mod
 from rowspec.table import (
     DATE_RE,
     Malformed,
+    _escape,
     _isnum,
     _show,
     is_nonfinite_spelling,
@@ -299,10 +300,10 @@ def _name_row(rec, names, key_idx, n):
     # is named as itself and not as the row `a`.
     key = rec[key_idx].strip(" \t") if key_idx is not None and key_idx < len(rec) else ""
     if key:
-        return f"row {names[key_idx]}={_show(key)}"
+        return f"row {_escape(names[key_idx])}={_show(key)}"
     first = rec[0].strip(" \t") if rec else ""
     if first and names:
-        return f"row {names[0]}={_show(first)}"
+        return f"row {_escape(names[0])}={_show(first)}"
     return f"record {n}"
 
 
@@ -446,7 +447,7 @@ def _key_identifiers(body, names, key_idx):
     The rest of §4.1.9's allowlist is not applied. It exists so a name can be
     written inside a formula, and a CSV has none: `002RadioTV.do` and
     `Africa/Abidjan` are real registry keys."""
-    key = names[key_idx]
+    key = _escape(names[key_idx])
     bad = []
     for n, rec in enumerate(body, 1):
         if key_idx >= len(rec):
@@ -483,7 +484,7 @@ def _duplicate_keys(body, names, key_idx):
     for n, rec in enumerate(body, 1):
         raw = rec[key_idx].strip(" \t") if key_idx < len(rec) else ""
         groups.setdefault(unicodedata.normalize("NFC", raw), []).append((n, raw))
-    key = names[key_idx]
+    key = _escape(names[key_idx])
     dups = [(k, v) for k, v in groups.items() if len(v) > 1]
     for k, occurrences in dups[:MAX_EXAMPLES]:
         forms = {raw for _, raw in occurrences}

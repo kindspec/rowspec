@@ -172,9 +172,30 @@ def split_lines(text, keepends=False):
     return out
 
 
+_NAMED_ESCAPES = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def _escape(s):
+    """`s` with every control (Cc: C0, DEL, C1) and format (Cf) character
+    spelled as an escape, so an error never writes one to a terminal or an
+    annotation: ESC as `\\x1b`, U+202E as `\\u202e`."""
+    out = []
+    for ch in s:
+        if ch in _NAMED_ESCAPES:
+            out.append(_NAMED_ESCAPES[ch])
+        elif unicodedata.category(ch) in ("Cc", "Cf"):
+            o = ord(ch)
+            out.append(
+                f"\\x{o:02x}" if o < 0x100 else f"\\u{o:04x}" if o < 0x10000 else f"\\U{o:08x}"
+            )
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def _show(s, limit=40):
     """A value as it should appear in an error: quoted, escaped, truncated."""
-    s = s.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    s = _escape(s)
     if len(s) > limit:
         s = s[: limit - 1] + "\u2026"
     return f"'{s}'"
@@ -183,8 +204,8 @@ def _show(s, limit=40):
 def _near_marker(lines, n):
     """Where an unresolved conflict marker sits, by entity: the nearest row,
     named as CSV mode names one -- by its key, else by its first column -- or
-    the header row. Empty when there is no table line to name. Line `n` is
-    1-based and is the marker itself."""
+    the header or alignment row. Empty when there is no table line to name.
+    Line `n` is 1-based and is the marker itself."""
     table = [
         (i, ln)
         for i, ln in enumerate(lines, 1)
@@ -196,7 +217,10 @@ def _near_marker(lines, n):
     # above a closing one.
     closing = lines[n - 1].startswith(">")
     i, near = min(table, key=lambda t: (abs(t[0] - n), (t[0] < n) != closing))
-    if i == table[0][0] or is_align(near):
+    header = {table[0][0]}
+    if len(table) > 1 and is_align(table[1][1]):
+        header.add(table[1][0])
+    if i in header:
         return " near the header row"
     names = split_row(table[0][1])
     keys = [
@@ -206,10 +230,13 @@ def _near_marker(lines, n):
         )
         if m
     ]
-    idx = names.index(keys[0]) if keys and keys[0] in names else 0
+    idx = names.index(keys[0]) if keys and keys[0] in names else None
     cells = split_row(near)
-    if idx < len(cells) and cells[idx]:
-        return f" near row {names[idx]}={_show(cells[idx])}"
+    key = cells[idx] if idx is not None and idx < len(cells) else ""
+    if key:
+        return f" near row {_escape(names[idx])}={_show(key)}"
+    if cells[0]:
+        return f" near row {_escape(names[0])}={_show(cells[0])}"
     return ""
 
 

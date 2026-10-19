@@ -83,9 +83,20 @@ prose, and where the two disagree the suite wins.
   (#196). `line 1: unresolved conflict marker` is now
   `unresolved conflict marker '<<<<<<< ours' near row id='r_2'`: the
   marker is quoted as CSV mode quotes it, and the nearest row is named by
-  its key, else by its first column, or the message says `near the header
-  row`. With no table line to name, the marker alone. The refusal is still
-  §9.1's `conflict-marker`, and the exit status is unchanged.
+  its key, else by its first column (also when its key cell is empty), or
+  the message says `near the header row` beside the header or alignment
+  row. With no table line or no value to name the row by, the marker
+  alone. The refusal is still §9.1's `conflict-marker`, and the exit
+  status is unchanged.
+
+- **Error messages escape control and format characters** (#196). A
+  quoted value, and a column name naming a row or a key, now spells every
+  control character (C0, DEL, C1) and every `Cf` format character as an
+  escape, `\x1b` or `\u202e`, instead of writing it raw to the terminal
+  or to a `--format github` annotation. This changes CSV mode's messages
+  for such input: before, only LF, CR and tab were escaped, and a column
+  name in `row <name>=...`, `duplicate key <name>=...` and the key-value
+  findings was printed as it stood.
 
 ## [0.4.0] — 2026-10-16
 
