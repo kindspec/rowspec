@@ -1032,6 +1032,27 @@ CSV_MUTANTS = {
         '    blank = [n for n, v in _column_values(body, names, col) if v == ""]',
         "    blank = []",
     ),
+    # --- killed by the cases written for #192 --------------------------------
+    # §4.1.7: `DATE_RE` ends in `$`, which also matches before a final LF, so
+    # `match` reads a quoted `"2024-01-02<LF>"` as a date.
+    "csv-date-match-allows-a-trailing-lf": (
+        "    if DATE_RE.fullmatch(v):",
+        "    if DATE_RE.match(v):",
+    ),
+    # §4.1.6: the same for `table.py`'s number recogniser, `\Z` made `$`, so
+    # `"5<LF>"` reads as a number. The gate splices one file per profile, so
+    # the mutant reaches `table.py` through the module this file imports.
+    # The regex copies table.py's `_NUMBER` with only `\Z` -> `$`: track it.
+    "csv-number-match-allows-a-trailing-lf": (
+        "MAX_EXAMPLES = 3",
+        "MAX_EXAMPLES = 3\nfrom rowspec import table as _table\n\n"
+        '_table._NUMBER = re.compile(r"-?[0-9]+(\\.[0-9]+)?$")',
+    ),
+    # §13: `"order": ""` names a column whose header cell is empty.
+    "csv-empty-order-name-is-no-order": (
+        "    if col is None:",
+        "    if not col:",
+    ),
     # --- CONTROL: must be killed, or the CSV harness is broken ----------------
     "CONTROL-csv-reports-nothing": (
         "    return findings + warnings",
