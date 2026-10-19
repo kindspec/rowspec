@@ -49,6 +49,21 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **SPEC.md §13 gives every CSV-mode refusal a §9 identifier** (#103).
+  §13 said the CSV profile did not carry §9's identifiers yet. It now reads
+  each of the profile's refusals as a §9 entry: a sidecar that does not
+  parse or that declares something unusable, and a sidecar `key` or
+  `columns` member naming no column, is `malformed-declaration` (§9.12),
+  since the sidecar is the profile's set of declarations; a sidecar `order`
+  naming no column is `bad-order-column` (§9.10); a sidecar that is not
+  UTF-8 is `bad-encoding` (§9.14). **§9 gains entry 27,
+  `column-type-mismatch`**, for a value that is not of the type `columns`
+  or `order_type` declares, which no `.mdtbl` file can reach. A
+  CSV-profile case passes only when every refusal reported carries an
+  identifier the case lists. Decided by the project owner. CSV mode does
+  not report identifiers yet, and `conformance/cases-csv/` still asserts
+  `refusal_contains`; the cases and the code follow separately.
+
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
   always at the end. `--end` asks for the end. Two rows appended at the end
