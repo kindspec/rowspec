@@ -50,7 +50,8 @@
         "nesting-too-deep",
         "ident-compared-in-if",
         "order-without-key",
-        "leading-bom"
+        "leading-bom",
+        "column-type-mismatch"
       ]
     }
   }
