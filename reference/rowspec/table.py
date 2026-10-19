@@ -172,6 +172,47 @@ def split_lines(text, keepends=False):
     return out
 
 
+def _show(s, limit=40):
+    """A value as it should appear in an error: quoted, escaped, truncated."""
+    s = s.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    if len(s) > limit:
+        s = s[: limit - 1] + "\u2026"
+    return f"'{s}'"
+
+
+def _near_marker(lines, n):
+    """Where an unresolved conflict marker sits, by entity: the nearest row,
+    named as CSV mode names one -- by its key, else by its first column -- or
+    the header row. Empty when there is no table line to name. Line `n` is
+    1-based and is the marker itself."""
+    table = [
+        (i, ln)
+        for i, ln in enumerate(lines, 1)
+        if ln.strip(WSP).startswith("|") and ln[:7] not in CONFLICT
+    ]
+    if not table:
+        return ""
+    # A tie goes into the conflict: below an opening or separating marker,
+    # above a closing one.
+    closing = lines[n - 1].startswith(">")
+    i, near = min(table, key=lambda t: (abs(t[0] - n), (t[0] < n) != closing))
+    if i == table[0][0] or is_align(near):
+        return " near the header row"
+    names = split_row(table[0][1])
+    keys = [
+        m.group(1)
+        for m in (
+            re.match(r"[ \t]*key[ \t]*:=[ \t]*(\S+)[ \t]*$", _strip_annotation(ln)) for ln in lines
+        )
+        if m
+    ]
+    idx = names.index(keys[0]) if keys and keys[0] in names else 0
+    cells = split_row(near)
+    if idx < len(cells) and cells[idx]:
+        return f" near row {names[idx]}={_show(cells[idx])}"
+    return ""
+
+
 def parse(text):
     if text.startswith("\ufeff"):
         # §9.26: a property of the bytes, decided before any line is classified.
@@ -182,7 +223,10 @@ def parse(text):
     lines = split_lines(text)
     for n, line in enumerate(lines, 1):
         if line.startswith(CONFLICT):
-            raise Malformed(f"line {n}: unresolved conflict marker", refusal="conflict-marker")
+            raise Malformed(
+                f"unresolved conflict marker {_show(line, 60)}{_near_marker(lines, n)}",
+                refusal="conflict-marker",
+            )
     tbl = []
     for line in lines:
         if line.strip(WSP).startswith("|"):

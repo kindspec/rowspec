@@ -39,7 +39,14 @@ import sys
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
-from rowspec.table import DATE_RE, Malformed, _isnum, is_nonfinite_spelling, split_lines
+from rowspec.table import (
+    DATE_RE,
+    Malformed,
+    _isnum,
+    _show,
+    is_nonfinite_spelling,
+    split_lines,
+)
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
@@ -68,14 +75,6 @@ def _warn(rule, message, detail=None):
 
 def codepoints(s):
     return " ".join(f"U+{ord(c):04X}" for c in s)
-
-
-def _show(s, limit=40):
-    """A value as it should appear in an error: quoted, escaped, truncated."""
-    s = s.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    if len(s) > limit:
-        s = s[: limit - 1] + "\u2026"
-    return f"'{s}'"
 
 
 def _type_of(v):

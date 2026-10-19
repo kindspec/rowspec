@@ -79,6 +79,14 @@ prose, and where the two disagree the suite wins.
   `rowspec check`. `rowspec eval --help` no longer lists the options `eval`
   accepts and ignores.
 
+- **A `.mdtbl` conflict marker is reported by entity, not by line**
+  (#196). `line 1: unresolved conflict marker` is now
+  `unresolved conflict marker '<<<<<<< ours' near row id='r_2'`: the
+  marker is quoted as CSV mode quotes it, and the nearest row is named by
+  its key, else by its first column, or the message says `near the header
+  row`. With no table line to name, the marker alone. The refusal is still
+  §9.1's `conflict-marker`, and the exit status is unchanged.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed
