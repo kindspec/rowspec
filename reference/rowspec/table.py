@@ -172,6 +172,74 @@ def split_lines(text, keepends=False):
     return out
 
 
+_NAMED_ESCAPES = {"\n": "\\n", "\r": "\\r", "\t": "\\t"}
+
+
+def _escape(s):
+    """`s` with every control (Cc: C0, DEL, C1) and format (Cf) character
+    spelled as an escape, so an error never writes one to a terminal or an
+    annotation: ESC as `\\x1b`, U+202E as `\\u202e`."""
+    out = []
+    for ch in s:
+        if ch in _NAMED_ESCAPES:
+            out.append(_NAMED_ESCAPES[ch])
+        elif unicodedata.category(ch) in ("Cc", "Cf"):
+            o = ord(ch)
+            out.append(
+                f"\\x{o:02x}" if o < 0x100 else f"\\u{o:04x}" if o < 0x10000 else f"\\U{o:08x}"
+            )
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _show(s, limit=40):
+    """A value as it should appear in an error: quoted, escaped, truncated."""
+    s = _escape(s)
+    if len(s) > limit:
+        s = s[: limit - 1] + "\u2026"
+    return f"'{s}'"
+
+
+def _near_marker(lines, n):
+    """Where an unresolved conflict marker sits, by entity: the nearest row,
+    named as CSV mode names one -- by its key, else by its first column -- or
+    the header or alignment row. Empty when there is no table line to name.
+    Line `n` is 1-based and is the marker itself."""
+    table = [
+        (i, ln)
+        for i, ln in enumerate(lines, 1)
+        if ln.strip(WSP).startswith("|") and ln[:7] not in CONFLICT
+    ]
+    if not table:
+        return ""
+    # A tie goes into the conflict: below an opening or separating marker,
+    # above a closing one.
+    closing = lines[n - 1].startswith(">")
+    i, near = min(table, key=lambda t: (abs(t[0] - n), (t[0] < n) != closing))
+    header = {table[0][0]}
+    if len(table) > 1 and is_align(table[1][1]):
+        header.add(table[1][0])
+    if i in header:
+        return " near the header row"
+    names = split_row(table[0][1])
+    keys = [
+        m.group(1)
+        for m in (
+            re.match(r"[ \t]*key[ \t]*:=[ \t]*(\S+)[ \t]*$", _strip_annotation(ln)) for ln in lines
+        )
+        if m
+    ]
+    idx = names.index(keys[0]) if keys and keys[0] in names else None
+    cells = split_row(near)
+    key = cells[idx] if idx is not None and idx < len(cells) else ""
+    if key:
+        return f" near row {_escape(names[idx])}={_show(key)}"
+    if cells[0]:
+        return f" near row {_escape(names[0])}={_show(cells[0])}"
+    return ""
+
+
 def parse(text):
     if text.startswith("\ufeff"):
         # §9.26: a property of the bytes, decided before any line is classified.
@@ -182,7 +250,10 @@ def parse(text):
     lines = split_lines(text)
     for n, line in enumerate(lines, 1):
         if line.startswith(CONFLICT):
-            raise Malformed(f"line {n}: unresolved conflict marker", refusal="conflict-marker")
+            raise Malformed(
+                f"unresolved conflict marker {_show(line, 60)}{_near_marker(lines, n)}",
+                refusal="conflict-marker",
+            )
     tbl = []
     for line in lines:
         if line.strip(WSP).startswith("|"):
