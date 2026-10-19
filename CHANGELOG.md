@@ -47,6 +47,10 @@ prose, and where the two disagree the suite wins.
   wrong answer: `mutants.py --profile csv` reports 44 killed, 0
   survived, 3 equivalent.
 
+- **2 conformance cases that each assert one §9 identifier alone** (#99),
+  written from SPEC.md without the implementation: `conflict-marker` and
+  `alignment-row-in-data`. The floor is now 630 cases.
+
 ### Changed
 
 - **`rowspec check` and `rowspec eval` print a refused `.mdtbl`'s §9
