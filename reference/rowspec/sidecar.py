@@ -85,9 +85,16 @@ def _validate(obj, where):
     for k in obj:
         if k not in FIELDS:
             raise Malformed(f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}")
-    for k in ("key", "order", "order_type", "delimiter"):
+    # Each member is a string, and a non-string is told what that string is.
+    must_be = {
+        "key": "a column name",
+        "order": "a column name",
+        "order_type": f"one of the strings {', '.join(map(repr, TYPES[:-1]))} or {TYPES[-1]!r}",
+        "delimiter": "a string of one Unicode scalar value",
+    }
+    for k, want in must_be.items():
         if k in obj and not isinstance(obj[k], str):
-            raise Malformed(f"{where}: {k!r} must be a column name, not {type(obj[k]).__name__}")
+            raise Malformed(f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}")
     if "order_type" in obj and obj["order_type"] not in TYPES:
         raise Malformed(
             f"{where}: order_type {obj['order_type']!r} is not one of "

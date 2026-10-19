@@ -10,8 +10,16 @@ on:
   pull_request:
 
 jobs:
+  # pyproject.toml says `requires-python = ">=3.11"`, and the runner's own
+  # interpreter is 3.12, which was the only version ever tested. CPython 3.11
+  # is the floor this package claims, so it is a leg here, not a promise.
+  # fail-fast is off so one leg going red cannot hide the other's result.
   conformance:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
     steps:
       # Pinned to commits, not tags. `astral-sh/setup-uv@v10` was a real
       # RELEASE (v10.0.1) with no moving `v10` tag behind it, and the job
@@ -20,6 +28,16 @@ jobs:
       # cannot drift and cannot be re-pointed under us.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: ${{ matrix.python }}
+      # The interpreter every `uv run` below will use. A leg that silently
+      # fell back to the runner's 3.12 would be green and measure nothing.
+      - name: the matrix interpreter is the one in use
+        run: |
+          uv run --exact python -c "import sys; v = '%d.%d' % sys.version_info[:2]; \
+            print(sys.version); \
+            sys.exit(f'running {v}, expected ${{ matrix.python }}') \
+            if v != '${{ matrix.python }}' else None"
       # `just` is not on the runner image. Without this the job died at its
       # first command with exit code 127, and the red masked the fact that the
       # conformance suite and the mutation gate had never run at all -- a job
@@ -84,6 +102,19 @@ jobs:
         run: |
           uv run python -m rowspec check docs/example || true
           uv run python -m rowspec eval  docs/example || true
+
+  # The matrix reports its legs as `conformance (3.11)` and `conformance
+  # (3.12)`, and the ruleset requires a check named `conformance`. Nothing
+  # would report that name, which pins every pull request at "Expected".
+  # This job keeps the name, and is green only when every leg is.
+  conformance-all:
+    name: conformance
+    if: always()
+    needs: conformance
+    runs-on: ubuntu-latest
+    steps:
+      - name: every Python leg passed
+        run: test "${{ needs.conformance.result }}" = success
 
   # The other half of the same boundary. The exporter's tests SKIP when the
   # extra is absent, so without this job they would never run anywhere and the

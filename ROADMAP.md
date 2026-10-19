@@ -14,7 +14,7 @@ path.
 **Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0` and `v0.4.0` (latest), on PyPI,
 with a GitHub Action.
 
-    619 conformance cases     find conformance/cases -name expect.json | wc -l
+    628 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
     0 failures, second impl   just conform-alt
     110 killed, 0 survived    just mutants
@@ -24,9 +24,9 @@ with a GitHub Action.
                               (the gate exits 2 if two mutate identically)
     224 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
     0 failures                just conform-csv
-    41 killed, 3 equivalent   just mutants-csv (csv profile)
+    44 killed, 3 equivalent   just mutants-csv (csv profile)
     11 killed, 0 equivalent   just mutants-csv (sidecar profile)
-    1105 passed, 2 skipped    just test
+    1375 passed, 2 skipped    just test
     28 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
