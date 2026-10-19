@@ -158,6 +158,19 @@ prose, and where the two disagree the suite wins.
   `bad-order-column` (§9.10) whatever the row count. `rowspec_alt` already
   refused both.
 
+- **Bytes that are not UTF-8 are reported by entity, not by offset**
+  (#216). A CSV's `not valid UTF-8: byte 0xE9 at offset 14 is not part of
+  a valid sequence` is now `row id='2': the field 'caf\xe9' is not valid
+  UTF-8: byte 0xE9 is not part of a valid sequence`: the row is named as
+  every other CSV-mode finding names one, by its declared key, else its
+  first field, else its record number, or `the header row`, and the field
+  holding the byte is quoted with each such byte spelled `\xNN`, from
+  just before the byte when the field is long. A file whose records the
+  csv module cannot read, such as one with a field over its default
+  131,072-character limit, is named as `the file`. A sidecar's message,
+  which was Python's codec text with a position, now quotes the line
+  holding the byte. Both are still refusals, with the same exit status.
+
 - **9 conformance cases for `order` declarations** (#202) in
   `conformance/cases/`, written from SPEC.md without the implementation.
   `order := count(a where a = "1")` is `malformed-declaration`;
