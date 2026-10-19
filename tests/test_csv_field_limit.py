@@ -14,6 +14,7 @@ come from an author who has not read `reference/`.
 import csv
 import os
 import sys
+import threading
 
 import pytest
 
@@ -21,7 +22,7 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reference")
 )
 
-from rowspec import cli  # noqa: E402
+from rowspec import cli, csvmode  # noqa: E402
 from rowspec.csvmode import check_file, check_text  # noqa: E402
 from rowspec.table import Malformed  # noqa: E402
 
@@ -80,3 +81,82 @@ def test_the_csv_modules_limit_is_put_back(tmp_path):
         assert csv.field_size_limit() == 131_072
     finally:
         csv.field_size_limit(old)
+
+
+def test_a_field_of_a_few_megabytes_is_accepted():
+    # Pins how far the limit is lifted: a limit of 2**20 would refuse it.
+    assert check_text("id,v\n1," + "x" * 3_000_000 + "\n") == []
+
+
+def test_the_limit_is_put_back_after_a_refusal():
+    old = csv.field_size_limit(131_072)
+    try:
+        with pytest.raises(Malformed, match="no table"):
+            check_text("")
+        assert csv.field_size_limit() == 131_072
+    finally:
+        csv.field_size_limit(old)
+
+
+def test_two_threads_do_not_put_the_limit_back_out_of_order():
+    """The first thread to leave must not restore the default while a
+    second is still inside, and the second must not leave the lifted
+    limit behind. Without the lock both happen: the second thread enters
+    while the first holds the limit, sees the default once the first
+    leaves, and on leaving restores the lifted limit it found on entry."""
+    old = csv.field_size_limit(131_072)
+    first_in, release_first, first_out, second_in = (threading.Event() for _ in range(4))
+    seen = []
+
+    def first():
+        with csvmode._no_field_limit():
+            first_in.set()
+            release_first.wait(5)
+        first_out.set()
+
+    def second():
+        with csvmode._no_field_limit():
+            second_in.set()
+            first_out.wait(5)
+            seen.append(csv.field_size_limit())
+
+    try:
+        a = threading.Thread(target=first)
+        a.start()
+        assert first_in.wait(5)
+        b = threading.Thread(target=second)
+        b.start()
+        # With the lock the second thread is still waiting to enter.
+        second_in.wait(0.5)
+        release_first.set()
+        a.join(5)
+        b.join(5)
+        assert seen == [csvmode._FIELD_LIMIT]
+        assert csv.field_size_limit() == 131_072
+    finally:
+        release_first.set()
+        csv.field_size_limit(old)
+
+
+def test_a_check_inside_a_lifted_window_does_not_deadlock():
+    # The lock is re-entrant: a check made while the limit is already
+    # lifted on the same thread, as a caller wrapping several may do,
+    # must not wait on itself. Run in a thread so a deadlock fails the
+    # test instead of hanging the suite.
+    done = []
+
+    def nested():
+        with csvmode._no_field_limit():
+            done.append(check_text(f"id,v\n1,{BIG}\n"))
+
+    t = threading.Thread(target=nested, daemon=True)
+    t.start()
+    t.join(5)
+    stuck = t.is_alive()
+    if stuck:
+        # A plain Lock deadlocked: any thread may release one, and doing so
+        # lets the stuck thread finish, so the rest of the suite still runs.
+        csvmode._FIELD_LIMIT_LOCK.release()
+        t.join(5)
+    assert not stuck, "a check inside a lifted window waited on its own lock"
+    assert done == [[]]

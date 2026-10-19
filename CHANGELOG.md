@@ -134,7 +134,9 @@ prose, and where the two disagree the suite wins.
   check` died with `_csv.Error: field larger than field limit`. SPEC.md
   sets no limit on a field and §9 has no refusal for a long one, so CSV
   mode now lifts the module's limit while it reads a file, and puts the
-  old limit back after.
+  old limit back after. The limit is one value for the whole process, so
+  checks in two threads take turns rather than restore it out of order;
+  other code using `csv` while a check runs sees the lifted limit.
 
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF

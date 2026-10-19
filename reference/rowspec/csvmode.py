@@ -37,6 +37,7 @@ import csv
 import io
 import re
 import sys
+import threading
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
@@ -107,9 +108,18 @@ def _spell_bytes(s):
     return s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
 
 
-#: The largest `csv.field_size_limit` every platform takes: it is a C long,
-#: which is 32 bits on Windows.
+#: The largest `csv.field_size_limit` every platform takes. Python 3.11 and
+#: 3.12 store it in a C long, which is 32 bits on Windows; 3.13 stores it in
+#: a C ssize_t. 2**31 - 1 fits both on every platform.
 _FIELD_LIMIT = 2**31 - 1
+
+#: Held while the limit is lifted. The limit is one value for the whole
+#: process, so two overlapping checks in two threads would otherwise put it
+#: back out of order: the second would read the first's restored default
+#: and crash, and the lifted limit would outlive them both. Re-entrant, so
+#: a lifted call may make another. It orders rowspec's own calls only:
+#: other code using `csv` while a check runs still sees the lifted limit.
+_FIELD_LIMIT_LOCK = threading.RLock()
 
 
 @contextlib.contextmanager
@@ -119,11 +129,12 @@ def _no_field_limit():
     field and §9 has no refusal for a long one, so a reader-imposed limit
     would turn a file the specification accepts into a crash. The old
     limit is put back after, because it is process-wide state."""
-    old = csv.field_size_limit(_FIELD_LIMIT)
-    try:
-        yield
-    finally:
-        csv.field_size_limit(old)
+    with _FIELD_LIMIT_LOCK:
+        old = csv.field_size_limit(_FIELD_LIMIT)
+        try:
+            yield
+        finally:
+            csv.field_size_limit(old)
 
 
 @_no_field_limit()
