@@ -152,6 +152,13 @@ prose, and where the two disagree the suite wins.
   possessive quantifier, which CPython before 3.11.5 can match wrongly.
   No finding changes.
 
+- **A non-string `order_type` or `delimiter` in a sidecar is told what
+  it must be** (#215). Both were refused as `must be a column name`,
+  which neither is. `{"order_type": 3}` now gives `'order_type' must be
+  one of the strings 'number', 'date' or 'text', not int`, and
+  `{"delimiter": 9}` gives `'delimiter' must be a string of one Unicode
+  scalar value, not int`. `key` and `order` still say `a column name`.
+
 ## [0.4.0] — 2026-10-16
 
 ### Changed
