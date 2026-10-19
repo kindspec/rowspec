@@ -39,7 +39,15 @@ import sys
 import unicodedata
 
 from rowspec import sidecar as sidecar_mod
-from rowspec.table import DATE_RE, Malformed, _isnum, is_nonfinite_spelling, split_lines
+from rowspec.table import (
+    DATE_RE,
+    Malformed,
+    _escape,
+    _isnum,
+    _show,
+    is_nonfinite_spelling,
+    split_lines,
+)
 
 # SPEC.md §4.1.12, as written and with no CSV exception: a line whose first
 # seven characters are seven `<`, `=`, `>` or `|` is a conflict line wherever
@@ -68,14 +76,6 @@ def _warn(rule, message, detail=None):
 
 def codepoints(s):
     return " ".join(f"U+{ord(c):04X}" for c in s)
-
-
-def _show(s, limit=40):
-    """A value as it should appear in an error: quoted, escaped, truncated."""
-    s = s.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    if len(s) > limit:
-        s = s[: limit - 1] + "\u2026"
-    return f"'{s}'"
 
 
 def _type_of(v):
@@ -300,10 +300,10 @@ def _name_row(rec, names, key_idx, n):
     # is named as itself and not as the row `a`.
     key = rec[key_idx].strip(" \t") if key_idx is not None and key_idx < len(rec) else ""
     if key:
-        return f"row {names[key_idx]}={_show(key)}"
+        return f"row {_escape(names[key_idx])}={_show(key)}"
     first = rec[0].strip(" \t") if rec else ""
     if first and names:
-        return f"row {names[0]}={_show(first)}"
+        return f"row {_escape(names[0])}={_show(first)}"
     return f"record {n}"
 
 
@@ -447,7 +447,7 @@ def _key_identifiers(body, names, key_idx):
     The rest of §4.1.9's allowlist is not applied. It exists so a name can be
     written inside a formula, and a CSV has none: `002RadioTV.do` and
     `Africa/Abidjan` are real registry keys."""
-    key = names[key_idx]
+    key = _escape(names[key_idx])
     bad = []
     for n, rec in enumerate(body, 1):
         if key_idx >= len(rec):
@@ -484,7 +484,7 @@ def _duplicate_keys(body, names, key_idx):
     for n, rec in enumerate(body, 1):
         raw = rec[key_idx].strip(" \t") if key_idx < len(rec) else ""
         groups.setdefault(unicodedata.normalize("NFC", raw), []).append((n, raw))
-    key = names[key_idx]
+    key = _escape(names[key_idx])
     dups = [(k, v) for k, v in groups.items() if len(v) > 1]
     for k, occurrences in dups[:MAX_EXAMPLES]:
         forms = {raw for _, raw in occurrences}
