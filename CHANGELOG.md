@@ -47,6 +47,10 @@ prose, and where the two disagree the suite wins.
   wrong answer: `mutants.py --profile csv` reports 44 killed, 0
   survived, 3 equivalent.
 
+- **2 conformance cases that each assert one §9 identifier alone** (#99),
+  written from SPEC.md without the implementation: `conflict-marker` and
+  `alignment-row-in-data`. The floor is now 630 cases.
+
 ### Changed
 
 - **`rowspec check` and `rowspec eval` print a refused `.mdtbl`'s §9
@@ -101,6 +105,15 @@ prose, and where the two disagree the suite wins.
   sets no limit on a field and §9 has no refusal for a long one, so CSV
   mode now lifts the module's limit while it reads a file, and puts the
   old limit back after.
+
+- **`--format github` escapes what GitHub's workflow commands require**
+  (#220). A `%`, CR or LF in an annotation's message, and those or a `:`
+  or `,` in its file name, were written as they stood, so GitHub could
+  read a different file name or message: a file named `a,b.csv` was
+  annotated as `a`, and a key `50%25` was shown as `50%`. They are now
+  escaped as `%25`, `%0D`, `%0A`, `%3A` and `%2C`, in `check` and in
+  `eval`'s `#REF!` annotations. `check` still replaces an LF in a
+  finding's message with a space first, so that text stays on one line.
 
 - **A sidecar key naming no column names the sidecar's own file**
   (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
