@@ -109,22 +109,32 @@ def _spell_bytes(s):
 def _undecodable(raw, delimiter, key):
     """Where the first byte that is not UTF-8 sits, by entity, never by
     offset (#216): the header row, or the row as `_name_row` names it, and
-    the field holding the byte, each such byte spelled `\\xNN`."""
+    the field holding the byte, each such byte spelled `\\xNN`. A long field
+    is shown from just before that byte, so the quote cannot cut it off.
+    Records the csv module cannot read, such as a field over its size
+    limit, leave only the file to name."""
     text = raw.decode("utf-8", "surrogateescape")
     reader = csv.reader(io.StringIO(text, newline=""), delimiter=delimiter)
     names = []
-    for n, rec in enumerate(reader):
-        bad = next((f for f in rec if _UNDECODED.search(f)), None)
-        rec = [_spell_bytes(f) for f in rec]
-        if n == 0:
-            names = [unicodedata.normalize("NFC", h.strip(" \t")) for h in rec]
-        if bad is None:
-            continue
-        field = _show(_spell_bytes(bad))
-        if n == 0:
-            return f"the header row: the field {field}"
-        key_idx = next((i for i, h in enumerate(names) if h == key), None)
-        return f"{_name_row(rec, names, key_idx, n)}: the field {field}"
+    try:
+        for n, rec in enumerate(reader):
+            bad = next((f for f in rec if _UNDECODED.search(f)), None)
+            rec = [_spell_bytes(f) for f in rec]
+            if n == 0:
+                names = [unicodedata.normalize("NFC", h.strip(" \t")) for h in rec]
+            if bad is None:
+                continue
+            at = _UNDECODED.search(bad).start()
+            if at > 20:
+                bad = "\u2026" + bad[at - 10 :]
+            field = _show(_spell_bytes(bad))
+            if n == 0:
+                return f"the header row: the field {field}"
+            key_idx = next((i for i, h in enumerate(names) if h == key), None)
+            return f"{_name_row(rec, names, key_idx, n)}: the field {field}"
+    except csv.Error:
+        pass
+    return "the file"
 
 
 def _decode(raw, name, delimiter=",", key=None):

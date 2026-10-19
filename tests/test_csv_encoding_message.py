@@ -86,3 +86,26 @@ def test_a_long_sidecar_line_is_shown_around_the_byte(tmp_path):
     msg = refusal(tmp_path, b"id,v\n1,a\n", sidecar_bytes=side)
     assert "caf\\xe9" in msg, msg
     assert not NO_OFFSET.search(msg), msg
+
+
+def test_a_long_csv_field_is_shown_around_the_byte(tmp_path):
+    msg = refusal(tmp_path, b"id,v\n1," + b"x" * 80 + b"\xff\n")
+    assert msg.startswith("row id='1': the field '…xxxxxxxxxx\\xff' is not valid UTF-8"), msg
+
+
+def test_a_field_too_large_for_the_csv_module_names_the_file(tmp_path):
+    msg = refusal(tmp_path, b"id,v\n1," + b"x" * 200_000 + b"\xff\n")
+    assert msg == (
+        "the file is not valid UTF-8: byte 0xFF is not part of a valid sequence "
+        "(invalid start byte)"
+    ), msg
+
+
+def test_the_first_of_two_bad_fields_in_a_record_is_named(tmp_path):
+    msg = refusal(tmp_path, b"id,a,b\nr1,x\xe9,y\xff\n")
+    assert msg.startswith("row id='r1': the field 'x\\xe9' is not valid UTF-8: byte 0xE9 "), msg
+
+
+def test_a_crlf_sidecar_line_is_quoted_without_its_cr(tmp_path):
+    msg = refusal(tmp_path, b"id,v\n1,a\n", sidecar_bytes=b'{\r\n  "key": "caf\xe9"\r\n}\r\n')
+    assert 'the line \'  "key": "caf\\xe9"\' holds byte 0xE9' in msg, msg

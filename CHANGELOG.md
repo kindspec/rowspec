@@ -147,10 +147,12 @@ prose, and where the two disagree the suite wins.
   UTF-8: byte 0xE9 is not part of a valid sequence`: the row is named as
   every other CSV-mode finding names one, by its declared key, else its
   first field, else its record number, or `the header row`, and the field
-  holding the byte is quoted with each such byte spelled `\xNN`. A
-  sidecar's message, which was Python's codec text with a position, now
-  quotes the line holding the byte. Both are still refusals, with the
-  same exit status.
+  holding the byte is quoted with each such byte spelled `\xNN`, from
+  just before the byte when the field is long. A file whose records the
+  csv module cannot read, such as one with a field over its default
+  131,072-character limit, is named as `the file`. A sidecar's message,
+  which was Python's codec text with a position, now quotes the line
+  holding the byte. Both are still refusals, with the same exit status.
 
 - **A `.mdtbl` conflict marker is reported by entity, not by line**
   (#196). `line 1: unresolved conflict marker` is now
