@@ -145,7 +145,10 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
         except Malformed as e:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            print(f"{path}: {e}{_code(e.refusal)}", file=sys.stderr)
+            if fmt == "github":
+                _print_github(path, [_TableRefusal(str(e), e.refusal)], None, out)
+            else:
+                print(f"{path}: {e}{_code(e.refusal)}", file=sys.stderr)
             bad += 1
             continue
 
