@@ -38,12 +38,10 @@ prose, and where the two disagree the suite wins.
   A refused edit leaves the file untouched and prints the refusal's
   identifier in brackets.
 
-- **4 conformance cases that each assert one §9 identifier alone** (#99),
+- **3 conformance cases that each assert one §9 identifier alone** (#99),
   written from SPEC.md without the implementation: `conflict-marker`,
-  `alignment-field-count`, `alignment-row-in-data` and `bad-encoding`. A
-  `parse` case may now hold its artifact as `input.bin`, which the runner
-  reads as bytes and hands to the implementation undecoded, so a file that
-  is not UTF-8 can be a case. The floor is now 623 cases.
+  `alignment-field-count` and `alignment-row-in-data`. The floor is now
+  622 cases.
 
 ### Changed
 
