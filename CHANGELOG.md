@@ -38,6 +38,15 @@ prose, and where the two disagree the suite wins.
   A refused edit leaves the file untouched and prints the refusal's
   identifier in brackets.
 
+- **The CSV mutation gate covers the quoted-LF and empty `order` name
+  cases** (#192). Three mutants in `csvmode.py`: a date matched with
+  `match` instead of `fullmatch`, which lets `DATE_RE`'s `$` accept a
+  final LF; `table.py`'s number pattern anchored with `$` instead of
+  `\Z`, patched in from csvmode's import since the gate splices one
+  file; and an empty `order` name read as no order. Each is killed on a
+  wrong answer: `mutants.py --profile csv` reports 44 killed, 0
+  survived, 3 equivalent.
+
 ### Changed
 
 - **`rowspec add-row` with no position puts the row where its key sorts**,
@@ -76,14 +85,6 @@ prose, and where the two disagree the suite wins.
   `"order": ""` is refused when no header cell is empty, and names the
   empty-headed column when one is, so `inf` in that column is refused.
   The floor of `just conform-csv` is now 224 cases.
-
-- **The CSV mutation gate covers those cases** (#192). Three mutants
-  in `csvmode.py`: a date matched with `match` instead of `fullmatch`,
-  which lets `DATE_RE`'s `$` accept a final LF; `table.py`'s number
-  pattern anchored with `$` instead of `\Z`, patched in from csvmode's
-  import since the gate splices one file; and an empty `order` name read
-  as no order. Each is killed on a wrong answer: `mutants.py --profile
-  csv` reports 44 killed, 0 survived, 3 equivalent.
 
 - **A per-row group aggregate is linear in the row count** (#195). The
   reference scanned every row for every row, so `sum(v where k = @k)` was

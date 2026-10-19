@@ -1042,6 +1042,7 @@ CSV_MUTANTS = {
     # §4.1.6: the same for `table.py`'s number recogniser, `\Z` made `$`, so
     # `"5<LF>"` reads as a number. The gate splices one file per profile, so
     # the mutant reaches `table.py` through the module this file imports.
+    # The regex copies table.py's `_NUMBER` with only `\Z` -> `$`: track it.
     "csv-number-match-allows-a-trailing-lf": (
         "MAX_EXAMPLES = 3",
         "MAX_EXAMPLES = 3\nfrom rowspec import table as _table\n\n"
