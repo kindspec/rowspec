@@ -478,7 +478,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     if side and side.key is not None:
         if side.key not in names:
             raise Malformed(
-                f"{sidecar_mod.SUFFIX.lstrip('.')} declares key {_show(side.key)} but "
+                f"{side.path.rsplit('/', 1)[-1]} declares key {_show(side.key)} but "
                 f"{name} has no such column" + _near(side.key, names)
             )
         key_idx = names.index(side.key)
