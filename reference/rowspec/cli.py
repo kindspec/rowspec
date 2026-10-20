@@ -228,6 +228,10 @@ def _rewrite(path, change, out, done):
     try:
         text = open(path, encoding="utf-8", newline="").read()
         new, what = change(text)
+    except UnicodeDecodeError as e:
+        f = _not_utf8(path, e)  # check's refusal, line and identifier
+        print(f"{path}: {f}{_code(f.refusal)}", file=sys.stderr)
+        return 1
     except Malformed as e:
         code = e.refusal or getattr(e, "reason", None)
         print(f"{path}: {e}" + (f" [{code}]" if code else ""), file=sys.stderr)
