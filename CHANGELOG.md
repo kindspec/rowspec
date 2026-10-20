@@ -83,6 +83,14 @@ prose, and where the two disagree the suite wins.
   not report identifiers yet, and `conformance/cases-csv/` still asserts
   `refusal_contains`; the cases and the code follow separately.
 
+- **SPEC.md §13 settles two CSV-mode readings it left open** (#103). A
+  conflict-marker line is classified before records are split and is not a
+  record, so in a file of more than one column it is `conflict-marker`
+  alone, not also `row-field-count`. §13's list of malformed sidecars is
+  complete, so an `order_type` beside an `order` naming no column is not
+  `malformed-declaration`, and that sidecar is `bad-order-column` alone.
+  No other rule changes.
+
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
   always at the end. `--end` asks for the end. Two rows appended at the end

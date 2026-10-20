@@ -1707,13 +1707,21 @@ relaxation**, and the difference must be stated rather than discovered:
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
   the line, is data.
+  **A conflict line is classified first, and is not a record**: §4.1.12
+  classifies it "before any other classification", and this profile keeps
+  that order, so RFC 4180's record boundaries are drawn over the file's other
+  lines and the conflict line is neither a record nor part of one. It is
+  therefore never counted against §9.6, whatever the header's field count:
+  under the header `id,v`, the line `=======` is a conflict marker, not a
+  record of one field.
 
 **Every CSV-mode refusal is reported with a §9 identifier**, under §9's
 rules for reporting one. Each refusal this profile makes is read as a §9
 entry, as follows, and is reported with that entry's identifier:
 
 - a conflict marker line, inside a quoted field included: §9.1
-  `conflict-marker`.
+  `conflict-marker`. The line is not a record (above), so it is not also
+  §9.6 `row-field-count`.
 - two column names that compare alike, two empty header cells included:
   §9.2 `duplicate-column`.
 - a `Cf` format character in a column name, and a declared key's value that
@@ -1734,7 +1742,13 @@ entry, as follows, and is reported with that entry's identifier:
   `delimiter` the `delimiter` rule above refuses; a `columns` that is not
   an object, or that declares any other type; `order_type` without `order`;
   and a `key` or a `columns` member naming no column of the file. The last is
-  the CSV form of §9.12's `key := col` naming no stored column.
+  the CSV form of §9.12's `key := col` naming no stored column. **This list
+  is complete**: a sidecar is `malformed-declaration` for these reasons and
+  no others, and the clause before the colon says why they are, without
+  adding to them. `order_type` is judged only against an order column that
+  exists, so beside an `order` naming no column it is none of these, and
+  that sidecar is §9.10 `bad-order-column` alone. A `columns` member naming
+  that same missing column is still the last item.
 - a sidecar whose bytes are not well-formed UTF-8: §9.14 `bad-encoding`,
   which is a property of bytes in whichever file holds them. A sidecar
   encoded as UTF-16 or UTF-32 meets whichever rule its bytes meet: with a
