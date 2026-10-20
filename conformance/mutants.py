@@ -932,8 +932,8 @@ CSV_MUTANTS = {
         "        grouped = None",
     ),
     "csv-header-only-file-is-no-table": (
-        '    if not records or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
-        '    if len(records) < 2 or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
+        'if not records or (len(records[0]) < 2 and not "".join(records[0]).strip(" \\t")):',
+        'if len(records) < 2 or (len(records[0]) < 2 and not "".join(records[0]).strip(" \\t")):',
     ),
     "csv-sidecar-key-naming-no-column-is-ignored": (
         "        if side.key not in names:",
@@ -993,8 +993,8 @@ CSV_MUTANTS = {
         "    below = [c.strip() for c in second]",
     ),
     "csv-header-check-trims-unicode-spaces": (
-        '    if not records or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
-        "    if not records or not any(any(c.strip() for c in r) for r in records[:1]):",
+        '(len(records[0]) < 2 and not "".join(records[0]).strip(" \\t"))',
+        '(len(records[0]) < 2 and not "".join(records[0]).strip())',
     ),
     "csv-empty-file-check-trims-vt-and-ff": (
         '    if not raw.strip(b" \\t\\r\\n"):',
@@ -1057,8 +1057,9 @@ CSV_MUTANTS = {
     # Each drops one refusal's identifier. The runner fails a refusal reported
     # with none under either assertion field, so each dies to any case that
     # reaches the path. A WRONG identifier dies only to a case asserting
-    # `refusal`, and waits for those cases, as does a dropped identifier on
-    # the grouped header, which no case reaches.
+    # `refusal`, and waits for those cases. So does a dropped identifier on
+    # the grouped header, and on a first record of one blank field (#254):
+    # no case reaches either.
     "csv-every-refusal-has-no-identifier": (
         "self.refusal = REFUSALS.get(rule)",
         "self.refusal = None",
@@ -1121,10 +1122,6 @@ CSV_MUTANTS = {
             'refusal="bad-encoding"'
         ),
         ('f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})", refusal=None'),
-    ),
-    "csv-no-header-row-has-no-identifier": (
-        '"file contains no table: there is no header row", refusal="no-table"',
-        '"file contains no table: there is no header row", refusal=None',
     ),
     "csv-key-naming-no-column-has-no-identifier": (
         ('f"{name} has no such column" + _near(side.key, names), refusal="malformed-declaration"'),

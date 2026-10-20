@@ -97,8 +97,13 @@ prose, and where the two disagree the suite wins.
   refusal, and each one reported carries an identifier the case lists. It
   still reads `refusal_contains`, and under either field it fails a
   refusal reported with no identifier. `just mutants-csv` gains a mutant
-  per refusal path that drops its identifier: 20 in `csvmode.py` and 15
+  per refusal path that drops its identifier: 19 in `csvmode.py` and 15
   in `sidecar.py`, all killed.
+  A first record of several blank cells, such as `,,` or a space and a
+  tab, is now refused as `duplicate-column`, as §13 reads it, rather than
+  as `no-table`: each blank cell is a column name, and they are one name.
+  A first record of one blank field is still `no-table` until §13 decides
+  it (#254).
 
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
