@@ -16,3 +16,15 @@ because the CSV profile carries no §9 identifiers yet (§13). The case is
 built so that the missing key is the only fault in the file and its sidecar,
 so a reader that refuses it has refused for that reason or for one §13 does
 not give. What the case does not pin is which reason the reader reports.
+
+## Identifier
+
+This case asserts `refusal: "order-without-key"`.
+
+§13: "Every CSV-mode refusal is reported with a §9 identifier, under §9's rules for reporting one. Each refusal this profile makes is read as a §9 entry, as follows, and is reported with that entry's identifier:"
+
+§13: "`order` without `key`: §9.25 `order-without-key`."
+
+§9.25: "`order-without-key`: `order := by(c)` in a table that declares no `key` (§6)."
+
+The earlier paragraph on `refusal_contains: ""` describes this case before §13 gave CSV-mode refusals identifiers; it now asserts `order-without-key` instead.

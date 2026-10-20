@@ -34,8 +34,8 @@ def test_check_escapes_the_file_name(tmp_path, capsys):
     cli.main(["check", "--format", "github", str(tmp_path)])
     err = capsys.readouterr().err
     root = cli._gh_prop(str(tmp_path))
-    assert f"::error file={root}/a%2Cb%2525.csv,title=rowspec::" in err, err
-    assert f"::error file={root}/c%3Ad.csv,title=rowspec::" in err, err
+    assert f"::error file={root}/a%2Cb%2525.csv,title=rowspec [conflict-marker]::" in err, err
+    assert f"::error file={root}/c%3Ad.csv,title=rowspec [conflict-marker]::" in err, err
 
 
 def test_check_escapes_percent_in_the_message(tmp_path, capsys):

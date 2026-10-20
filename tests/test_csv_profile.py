@@ -20,21 +20,32 @@ CONF = os.path.join(ROOT, "conformance")
 
 #: Each line of `input.csv` the stub understands becomes one finding, so a
 #: case can be built with exactly the outcome a test needs. Anything else,
-#: including bytes that are not UTF-8, is data and is ignored.
+#: including bytes that are not UTF-8, is data and is ignored. A refusal
+#: carries the identifier `stub-refusal` (SPEC.md §13 requires one), the
+#: one after `-AS`, or, with `-BARE`, none.
 STUB = """
 import os
 
 
 class Malformed(Exception):
-    pass
+    def __init__(self, message, refusal):
+        super().__init__(message)
+        self.refusal = refusal
 
 
 class Finding:
-    def __init__(self, level, message):
-        self.level, self.message = level, message
+    def __init__(self, level, message, refusal=None):
+        self.level, self.message, self.refusal = level, message, refusal
 
     def __str__(self):
         return self.message
+
+
+def _identified(word, rest):
+    if word.endswith(b"-AS"):
+        code, _, rest = rest.partition(b" ")
+        return code.decode(), rest.decode()
+    return (None if word.endswith(b"-BARE") else "stub-refusal"), rest.decode()
 
 
 def check_file(path):
@@ -43,10 +54,12 @@ def check_file(path):
         out.append(Finding("warn", "sidecar beside the file"))
     for line in open(path, "rb").read().split(b"\\n"):
         word, _, rest = line.partition(b" ")
-        if word == b"MALFORMED":
-            raise Malformed(rest.decode())
-        if word == b"REFUSE":
-            out.append(Finding("refuse", rest.decode()))
+        if word.startswith(b"MALFORMED"):
+            code, msg = _identified(word, rest)
+            raise Malformed(msg, code)
+        if word.startswith(b"REFUSE"):
+            code, msg = _identified(word, rest)
+            out.append(Finding("refuse", msg, code))
         if word == b"WARN":
             out.append(Finding("warn", rest.decode()))
         if word == b"LEVEL":
@@ -61,6 +74,10 @@ def refuse(contains, **more):
 
 def accept(**more):
     return {"accept": True, **more}
+
+
+def ided(refusal, **more):
+    return {"accept": False, "refusal": refusal, **more}
 
 
 PASS, FAIL = True, False
@@ -93,6 +110,28 @@ CASES = [
     ("refusal-contains-is-not-a-string", b"REFUSE 1\n", refuse(1), FAIL),
     ("a-finding-of-another-level", b"LEVEL error\n", accept(), FAIL),
     ("no-input-csv", None, accept(), FAIL),
+    # --- `refusal`: the §9 identifier (SPEC.md §13, #103) -------------------
+    ("id-as-expected", b"REFUSE-AS row-field-count x\n", ided("row-field-count"), PASS),
+    ("id-one-of-a-list", b"REFUSE-AS a x\n", ided(["a", "b"]), PASS),
+    ("id-each-reported-listed", b"REFUSE-AS a x\nREFUSE-AS b y\n", ided(["a", "b"]), PASS),
+    ("id-of-an-unreadable-file", b"MALFORMED-AS no-table x\n", ided("no-table"), PASS),
+    ("id-a-warning-is-not-checked", b"REFUSE-AS a x\nWARN w\n", ided("a"), PASS),
+    ("id-another-one", b"REFUSE-AS c x\n", ided("a"), FAIL),
+    ("id-one-reported-is-unlisted", b"REFUSE-AS a x\nREFUSE-AS c y\n", ided(["a", "b"]), FAIL),
+    ("id-of-an-unreadable-file-wrong", b"MALFORMED-AS no-table x\n", ided("bad-encoding"), FAIL),
+    ("id-missing", b"REFUSE-BARE x\n", ided("a"), FAIL),
+    ("id-missing-beside-a-listed-one", b"REFUSE-AS a x\nREFUSE-BARE y\n", ided("a"), FAIL),
+    ("id-missing-under-contains", b"REFUSE-BARE x\n", refuse("x"), FAIL),
+    ("id-missing-unreadable-under-contains", b"MALFORMED-BARE x\n", refuse("x"), FAIL),
+    ("id-accepted-when-refusal-expected", b"a,b\n", ided("a"), FAIL),
+    ("id-a-warning-is-not-a-refusal", b"WARN w\n", ided("a"), FAIL),
+    ("id-on-an-accept", b"a,b\n", accept(refusal="a"), FAIL),
+    ("id-beside-contains", b"REFUSE-AS a x\n", ided("a", refusal_contains="x"), FAIL),
+    ("id-empty-list", b"REFUSE-AS a x\n", ided([]), FAIL),
+    ("id-empty-string", b"REFUSE-AS a x\n", ided(""), FAIL),
+    ("id-not-a-string", b"REFUSE-AS a x\n", ided(5), FAIL),
+    ("id-list-with-a-non-string", b"REFUSE-AS a x\n", ided(["a", 5]), FAIL),
+    ("id-warns-on-a-refusal", b"REFUSE-AS a x\n", ided("a", warns=True), FAIL),
 ]  # fmt: skip
 
 

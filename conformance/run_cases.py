@@ -60,7 +60,7 @@ MIN_CASES = 630
 
 #: The same floor for SPEC.md §13's CSV tree, measured the same way over
 #: `conformance/cases-csv`.
-MIN_CSV_CASES = 224
+MIN_CSV_CASES = 280
 
 CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
 
@@ -268,7 +268,9 @@ CSV_INPUT = "input.csv"
 #: Every field a CSV-profile `check` case may carry. Anything else is refused
 #: rather than ignored: a misspelt `warns` would otherwise be a field nothing
 #: checks, in a case that still reports a pass.
-CSV_FIELDS = frozenset({"kind", "accept", "refusal_contains", "warns", "warning_contains"})
+CSV_FIELDS = frozenset(
+    {"kind", "accept", "refusal", "refusal_contains", "warns", "warning_contains"}
+)
 
 #: kindkit reads a case's fixtures as UTF-8 text before any handler runs, and a
 #: fixture that does not decode is a fault in the whole TREE, not in the case.
@@ -286,9 +288,11 @@ def csv_adapter_for(impl):
     separate claims and an implementation may make either. Its entry point is
     `check_file(path)`, returning findings whose `level` is `"refuse"` or
     `"warn"` and whose `str()` is the message, and it may raise `Malformed`
-    for a file it cannot read at all. A module without both is refused here,
-    which `main` turns into exit 2: it does not implement the profile, and
-    running the tree against it would be a verdict about nothing.
+    for a file it cannot read at all. A refusal's SPEC §9 identifier is its
+    `refusal` attribute, on a finding and on a `Malformed` alike (§13). A
+    module without both entry points is refused here, which `main` turns
+    into exit 2: it does not implement the profile, and running the tree
+    against it would be a verdict about nothing.
     """
     mod = importlib.import_module(impl)
     importlib.reload(mod)
@@ -315,20 +319,36 @@ def csv_adapter_for(impl):
             # implementation for saying more than §13 asks.
             yield "'warns' may only be true: no warning is not something SPEC.md lets a case check"
             return
+        asserts = [name for name in ("refusal", "refusal_contains") if name in e]
         if e["accept"]:
-            if "refusal_contains" in e:
-                yield "'refusal_contains' on an accepted file; nothing would check it"
+            if asserts:
+                yield f"{asserts[0]!r} on an accepted file; nothing would check it"
                 return
             if "warning_contains" in e and e.get("warns") is not True:
                 yield "'warning_contains' needs 'warns': true; nothing would check it"
                 return
-        elif "warns" in e or "warning_contains" in e or "refusal_contains" not in e:
-            yield "a refused file asserts 'refusal_contains' and nothing about warnings"
+        elif "warns" in e or "warning_contains" in e or len(asserts) != 1:
+            yield (
+                "a refused file asserts one of 'refusal' and 'refusal_contains', "
+                "and nothing about warnings"
+            )
             return
         for name in ("refusal_contains", "warning_contains"):
             if name in e and not isinstance(e[name], str):
                 yield f"{name!r} must be a string"
                 return
+        want_ids = e.get("refusal")
+        if isinstance(want_ids, str):
+            want_ids = [want_ids]
+        if "refusal" in e and (
+            not isinstance(want_ids, list)
+            or not want_ids
+            or not all(isinstance(w, str) and w for w in want_ids)
+        ):
+            # A case naming no identifier would pass on a refusal for any
+            # reason, which is the hole the field exists to close.
+            yield f"'refusal' must name one identifier or a list of them, not {e['refusal']!r}"
+            return
 
         path = os.path.join(case.dir, CSV_INPUT)
         if not os.path.isfile(path):
@@ -337,19 +357,37 @@ def csv_adapter_for(impl):
         try:
             findings = list(mod.check_file(path))
         except mod.Malformed as ex:
-            refusals, warnings = [str(ex)], []
+            refused, warnings = [ex], []
         else:
             levels = sorted({f.level for f in findings} - {"refuse", "warn"})
             if levels:
                 yield f"finding level(s) {levels} are neither 'refuse' nor 'warn'"
                 return
-            refusals = [str(f) for f in findings if f.level == "refuse"]
+            refused = [f for f in findings if f.level == "refuse"]
             warnings = [str(f) for f in findings if f.level == "warn"]
+        # SPEC.md §9: the identifier is read from the refusal, never parsed
+        # out of its message, which each implementation words freely.
+        refusals = [(getattr(r, "refusal", None), str(r)) for r in refused]
 
         if not e["accept"]:
-            want = e["refusal_contains"]
-            if not any(want in r for r in refusals):
-                yield f"expected refusal ~{want!r}, got {refusals or 'no refusal'!r}"
+            # §13: every CSV-mode refusal is reported with a §9 identifier,
+            # so one reported without any fails under either field.
+            bare = [msg for code, msg in refusals if not code]
+            if bare:
+                yield f"refusal(s) reported with no §9 identifier: {bare!r}"
+            elif want_ids is not None:
+                # §13: at least one refusal, and every one reported carries an
+                # identifier the case lists. Reporting fewer than apply passes.
+                stray = [r for r in refusals if r[0] not in want_ids]
+                if not refusals or stray:
+                    yield f"expected refusal {' or '.join(want_ids)}, got " + (
+                        repr(stray) if refusals else "no refusal"
+                    )
+            elif not any(e["refusal_contains"] in msg for _, msg in refusals):
+                yield (
+                    f"expected refusal ~{e['refusal_contains']!r}, got "
+                    f"{[msg for _, msg in refusals] or 'no refusal'!r}"
+                )
             return
         if refusals:
             yield f"expected accept, got {refusals!r}"

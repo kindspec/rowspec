@@ -579,14 +579,14 @@ def test_a_directory_mixes_both_formats(tmp_path, capsys):
 
 
 def test_github_annotation_format(tmp_path, capsys):
-    """A `.mdtbl` refusal's title carries its §9 identifier (#101); a CSV
-    one carries none until the CSV profile has identifiers (#103)."""
+    """A refusal's title carries its §9 identifier, a `.mdtbl` one's (#101)
+    and a CSV one's (#103) alike."""
     write(tmp_path, "bad.csv", CONFLICTED)
     write(tmp_path, "bad.mdtbl", b"| id |\n| --- |\n| r_1 |\n| r_1 |\n\nkey := id\n")
     cli.main(["check", "--format", "github", str(tmp_path)])
     err = capsys.readouterr().err
     assert err.startswith("::error file=")
-    assert "title=rowspec::unresolved conflict marker" in err
+    assert "title=rowspec [conflict-marker]::unresolved conflict marker" in err
     assert "title=rowspec [duplicate-row-id]::duplicate key id='r_1'" in err
 
 

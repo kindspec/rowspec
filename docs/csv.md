@@ -165,8 +165,13 @@ sidecar whose bytes are not UTF-8 is §9.14 (`bad-encoding`). §9.27
 (`column-type-mismatch`), a value that is not of the type `columns` or
 `order_type` declares, has no `.mdtbl` form, since `.mdtbl` declares no
 types. §13 lists
-the identifier every CSV-mode refusal is reported with. CSV mode does not
-print them yet (#103), so the sample output below has none.
+the identifier every CSV-mode refusal is reported with, and `rowspec check`
+ends each refused line with it, as the sample output below shows. A warning
+has none. The directory-level `.rowspec.json` is outside §13. One that is
+not a JSON object, and an entry's own declarations, are refused as a
+per-file sidecar's are, with the same identifier. The two refusals only it
+can make, an entry holding a path separator and a file matching two globs,
+have none until §13 gives them one (#255).
 
 ## Two warnings, not refusals
 
@@ -191,9 +196,9 @@ cleaned up or that enforces `LF`.
 ## Errors name entities
 
 ```
-data/channels.csv: duplicate key id='10.au' — 2 rows share it
-data/channels.csv: row id='r_04' has 3 field(s), the header declares 4
-data/countries.csv: unresolved conflict marker '<<<<<<< HEAD'
+data/channels.csv: duplicate key id='10.au' — 2 rows share it [duplicate-row-id]
+data/channels.csv: row id='r_04' has 3 field(s), the header declares 4 [row-field-count]
+data/countries.csv: unresolved conflict marker '<<<<<<< HEAD' [conflict-marker]
 ```
 
 Never "error at line 7". A line number is wrong the moment anyone else edits
@@ -202,7 +207,7 @@ for. When two entities render identically the message prints their codepoints,
 because that is the only way to see the difference:
 
 ```
-data/people.csv: duplicate key id='café' — 2 rows share it
+data/people.csv: duplicate key id='café' — 2 rows share it [duplicate-row-id]
     These ids render identically but are different bytes: 'café' = U+0063 U+0061
     U+0066 U+00E9  vs  'café' = U+0063 U+0061 U+0066 U+0065 U+0301. Unicode
     normalisation makes them one id, so one of these rows will be lost.

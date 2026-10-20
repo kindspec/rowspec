@@ -1,0 +1,8 @@
+{
+  "accept": false,
+  "kind": "check",
+  "refusal": [
+    "duplicate-column",
+    "row-field-count"
+  ]
+}

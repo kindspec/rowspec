@@ -1,5 +1,5 @@
 {
   "accept": false,
   "kind": "check",
-  "refusal_contains": ""
+  "refusal": "column-type-mismatch"
 }

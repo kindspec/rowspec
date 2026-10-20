@@ -18,9 +18,17 @@ found 7 silent-wrong cases and 14 surviving mutants. Three occurrences of one
 failure mode: *a verification artifact authored by the implementer measures the
 implementer's imagination.*
 
-So: a pull request that changes `reference/` should not also add the case that
-covers it. Open the case separately, ideally from someone else, and ideally
-written from `SPEC.md` without reading the implementation.
+So: conformance cases are written by an author who has seen no
+implementation, from `SPEC.md`, and they run against the implementation
+unchanged. A case is never edited to make the code pass. The cases may land
+in the same pull request as the code they check when that is where they
+first run; give them their own commit, so they can be read as written.
+
+#253 is an instance. The CSV profile's identifier cases were written from
+`SPEC.md` by an author who had seen no implementation, and land in their own
+commit. Their first run against the code caught one defect: a header of
+blank cells was refused as `no-table` rather than `duplicate-column`, fixed in
+`1d3626b`. After that fix the cases ran 280 of 280, unchanged.
 
 ## The mutation gate
 

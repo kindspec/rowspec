@@ -18,3 +18,19 @@ sidecar, so a reader that refuses it has refused for that reason or for one
 §13 does not give. What the case does not pin is which reason the reader
 reports, and, for a value a JSON parser itself rejects, whether the reader
 calls it invalid JSON.
+
+## Identifier
+
+This case asserts `refusal: "malformed-declaration"`.
+
+§13: "Every CSV-mode refusal is reported with a §9 identifier, under §9's rules for reporting one. Each refusal this profile makes is read as a §9 entry, as follows, and is reported with that entry's identifier:"
+
+§13: "the sidecar is this profile's set of declarations, so a sidecar that does not parse, or that declares what cannot be checked, is a malformed declaration, §9.12 `malformed-declaration`:"
+
+§13: "a `delimiter` the `delimiter` rule above refuses"
+
+§9.12: "`malformed-declaration`: a malformed declaration — a line containing `:=` that does not match `declaration`, a `key :=` in function form such as `key := by(id)`, or a `key := col` whose `col` is not a stored column of the table: no column of that name, or a computed one (§4.1.11; see §13 for the CSV profile)"
+
+A lone surrogate is not a Unicode scalar value, so the string fails the delimiter rule; a reader that instead calls the JSON itself invalid reaches the same entry.
+
+The earlier paragraph on `refusal_contains: ""` describes this case before §13 gave CSV-mode refusals identifiers; it now asserts `malformed-declaration` instead.

@@ -1,0 +1,8 @@
+{
+  "accept": false,
+  "kind": "check",
+  "refusal": [
+    "bad-order-column",
+    "malformed-declaration"
+  ]
+}

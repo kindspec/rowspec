@@ -924,7 +924,7 @@ CSV_MUTANTS = {
     ),
     # --- refused either way: see CSV_EQUIVALENT ------------------------------
     "csv-empty-file-check-removed": (
-        '    if not raw.strip(b" \\t\\r\\n"):',
+        "    if not raw.strip(blank):",
         "    if False:",
     ),
     "csv-grouped-header-disabled": (
@@ -932,8 +932,8 @@ CSV_MUTANTS = {
         "        grouped = None",
     ),
     "csv-header-only-file-is-no-table": (
-        '    if not records or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
-        '    if len(records) < 2 or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
+        'if not records or (len(records[0]) < 2 and not "".join(records[0]).strip(" \\t")):',
+        'if len(records) < 2 or (len(records[0]) < 2 and not "".join(records[0]).strip(" \\t")):',
     ),
     "csv-sidecar-key-naming-no-column-is-ignored": (
         "        if side.key not in names:",
@@ -993,11 +993,11 @@ CSV_MUTANTS = {
         "    below = [c.strip() for c in second]",
     ),
     "csv-header-check-trims-unicode-spaces": (
-        '    if not records or not any(any(c.strip(" \\t") for c in r) for r in records[:1]):',
-        "    if not records or not any(any(c.strip() for c in r) for r in records[:1]):",
+        '(len(records[0]) < 2 and not "".join(records[0]).strip(" \\t"))',
+        '(len(records[0]) < 2 and not "".join(records[0]).strip())',
     ),
     "csv-empty-file-check-trims-vt-and-ff": (
-        '    if not raw.strip(b" \\t\\r\\n"):',
+        "    if not raw.strip(blank):",
         "    if not raw.strip():",
     ),
     # §4.1.6 by `table.py`'s recogniser (#164): restores the regex this file
@@ -1052,6 +1052,178 @@ CSV_MUTANTS = {
     "csv-empty-order-name-is-no-order": (
         "    if col is None:",
         "    if not col:",
+    ),
+    # --- §13 (#103): every refusal carries its §9 identifier ----------------
+    # Each drops one refusal's identifier. The runner fails a refusal reported
+    # with none under either assertion field, so each dies to any case that
+    # reaches the path. The grouped header's identifier has no mutant: no
+    # case reaches that path, so one would survive.
+    "csv-no-header-row-has-no-identifier": (
+        '"file contains no table: there is no header row", refusal="no-table"',
+        '"file contains no table: there is no header row", refusal=None',
+    ),
+    "csv-every-refusal-has-no-identifier": (
+        "self.refusal = REFUSALS.get(rule)",
+        "self.refusal = None",
+    ),
+    "csv-conflict-marker-has-no-identifier": (
+        '"conflict-marker": "conflict-marker"',
+        '"conflict-marker": None',
+    ),
+    "csv-duplicate-column-has-no-identifier": (
+        '"duplicate-column": "duplicate-column"',
+        '"duplicate-column": None',
+    ),
+    "csv-invisible-in-name-has-no-identifier": (
+        '"invisible-in-name": "bad-identifier"',
+        '"invisible-in-name": None',
+    ),
+    "csv-key-not-identifier-has-no-identifier": (
+        '"key-not-identifier": "bad-identifier"',
+        '"key-not-identifier": None',
+    ),
+    "csv-field-count-has-no-identifier": (
+        '"field-count": "row-field-count"',
+        '"field-count": None',
+    ),
+    "csv-unterminated-quote-has-no-identifier": (
+        '"unterminated-quote": "row-field-count"',
+        '"unterminated-quote": None',
+    ),
+    "csv-stray-quote-has-no-identifier": (
+        '"stray-quote": "row-field-count"',
+        '"stray-quote": None',
+    ),
+    "csv-duplicate-key-has-no-identifier": (
+        '"duplicate-key": "duplicate-row-id"',
+        '"duplicate-key": None',
+    ),
+    "csv-order-blank-has-no-identifier": (
+        '"order-blank": "bad-order-column"',
+        '"order-blank": None',
+    ),
+    "csv-order-mixed-types-has-no-identifier": (
+        '"order-mixed-types": "bad-order-column"',
+        '"order-mixed-types": None',
+    ),
+    "csv-order-non-finite-has-no-identifier": (
+        '"order-non-finite": "bad-order-column"',
+        '"order-non-finite": None',
+    ),
+    "csv-column-type-has-no-identifier": (
+        '"column-type": "column-type-mismatch"',
+        '"column-type": None',
+    ),
+    "csv-order-type-mismatch-has-no-identifier": (
+        '"order-type-mismatch": "column-type-mismatch"',
+        '"order-type-mismatch": None',
+    ),
+    "csv-not-utf8-has-no-identifier": (
+        (
+            'f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})", '
+            'refusal="bad-encoding"'
+        ),
+        ('f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})", refusal=None'),
+    ),
+    "csv-key-naming-no-column-has-no-identifier": (
+        ('f"{name} has no such column" + _near(side.key, names), refusal="malformed-declaration"'),
+        'f"{name} has no such column" + _near(side.key, names), refusal=None',
+    ),
+    "csv-columns-naming-no-column-has-no-identifier": (
+        ('f"but the file has no such column" + _near(col, names), refusal="malformed-declaration"'),
+        'f"but the file has no such column" + _near(col, names), refusal=None',
+    ),
+    "csv-order-naming-no-column-has-no-identifier": (
+        'f"has no such column" + _near(col, names), refusal="bad-order-column"',
+        'f"has no such column" + _near(col, names), refusal=None',
+    ),
+    "csv-empty-file-has-no-identifier": (
+        '"file contains no table: the file is empty", refusal="no-table"',
+        '"file contains no table: the file is empty", refusal=None',
+    ),
+    # Each reports one refusal under a WRONG §9 identifier, which only a
+    # case asserting `refusal` can see.
+    "csv-conflict-marker-is-row-field-count": (
+        '"conflict-marker": "conflict-marker"',
+        '"conflict-marker": "row-field-count"',
+    ),
+    "csv-duplicate-column-is-bad-identifier": (
+        '"duplicate-column": "duplicate-column"',
+        '"duplicate-column": "bad-identifier"',
+    ),
+    "csv-invisible-in-name-is-duplicate-column": (
+        '"invisible-in-name": "bad-identifier"',
+        '"invisible-in-name": "duplicate-column"',
+    ),
+    "csv-key-not-identifier-is-duplicate-row-id": (
+        '"key-not-identifier": "bad-identifier"',
+        '"key-not-identifier": "duplicate-row-id"',
+    ),
+    "csv-field-count-is-alignment-field-count": (
+        '"field-count": "row-field-count"',
+        '"field-count": "alignment-field-count"',
+    ),
+    "csv-unterminated-quote-is-malformed-table-line": (
+        '"unterminated-quote": "row-field-count"',
+        '"unterminated-quote": "malformed-table-line"',
+    ),
+    "csv-stray-quote-is-malformed-table-line": (
+        '"stray-quote": "row-field-count"',
+        '"stray-quote": "malformed-table-line"',
+    ),
+    "csv-duplicate-key-is-duplicate-declaration": (
+        '"duplicate-key": "duplicate-row-id"',
+        '"duplicate-key": "duplicate-declaration"',
+    ),
+    "csv-order-blank-is-column-type-mismatch": (
+        '"order-blank": "bad-order-column"',
+        '"order-blank": "column-type-mismatch"',
+    ),
+    "csv-order-mixed-types-is-column-type-mismatch": (
+        '"order-mixed-types": "bad-order-column"',
+        '"order-mixed-types": "column-type-mismatch"',
+    ),
+    "csv-order-non-finite-is-column-type-mismatch": (
+        '"order-non-finite": "bad-order-column"',
+        '"order-non-finite": "column-type-mismatch"',
+    ),
+    "csv-column-type-is-bad-order-column": (
+        '"column-type": "column-type-mismatch"',
+        '"column-type": "bad-order-column"',
+    ),
+    "csv-order-type-mismatch-is-bad-order-column": (
+        '"order-type-mismatch": "column-type-mismatch"',
+        '"order-type-mismatch": "bad-order-column"',
+    ),
+    "csv-not-utf8-is-a-leading-bom": (
+        (
+            'f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})", '
+            'refusal="bad-encoding"'
+        ),
+        (
+            'f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})", '
+            'refusal="leading-bom"'
+        ),
+    ),
+    "csv-no-header-row-is-a-duplicate-column": (
+        '"file contains no table: there is no header row", refusal="no-table"',
+        '"file contains no table: there is no header row", refusal="duplicate-column"',
+    ),
+    "csv-key-naming-no-column-is-a-bad-identifier": (
+        ('f"{name} has no such column" + _near(side.key, names), refusal="malformed-declaration"'),
+        'f"{name} has no such column" + _near(side.key, names), refusal="bad-identifier"',
+    ),
+    "csv-columns-naming-no-column-is-a-type-mismatch": (
+        ('f"but the file has no such column" + _near(col, names), refusal="malformed-declaration"'),
+        ('f"but the file has no such column" + _near(col, names), refusal="column-type-mismatch"'),
+    ),
+    "csv-order-naming-no-column-is-a-malformed-declaration": (
+        'f"has no such column" + _near(col, names), refusal="bad-order-column"',
+        'f"has no such column" + _near(col, names), refusal="malformed-declaration"',
+    ),
+    "csv-empty-file-is-bad-encoding": (
+        '"file contains no table: the file is empty", refusal="no-table"',
+        '"file contains no table: the file is empty", refusal="bad-encoding"',
     ),
     # --- CONTROL: must be killed, or the CSV harness is broken ----------------
     "CONTROL-csv-reports-nothing": (
@@ -1113,6 +1285,208 @@ SIDECAR_MUTANTS = {
     "sidecar-order-type-without-order-accepted": (
         '    if "order_type" in obj and "order" not in obj:',
         "    if False:",
+    ),
+    # --- §13 (#103): every refusal carries its §9 identifier ----------------
+    # As in CSV_MUTANTS: each drops one identifier, and dies to any case
+    # that reaches the raise.
+    "sidecar-repeated-member-has-no-identifier": (
+        'f"duplicate declaration {k!r}", refusal="duplicate-declaration"',
+        'f"duplicate declaration {k!r}", refusal=None',
+    ),
+    "sidecar-not-an-object-has-no-identifier": (
+        'f"{where}: declarations must be a JSON object", refusal="malformed-declaration"',
+        'f"{where}: declarations must be a JSON object", refusal=None',
+    ),
+    "sidecar-unknown-member-has-no-identifier": (
+        (
+            'f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}", '
+            'refusal="malformed-declaration"'
+        ),
+        'f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}", refusal=None',
+    ),
+    "sidecar-non-string-member-has-no-identifier": (
+        (
+            'f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}", '
+            'refusal="malformed-declaration"'
+        ),
+        'f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}", refusal=None',
+    ),
+    "sidecar-unknown-order-type-has-no-identifier": (
+        (
+            "f\"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}\", "
+            'refusal="malformed-declaration"'
+        ),
+        "f\"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}\", refusal=None",
+    ),
+    "sidecar-delimiter-not-one-scalar-has-no-identifier": (
+        (
+            'f"{where}: delimiter must be one Unicode scalar value, not {d!r}", '
+            'refusal="malformed-declaration"'
+        ),
+        'f"{where}: delimiter must be one Unicode scalar value, not {d!r}", refusal=None',
+    ),
+    "sidecar-reserved-delimiter-has-no-identifier": (
+        (
+            'f"or to end a record, so the record boundaries would be undefined", '
+            'refusal="malformed-declaration"'
+        ),
+        'f"or to end a record, so the record boundaries would be undefined", refusal=None',
+    ),
+    "sidecar-columns-not-an-object-has-no-identifier": (
+        (
+            "f\"{where}: 'columns' must be a JSON object of name -> type\", "
+            'refusal="malformed-declaration"'
+        ),
+        "f\"{where}: 'columns' must be a JSON object of name -> type\", refusal=None",
+    ),
+    "sidecar-unknown-column-type-has-no-identifier": (
+        'f"{\', \'.join(TYPES)}{_suggest(str(t), TYPES)}", refusal="malformed-declaration"',
+        "f\"{', '.join(TYPES)}{_suggest(str(t), TYPES)}\", refusal=None",
+    ),
+    "sidecar-column-named-twice-has-no-identifier": (
+        'f"as {ascii(named[col])} and {ascii(name)}", refusal="duplicate-declaration"',
+        'f"as {ascii(named[col])} and {ascii(name)}", refusal=None',
+    ),
+    "sidecar-order-without-key-has-no-identifier": (
+        (
+            'f"order value fall back to their position in the file, which is a coordinate", '
+            'refusal="order-without-key"'
+        ),
+        (
+            'f"order value fall back to their position in the file, which is a coordinate", '
+            "refusal=None"
+        ),
+    ),
+    "sidecar-order-type-without-order-has-no-identifier": (
+        (
+            "f\"order column, and with no 'order' there is no column to check\", "
+            'refusal="malformed-declaration"'
+        ),
+        "f\"order column, and with no 'order' there is no column to check\", refusal=None",
+    ),
+    "sidecar-not-utf8-has-no-identifier": (
+        'f"not part of a valid sequence ({e.reason})", refusal="bad-encoding"',
+        'f"not part of a valid sequence ({e.reason})", refusal=None',
+    ),
+    "sidecar-not-json-has-no-identifier": (
+        (
+            "f\"{e.msg.removesuffix(' at')} {_where_json_stops(e)}\", "
+            'refusal="malformed-declaration"'
+        ),
+        "f\"{e.msg.removesuffix(' at')} {_where_json_stops(e)}\", refusal=None",
+    ),
+    "sidecar-repeated-member-loses-its-identifier-when-reraised": (
+        'f"{os.path.basename(path)}: {e}", refusal=e.refusal',
+        'f"{os.path.basename(path)}: {e}", refusal=None',
+    ),
+    # Each reports one refusal under a WRONG §9 identifier.
+    "sidecar-repeated-member-is-a-malformed-declaration": (
+        'f"duplicate declaration {k!r}", refusal="duplicate-declaration"',
+        'f"duplicate declaration {k!r}", refusal="malformed-declaration"',
+    ),
+    "sidecar-not-an-object-is-bad-encoding": (
+        'f"{where}: declarations must be a JSON object", refusal="malformed-declaration"',
+        'f"{where}: declarations must be a JSON object", refusal="bad-encoding"',
+    ),
+    "sidecar-unknown-member-is-a-duplicate-declaration": (
+        (
+            'f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}", '
+            'refusal="malformed-declaration"'
+        ),
+        (
+            'f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}", '
+            'refusal="duplicate-declaration"'
+        ),
+    ),
+    "sidecar-non-string-member-is-a-bad-identifier": (
+        (
+            'f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}", '
+            'refusal="malformed-declaration"'
+        ),
+        ('f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}", refusal="bad-identifier"'),
+    ),
+    "sidecar-unknown-order-type-is-a-type-mismatch": (
+        (
+            "f\"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}\", "
+            'refusal="malformed-declaration"'
+        ),
+        (
+            "f\"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}\", "
+            'refusal="column-type-mismatch"'
+        ),
+    ),
+    "sidecar-delimiter-not-one-scalar-is-a-field-count": (
+        (
+            'f"{where}: delimiter must be one Unicode scalar value, not {d!r}", '
+            'refusal="malformed-declaration"'
+        ),
+        (
+            'f"{where}: delimiter must be one Unicode scalar value, not {d!r}", '
+            'refusal="row-field-count"'
+        ),
+    ),
+    "sidecar-reserved-delimiter-is-a-field-count": (
+        (
+            'f"or to end a record, so the record boundaries would be undefined", '
+            'refusal="malformed-declaration"'
+        ),
+        (
+            'f"or to end a record, so the record boundaries would be undefined", '
+            'refusal="row-field-count"'
+        ),
+    ),
+    "sidecar-columns-not-an-object-is-a-type-mismatch": (
+        (
+            "f\"{where}: 'columns' must be a JSON object of name -> type\", "
+            'refusal="malformed-declaration"'
+        ),
+        (
+            "f\"{where}: 'columns' must be a JSON object of name -> type\", "
+            'refusal="column-type-mismatch"'
+        ),
+    ),
+    "sidecar-unknown-column-type-is-a-type-mismatch": (
+        'f"{\', \'.join(TYPES)}{_suggest(str(t), TYPES)}", refusal="malformed-declaration"',
+        'f"{\', \'.join(TYPES)}{_suggest(str(t), TYPES)}", refusal="column-type-mismatch"',
+    ),
+    "sidecar-column-named-twice-is-a-duplicate-column": (
+        'f"as {ascii(named[col])} and {ascii(name)}", refusal="duplicate-declaration"',
+        'f"as {ascii(named[col])} and {ascii(name)}", refusal="duplicate-column"',
+    ),
+    "sidecar-order-without-key-is-a-malformed-declaration": (
+        (
+            'f"order value fall back to their position in the file, which is a coordinate", '
+            'refusal="order-without-key"'
+        ),
+        (
+            'f"order value fall back to their position in the file, which is a coordinate", '
+            'refusal="malformed-declaration"'
+        ),
+    ),
+    "sidecar-order-type-without-order-is-order-without-key": (
+        (
+            "f\"order column, and with no 'order' there is no column to check\", "
+            'refusal="malformed-declaration"'
+        ),
+        (
+            "f\"order column, and with no 'order' there is no column to check\", "
+            'refusal="order-without-key"'
+        ),
+    ),
+    "sidecar-not-utf8-is-a-malformed-declaration": (
+        'f"not part of a valid sequence ({e.reason})", refusal="bad-encoding"',
+        'f"not part of a valid sequence ({e.reason})", refusal="malformed-declaration"',
+    ),
+    "sidecar-not-json-is-bad-encoding": (
+        (
+            "f\"{e.msg.removesuffix(' at')} {_where_json_stops(e)}\", "
+            'refusal="malformed-declaration"'
+        ),
+        'f"{e.msg.removesuffix(\' at\')} {_where_json_stops(e)}", refusal="bad-encoding"',
+    ),
+    "sidecar-reraise-names-every-repeat-a-malformed-declaration": (
+        'f"{os.path.basename(path)}: {e}", refusal=e.refusal',
+        'f"{os.path.basename(path)}: {e}", refusal="malformed-declaration"',
     ),
     # --- CONTROL: must be killed, or the sidecar harness is broken ------------
     "CONTROL-sidecar-is-never-found": (
