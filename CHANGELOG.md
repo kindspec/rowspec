@@ -105,6 +105,17 @@ prose, and where the two disagree the suite wins.
   A first record of one blank field is still `no-table` until §13 decides
   it (#254).
 
+- **SPEC.md §13 settles two CSV-mode readings it left open** (#103). A
+  record that starts on a conflict-marker line is neither the header nor a
+  data row, so in a file of more than one column the line is
+  `conflict-marker` alone, not also `row-field-count`, and a file of
+  nothing but conflict lines is not also `no-table`. Records are still
+  split over the whole text, so a marker inside a quoted field stays part
+  of that field. §13's list of malformed sidecars is complete, so a valid
+  `order_type` (one of `number`, `date` or `text`) beside an `order`
+  naming no column is not `malformed-declaration`, and that sidecar is
+  `bad-order-column` alone. No other rule changes.
+
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
   always at the end. `--end` asks for the end. Two rows appended at the end

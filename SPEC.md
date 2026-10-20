@@ -1707,13 +1707,30 @@ relaxation**, and the difference must be stated rather than discovered:
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
   the line, is data.
+  **A conflict line is classified first, and does not count as a row**:
+  §4.1.12 classifies it "before any other classification". Records are still
+  split over the whole text, as RFC 4180 splits them, so a conflict line
+  inside a quoted field stays part of that field. But a record that starts
+  on a conflict line is neither the header nor a data row, so no check on
+  rows reaches it, §9.6 included, nor any quoting check, the stray quote
+  and the quoted field the file ends inside above, whatever the header's
+  field count: under the header `id,v`, the line `=======` is a conflict
+  marker, not a data row of one field, and so are `>>>>>>> 5"pipe` and
+  `=======,"x` on the file's last line. The header is the first record that
+  does not start on a conflict line, and a file with no such record, such
+  as one holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
+  empty line that only such records follow is not at the end of the file,
+  so it is a data row, and §9.6 refuses it against a header of more than
+  one column.
 
 **Every CSV-mode refusal is reported with a §9 identifier**, under §9's
 rules for reporting one. Each refusal this profile makes is read as a §9
 entry, as follows, and is reported with that entry's identifier:
 
 - a conflict marker line, inside a quoted field included: §9.1
-  `conflict-marker`.
+  `conflict-marker`. A record that starts on one does not count as a row
+  (above), so it is not also §9.6 `row-field-count`, and a file of nothing
+  but conflict lines is not also §9.13 `no-table`.
 - two column names that compare alike, two empty header cells included:
   §9.2 `duplicate-column`.
 - a `Cf` format character in a column name, and a declared key's value that
@@ -1734,7 +1751,14 @@ entry, as follows, and is reported with that entry's identifier:
   `delimiter` the `delimiter` rule above refuses; a `columns` that is not
   an object, or that declares any other type; `order_type` without `order`;
   and a `key` or a `columns` member naming no column of the file. The last is
-  the CSV form of §9.12's `key := col` naming no stored column.
+  the CSV form of §9.12's `key := col` naming no stored column. **This list
+  is complete**: a sidecar is `malformed-declaration` for these reasons and
+  no others, and the clause before the colon says why they are, without
+  adding to them. `order_type` is judged only against an order column that
+  exists, so a valid `order_type` (one of `number`, `date` or `text`)
+  beside an `order` naming no column is none of these, and
+  that sidecar is §9.10 `bad-order-column` alone. A `columns` member naming
+  that same missing column is still the last item.
 - a sidecar whose bytes are not well-formed UTF-8: §9.14 `bad-encoding`,
   which is a property of bytes in whichever file holds them. A sidecar
   encoded as UTF-16 or UTF-32 meets whichever rule its bytes meet: with a
