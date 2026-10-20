@@ -79,8 +79,8 @@ prose, and where the two disagree the suite wins.
   `column-type-mismatch`**, for a value that is not of the type `columns`
   or `order_type` declares, which no `.mdtbl` file can reach. A
   CSV-profile case passes only when every refusal reported carries an
-  identifier the case lists. Decided by the project owner. The code
-  follows in the next entry, and the cases in the one after.
+  identifier the case lists. Decided by the project owner. The cases
+  follow in the next entry, and the code in the one after.
 
 - **Every refusing CSV-profile case asserts its §9 identifier** (#103),
   written from SPEC.md by an author who read no implementation: 134 cases
