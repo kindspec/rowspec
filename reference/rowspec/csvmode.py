@@ -46,7 +46,11 @@ from rowspec.table import (
     Malformed,
     _escape,
     _isnum,
+    _quote,
     _show,
+    _show_bytes,
+    _spell,
+    _window,
     is_nonfinite_spelling,
     split_lines,
 )
@@ -103,11 +107,6 @@ def _delimiter(path, side):
 _UNDECODED = re.compile("[\udc80-\udcff]")
 
 
-def _spell_bytes(s):
-    """`s` with each byte `surrogateescape` kept spelled as `\\xNN`."""
-    return s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace")
-
-
 #: The largest `csv.field_size_limit` every platform takes. Python 3.11 and
 #: 3.12 store it in a C long, which is 32 bits on Windows; 3.13 stores it in
 #: a C ssize_t. 2**31 - 1 fits both on every platform.
@@ -151,19 +150,21 @@ def _undecodable(raw, delimiter, key):
     try:
         for n, rec in enumerate(reader):
             bad = next((f for f in rec if _UNDECODED.search(f)), None)
-            rec = [_spell_bytes(f) for f in rec]
             if n == 0:
                 names = [unicodedata.normalize("NFC", h.strip(" \t")) for h in rec]
             if bad is None:
                 continue
+            # Spelled, not `_show`n: a literal backslash is `\\\\`, so `\\xNN` is
+            # always a byte, no `\\xNN` is cut in half, and the window before
+            # the byte is sized by what it shows (#242).
             at = _UNDECODED.search(bad).start()
-            if at > 20:
-                bad = "\u2026" + bad[at - 10 :]
-            field = _show(_spell_bytes(bad))
+            shown = _spell(bad)
+            field = _quote(_window(shown[:at]) + shown[at:], 40)
             if n == 0:
                 return f"the header row: the field {field}"
             key_idx = next((i for i, h in enumerate(names) if h == key), None)
-            return f"{_name_row(rec, names, key_idx, n)}: the field {field}"
+            row = _name_row(rec, names, key_idx, n, _show_bytes, _spelled)
+            return f"{row}: the field {field}"
     except csv.Error:
         pass
     return "the file"
@@ -411,7 +412,11 @@ def _header_names(header, second=None):
     return names, findings
 
 
-def _name_row(rec, names, key_idx, n):
+def _spelled(s):
+    return "".join(_spell(s))
+
+
+def _name_row(rec, names, key_idx, n, show=_show, name=_escape):
     """Name a row by an entity, never by a byte offset. The declared key first;
     the first field if there is no key; a record number only as a last resort,
     and labelled as a record so it is not mistaken for a line number -- a
@@ -420,10 +425,10 @@ def _name_row(rec, names, key_idx, n):
     # is named as itself and not as the row `a`.
     key = rec[key_idx].strip(" \t") if key_idx is not None and key_idx < len(rec) else ""
     if key:
-        return f"row {_escape(names[key_idx])}={_show(key)}"
+        return f"row {name(names[key_idx])}={show(key)}"
     first = rec[0].strip(" \t") if rec else ""
     if first and names:
-        return f"row {_escape(names[0])}={_show(first)}"
+        return f"row {name(names[0])}={show(first)}"
     return f"record {n}"
 
 
