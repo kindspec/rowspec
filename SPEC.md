@@ -1595,8 +1595,10 @@ relaxation**, and the difference must be stated rather than discovered:
 - **column names are exempt from §4.1.9's allowlist.** The allowlist exists so
   that a name can be written inside a formula, and a CSV has no formulas, so
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
-  header cell. Only a `Cf` format character in a column name is still refused,
-  and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  header cell, except where it is the header's only field: a first record of
+  one blank field is no header row (below). Only a `Cf` format character in a
+  column name is still refused, and names still compare after NFC, so §9.2
+  refuses two that normalise alike.
   **A name is trimmed of ASCII space and tab only before §9.2 compares it**, as
   a key value is (§4.1.4): `a` with spaces or tabs around it and `a` are one
   name, and so are a header cell of spaces, one of a tab and an empty one, so
@@ -1729,10 +1731,9 @@ relaxation**, and the difference must be stated rather than discovered:
   field count: under the header `id,v`, the line `=======` is a conflict
   marker, not a data row of one field, and so are `>>>>>>> 5"pipe` and
   `=======,"x` on the file's last line. The header is the first record that
-  does not start on a conflict line, unless that record is one blank field,
-  which leaves the file with no header row (above), and a file with no such
-  record, such
-  as one holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
+  does not start on a conflict line; if that record is one blank field, the
+  file has no header row (above). A file with no such record, such as one
+  holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
   empty line that only such records follow is not at the end of the file,
   so it is a data row, and §9.6 refuses it against a header of more than
   one column.
