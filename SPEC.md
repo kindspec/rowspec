@@ -1712,11 +1712,16 @@ relaxation**, and the difference must be stated rather than discovered:
   split over the whole text, as RFC 4180 splits them, so a conflict line
   inside a quoted field stays part of that field. But a record that starts
   on a conflict line is neither the header nor a data row, so no check on
-  rows reaches it, §9.6 included, whatever the header's field count: under
-  the header `id,v`, the line `=======` is a conflict marker, not a data
-  row of one field. The header is the first record that does not start on a
-  conflict line, and a file with no such record, such as one holding only
-  `<<<<<<< HEAD`, is §9.1 alone, not also §9.13.
+  rows reaches it, §9.6 included, nor any quoting check, the stray quote
+  and the quoted field the file ends inside above, whatever the header's
+  field count: under the header `id,v`, the line `=======` is a conflict
+  marker, not a data row of one field, and so are `>>>>>>> 5"pipe` and
+  `=======,"x` on the file's last line. The header is the first record that
+  does not start on a conflict line, and a file with no such record, such
+  as one holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
+  empty line that only such records follow is not at the end of the file,
+  so it is a data row, and §9.6 refuses it against a header of more than
+  one column.
 
 **Every CSV-mode refusal is reported with a §9 identifier**, under §9's
 rules for reporting one. Each refusal this profile makes is read as a §9
