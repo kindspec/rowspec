@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
-"""`check` and `eval` print a `.mdtbl` refusal's SPEC §9 identifier (#101).
+"""`check` and `eval` print a refusal's SPEC §9 identifier (#101, #103).
 
 Plain output ends the line with ` [identifier]`, the form the editing
 commands already print; `--format github` puts it in the annotation's title,
 a field a program reads without parsing the message. Only §9 identifiers are
-printed: a warning carries none, and neither does CSV mode, whose findings
-have no §9 identifiers yet and whose internal rule names must not become a
-contract by being printed.
+printed: a warning carries none, and a CSV-mode refusal prints the §9
+identifier SPEC.md §13 reads it as, never csvmode's internal rule name,
+which must not become a contract by being printed.
 """
 
 import os
@@ -67,19 +67,29 @@ def test_a_warning_carries_no_identifier(tmp_path, capsys):
             assert "title=rowspec::" in line or not line.startswith("::"), line
 
 
-def test_csv_findings_carry_no_identifier(tmp_path, capsys):
-    """Neither a §9 identifier nor csvmode's own `Finding.rule` names, which
-    would become a de facto contract the moment they were printed."""
-    (tmp_path / "m.csv").write_bytes(
-        b"\xef\xbb\xbfid,name\r\nr_01,Ada\r\nr_02\r\nr_01,Repeat\r\n<<<<<<< HEAD\r\n"
-    )
+def test_csv_refusals_carry_the_section_9_identifier(tmp_path, capsys):
+    """A CSV refusal prints §13's §9 identifier, never csvmode's own
+    `Finding.rule` name, which would become a de facto contract the moment
+    it was printed; a CSV warning prints none."""
+    (tmp_path / "m.csv").write_bytes(b"\xef\xbb\xbfid,name\r\nr_01,Ada\r\nr_02\r\nr_01,Repeat\r\n")
     (tmp_path / "m.csv.rowspec.json").write_text('{"key": "id"}')
-    for fmt in ("plain", "github"):
-        assert cli.main(["check", "--format", fmt, str(tmp_path)]) == 1
-        err = capsys.readouterr().err
-        assert err.count("\n") >= 3, err
-        for line in err.splitlines():
-            assert not TRAILING_CODE.search(line), line
-            assert not re.search(r"\[(field-count|duplicate-key|conflict-marker|bom)\]", line)
-            if line.startswith("::"):
-                assert ",title=rowspec::" in line, line
+    plain = cli.main(["check", str(tmp_path)]), capsys.readouterr().err
+    assert plain[0] == 1
+    lines = [ln for ln in plain[1].splitlines() if ln.startswith(str(tmp_path))]
+    assert [TRAILING_CODE.search(ln) and TRAILING_CODE.search(ln).group() for ln in lines] == [
+        "[row-field-count]",
+        "[duplicate-row-id]",
+        None,
+        None,
+    ], plain[1]
+    assert all("warning: " in ln for ln in lines[2:]), lines
+    assert cli.main(["check", "--format", "github", str(tmp_path)]) == 1
+    titles = re.findall(r",title=([^:]*)::", capsys.readouterr().err)
+    assert titles == [
+        "rowspec [row-field-count]",
+        "rowspec [duplicate-row-id]",
+        "rowspec",
+        "rowspec",
+    ]
+    for line in plain[1].splitlines():
+        assert not re.search(r"\[(field-count|duplicate-key|bom|crlf)\]", line), line

@@ -21,9 +21,8 @@ import unicodedata
 
 class Malformed(Exception):
     """A refusal. `refusal` is its SPEC §9 identifier. It is None for an error
-    that is not one of §9's refusals -- a sidecar's own, or a misuse of
-    `set_cell` -- and, for now, for CSV mode, whose conformance cases still
-    assert on the message."""
+    that is not one of §9's refusals -- the directory-level `.rowspec.json`'s
+    own, which SPEC.md §13 does not define, or a misuse of `set_cell`."""
 
     def __init__(self, message, *, refusal=None):
         super().__init__(message)

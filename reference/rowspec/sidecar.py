@@ -69,7 +69,7 @@ def _no_duplicate_keys(pairs):
     out = {}
     for k, v in pairs:
         if k in out:
-            raise Malformed(f"duplicate declaration {k!r}")
+            raise Malformed(f"duplicate declaration {k!r}", refusal="duplicate-declaration")
         out[k] = v
     return out
 
@@ -80,12 +80,20 @@ def _suggest(name, known):
 
 
 def _validate(obj, where):
-    """SPEC.md §9.12 -- a malformed declaration is refused, never ignored."""
+    """SPEC.md §9.12 -- a malformed declaration is refused, never ignored.
+    §13 reads the sidecar as the profile's set of declarations, so every
+    refusal here is §9.12's, but for a repeated name (§9.4) and an `order`
+    without a `key` (§9.25)."""
     if not isinstance(obj, dict):
-        raise Malformed(f"{where}: declarations must be a JSON object")
+        raise Malformed(
+            f"{where}: declarations must be a JSON object", refusal="malformed-declaration"
+        )
     for k in obj:
         if k not in FIELDS:
-            raise Malformed(f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}")
+            raise Malformed(
+                f"{where}: unknown declaration {k!r}{_suggest(k, FIELDS)}",
+                refusal="malformed-declaration",
+            )
     # Each member is a string, and a non-string is told what that string is.
     must_be = {
         "key": "a column name",
@@ -95,31 +103,43 @@ def _validate(obj, where):
     }
     for k, want in must_be.items():
         if k in obj and not isinstance(obj[k], str):
-            raise Malformed(f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}")
+            raise Malformed(
+                f"{where}: {k!r} must be {want}, not {type(obj[k]).__name__}",
+                refusal="malformed-declaration",
+            )
     if "order_type" in obj and obj["order_type"] not in TYPES:
         raise Malformed(
             f"{where}: order_type {obj['order_type']!r} is not one of "
-            f"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}"
+            f"{', '.join(TYPES)}{_suggest(obj['order_type'], TYPES)}",
+            refusal="malformed-declaration",
         )
     if "delimiter" in obj:
         d = obj["delimiter"]
         # SPEC.md §13: one Unicode scalar value, so not a lone surrogate, which
         # JSON's `\ud800` escape produces as a one-character Python string.
         if len(d) != 1 or 0xD800 <= ord(d) <= 0xDFFF:
-            raise Malformed(f"{where}: delimiter must be one Unicode scalar value, not {d!r}")
+            raise Malformed(
+                f"{where}: delimiter must be one Unicode scalar value, not {d!r}",
+                refusal="malformed-declaration",
+            )
         if d in '"\r\n':
             raise Malformed(
                 f"{where}: delimiter {d!r} is reserved: RFC 4180 uses it to quote a field "
-                f"or to end a record, so the record boundaries would be undefined"
+                f"or to end a record, so the record boundaries would be undefined",
+                refusal="malformed-declaration",
             )
     cols = obj.get("columns", {})
     if not isinstance(cols, dict):
-        raise Malformed(f"{where}: 'columns' must be a JSON object of name -> type")
+        raise Malformed(
+            f"{where}: 'columns' must be a JSON object of name -> type",
+            refusal="malformed-declaration",
+        )
     for name, t in cols.items():
         if t not in TYPES:
             raise Malformed(
                 f"{where}: column {name!r} declares type {t!r}, not one of "
-                f"{', '.join(TYPES)}{_suggest(str(t), TYPES)}"
+                f"{', '.join(TYPES)}{_suggest(str(t), TYPES)}",
+                refusal="malformed-declaration",
             )
     named = {}
     for name in cols:
@@ -129,20 +149,23 @@ def _validate(obj, where):
         if col in named:
             raise Malformed(
                 f"{where}: 'columns' names column {col!r} twice, "
-                f"as {ascii(named[col])} and {ascii(name)}"
+                f"as {ascii(named[col])} and {ascii(name)}",
+                refusal="duplicate-declaration",
             )
         named[col] = name
     if "order" in obj and "key" not in obj:
         raise Malformed(
             f"{where}: 'order' requires 'key'. Without a key, rows with the same "
-            f"order value fall back to their position in the file, which is a coordinate"
+            f"order value fall back to their position in the file, which is a coordinate",
+            refusal="order-without-key",
         )
     if "order_type" in obj and "order" not in obj:
         # SPEC.md §13: a declared check with no column to run on is refused,
         # since ignoring it would leave the author believing it ran.
         raise Malformed(
             f"{where}: 'order_type' requires 'order'. It declares the type of the "
-            f"order column, and with no 'order' there is no column to check"
+            f"order column, and with no 'order' there is no column to check",
+            refusal="malformed-declaration",
         )
     return obj
 
@@ -179,16 +202,18 @@ def _read(path):
         raise Malformed(
             f"{os.path.basename(path)} is not valid UTF-8: the line "
             f"{_undecodable_line(path)} holds byte 0x{e.object[e.start]:02X}, which is "
-            f"not part of a valid sequence ({e.reason})"
+            f"not part of a valid sequence ({e.reason})",
+            refusal="bad-encoding",
         ) from None
     try:
         return json.loads(text, object_pairs_hook=_no_duplicate_keys)
     except Malformed as e:
-        raise Malformed(f"{os.path.basename(path)}: {e}") from None
+        raise Malformed(f"{os.path.basename(path)}: {e}", refusal=e.refusal) from None
     except json.JSONDecodeError as e:
         raise Malformed(
             f"{os.path.basename(path)} is not valid JSON: "
-            f"{e.msg.removesuffix(' at')} {_where_json_stops(e)}"
+            f"{e.msg.removesuffix(' at')} {_where_json_stops(e)}",
+            refusal="malformed-declaration",
         ) from None
 
 

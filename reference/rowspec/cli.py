@@ -28,8 +28,8 @@ SKIP_DIRS = {".git", ".cache", "node_modules", ".venv", "__pycache__"}
 
 
 class _TableRefusal(Finding):
-    """A `.mdtbl` refusal, carrying its SPEC §9 identifier. CSV-mode findings
-    carry none until the CSV profile has §9 identifiers of its own (#103)."""
+    """A refusal that stopped a file being read, carrying its SPEC §9
+    identifier, or None for one that is not a §9 refusal."""
 
     def __init__(self, message, refusal):
         super().__init__("refused", message)
@@ -68,7 +68,7 @@ def validate(path: str) -> list[Finding]:
         try:
             return check_file(path)
         except Malformed as e:
-            return [Finding("refused", str(e))]
+            return [_TableRefusal(str(e), e.refusal)]
         except OSError as e:
             return [_unreadable(path, e)]
     try:

@@ -62,15 +62,39 @@ _MARKER = re.compile(r"^(<{7}|>{7}|\|{7}|={7})")
 
 MAX_EXAMPLES = 3
 
+#: SPEC.md §13: the §9 entry each CSV-mode refusal is read as, and so the
+#: identifier it is reported with, by the internal rule name, which is
+#: never printed. A warning has none: §13 makes §9.26 and §9.15 warnings
+#: in this profile, and CRLF is rowspec's advisory, not a spec rule.
+REFUSALS = {
+    "conflict-marker": "conflict-marker",
+    "duplicate-column": "duplicate-column",
+    "grouped-header": "duplicate-column",
+    "invisible-in-name": "bad-identifier",
+    "key-not-identifier": "bad-identifier",
+    "field-count": "row-field-count",
+    "unterminated-quote": "row-field-count",
+    "stray-quote": "row-field-count",
+    "duplicate-key": "duplicate-row-id",
+    "order-blank": "bad-order-column",
+    "order-mixed-types": "bad-order-column",
+    "order-non-finite": "bad-order-column",
+    "column-type": "column-type-mismatch",
+    "order-type-mismatch": "column-type-mismatch",
+}
+
 
 class Finding:
-    """A refusal or a warning, named by the entity it is about."""
+    """A refusal or a warning, named by the entity it is about. `refusal` is
+    a refusal's SPEC §9 identifier, by `REFUSALS`, which names no warning's
+    rule, so a warning's is None."""
 
     def __init__(self, rule, message, detail=None, level="refuse"):
         self.rule = rule
         self.message = message
         self.detail = detail
         self.level = level
+        self.refusal = REFUSALS.get(rule)
 
     def __str__(self):
         return self.message
@@ -189,7 +213,8 @@ def _decode(raw, name, delimiter=",", key=None):
     except UnicodeDecodeError as e:
         raise Malformed(
             f"{_undecodable(raw, delimiter, key)} is not valid UTF-8: byte "
-            f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})"
+            f"0x{raw[e.start]:02X} is not part of a valid sequence ({e.reason})",
+            refusal="bad-encoding",
         ) from None
     return text, warnings
 
@@ -509,7 +534,7 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     if not records or not any(any(c.strip(" \t") for c in r) for r in records[:1]):
         # SPEC.md §9.13 -- a file containing no table. §13 trims a name of
         # ASCII space and tab only, so a U+00A0 header cell is a name.
-        raise Malformed("file contains no table: there is no header row")
+        raise Malformed("file contains no table: there is no header row", refusal="no-table")
     header = records[0]
     names, name_findings = _header_names(header, records[1] if len(records) > 1 else None)
     findings += name_findings
@@ -527,7 +552,8 @@ def check_text(text, name="<input>", side=None, delimiter=","):
         if side.key not in names:
             raise Malformed(
                 f"{side.path.rsplit('/', 1)[-1]} declares key {_show(side.key)} but "
-                f"{name} has no such column" + _near(side.key, names)
+                f"{name} has no such column" + _near(side.key, names),
+                refusal="malformed-declaration",
             )
         key_idx = names.index(side.key)
 
@@ -658,7 +684,8 @@ def _typed_columns(body, names, side, key_idx):
         if col not in names:
             raise Malformed(
                 f"{side.path.rsplit('/', 1)[-1]} declares a type for column {_show(col)} "
-                f"but the file has no such column" + _near(col, names)
+                f"but the file has no such column" + _near(col, names),
+                refusal="malformed-declaration",
             )
         bad = [
             (n, v) for n, v in _column_values(body, names, col) if v != "" and _type_of(v) != want
@@ -688,7 +715,8 @@ def _order_column(body, names, side, key_idx):
     if col not in names:
         raise Malformed(
             f"{side.path.rsplit('/', 1)[-1]} declares order by {_show(col)} but the file "
-            f"has no such column" + _near(col, names)
+            f"has no such column" + _near(col, names),
+            refusal="bad-order-column",
         )
     # SPEC.md §13 and §9.10: blank is none of the three types, so an order
     # column blank in any row, a cell of spaces or tabs included, is refused.
@@ -777,7 +805,7 @@ def check_file(path):
         raw = fh.read()
     # ASCII space, tab and line breaks only: VT or FF alone is a column name.
     if not raw.strip(b" \t\r\n"):
-        raise Malformed("file contains no table: the file is empty")
+        raise Malformed("file contains no table: the file is empty", refusal="no-table")
     text, warnings = _decode(raw, "the file", _delimiter(path, side), side and side.key)
     if "\r\n" in text:
         warnings.append(

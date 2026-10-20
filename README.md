@@ -243,17 +243,18 @@ rowspec check .    # will this table survive being edited by several people?
 rowspec eval  .    # does it currently say anything false?
 ```
 
-A refused `.mdtbl` names its §9 identifier, so a program can tell the
-refusals apart without parsing the message. Plain output ends the line with
-it, and `--format github` puts it in the annotation's title:
+A refusal names its §9 identifier, so a program can tell the refusals apart
+without parsing the message. Plain output ends the line with it, and
+`--format github` puts it in the annotation's title:
 
 ```
 data/parts.mdtbl: duplicate key id='r_1' [duplicate-row-id]
 ::error file=data/parts.mdtbl,title=rowspec [duplicate-row-id]::duplicate key id='r_1'
 ```
 
-Warnings carry no identifier. CSV-mode findings carry none yet
-([#103](https://github.com/kindspec/rowspec/issues/103)).
+A refused `.csv` or `.tsv` prints the §9 identifier SPEC.md §13 reads its
+refusal as, in the same two places. Warnings carry no identifier, and
+neither does a warning `--strict` turns into a refusal.
 
 ## Licensing
 

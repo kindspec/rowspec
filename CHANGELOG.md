@@ -61,8 +61,8 @@ prose, and where the two disagree the suite wins.
   `--format github` the annotation's title changes from `rowspec` to
   `rowspec [duplicate-row-id]`; the message is unchanged. `rowspec check`
   and `rowspec eval` report a `.mdtbl` that is not UTF-8 as
-  `[bad-encoding]` (#230). Warnings and every CSV-mode line are
-  unchanged and carry no identifier. `--fmt-check`'s "not in canonical
+  `[bad-encoding]` (#230). Warnings are unchanged and carry no
+  identifier. CSV-mode refusals print theirs too, since #103 (below). `--fmt-check`'s "not in canonical
   form" line carries none either; under `--format github` it is now an
   annotation titled `rowspec` (#219). A script that matches a whole
   plain line, or an annotation title equal to `rowspec`, needs updating;
@@ -79,9 +79,26 @@ prose, and where the two disagree the suite wins.
   `column-type-mismatch`**, for a value that is not of the type `columns`
   or `order_type` declares, which no `.mdtbl` file can reach. A
   CSV-profile case passes only when every refusal reported carries an
-  identifier the case lists. Decided by the project owner. CSV mode does
-  not report identifiers yet, and `conformance/cases-csv/` still asserts
-  `refusal_contains`; the cases and the code follow separately.
+  identifier the case lists. Decided by the project owner. The code
+  follows in the next entry; the cases follow separately.
+
+- **CSV mode reports every refusal with its §9 identifier** (#103), as
+  SPEC.md §13 reads it. Each refusing finding from
+  `rowspec.csvmode.check_file`, and the `Malformed` it raises for a file
+  or a sidecar it cannot read, carries it as `refusal`; a warning carries
+  none. `rowspec check` prints it as it does for a `.mdtbl`:
+  `data.csv: duplicate key id='r1' — 2 rows share it [duplicate-row-id]`,
+  and with `--format github` the annotation's title is
+  `rowspec [duplicate-row-id]`. A warning promoted by `--strict` still
+  prints none. The three refusals only the directory-level
+  `.rowspec.json` makes, which SPEC.md §13 does not define, carry none; an
+  entry's own declarations carry what a per-file sidecar's would. The
+  runner judges `refusal` on a CSV-profile case as §13 says: at least one
+  refusal, and each one reported carries an identifier the case lists. It
+  still reads `refusal_contains`, and under either field it fails a
+  refusal reported with no identifier. `just mutants-csv` gains a mutant
+  per refusal path that drops its identifier: 20 in `csvmode.py` and 15
+  in `sidecar.py`, all killed.
 
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of

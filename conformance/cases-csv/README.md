@@ -70,10 +70,14 @@ would test one library's matcher rather than SPEC.md.
 
 | kind | fields | assertion |
 | --- | --- | --- |
-| `check` | `accept`, `refusal_contains`, `warns`, `warning_contains` | the file is refused, or accepted, or accepted with a warning §13 requires |
+| `check` | `accept`, `refusal`, `refusal_contains`, `warns`, `warning_contains` | the file is refused, or accepted, or accepted with a warning §13 requires |
 
+- `accept: false` with `refusal`: the file is refused, and every refusal
+  carries an identifier `refusal` lists. See "Asserting the identifier"
+  below.
 - `accept: false` with `refusal_contains`: the file is refused, and at least
-  one refusal's message contains that substring.
+  one refusal's message contains that substring. A refused case carries
+  exactly one of `refusal` and `refusal_contains`.
 - `accept: true`: the file is not refused, and nothing is asserted about
   warnings. This is the shape of a control case.
 - `accept: true` with `warns: true`: the file is not refused and at least one
@@ -89,7 +93,8 @@ case check. The runner refuses `warns` with any value but `true`.
 A refused file asserts nothing about warnings, and an accepted file has no
 refusal to match, so `warns` or `warning_contains` on `accept: false`, and
 `refusal_contains` on `accept: true`, are refused by the runner rather than
-silently not checked. So is any field not in the table.
+silently not checked, and so is `refusal` on `accept: true`. So is any
+field not in the table.
 
 `refusal_contains: ""` means *refuse, for any stated reason*, and
 `warning_contains: ""` means *warn, for any stated reason*. Use them where the
@@ -119,9 +124,10 @@ refusing case asserts it with `refusal` in place of `refusal_contains`:
   and of the `Malformed` it raises for a file it cannot read at all; a runner
   in another language reads it from wherever that language's binding puts it.
 
-Until the runner reads `refusal` for this tree (#103), it still asserts
-`refusal_contains` and refuses `refusal` as a field not in the table above,
-so the cases here still carry `refusal_contains`.
+The runner reads `refusal` for this tree (#103). It still reads
+`refusal_contains`, which the cases written before #103 carry, and under
+either field it fails a refusal reported with no identifier, since §13
+requires one on every refusal.
 
 ## Ground rules
 
