@@ -239,22 +239,54 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
     return 1 if bad else 0
 
 
+def _keep_metadata(real, tmp, st):
+    """Give the temporary file what the target had that a rename would lose
+    (#248): its group, where this user may set it, its permission bits, and
+    its extended attributes, which on Linux hold POSIX ACLs. Not its times,
+    because the file has been edited, and not its owner, which only root may
+    give away."""
+    try:
+        os.chown(tmp, -1, st.st_gid)
+    except PermissionError:
+        pass
+    os.chmod(tmp, stat.S_IMODE(st.st_mode))
+    if not hasattr(os, "listxattr"):
+        return
+    skip = (errno.ENOTSUP, errno.EOPNOTSUPP, errno.EPERM)
+    try:
+        names = os.listxattr(real)
+    except OSError as e:
+        if e.errno in skip:
+            return
+        raise
+    for name in names:
+        try:
+            os.setxattr(tmp, name, os.getxattr(real, name))
+        except OSError as e:
+            if e.errno not in skip:
+                raise
+
+
 def _write(path, text):
     """Replace `path`'s contents with `text`, all or nothing (#248).
 
     `open(path, "w")` truncates at once, and a write that then fails, on a
     full disk say, reports its error only when the file is closed -- which a
     bare `open(...).write(...)` leaves to a finalizer that swallows it. So
-    the text goes to a temporary file beside the target, is flushed to disk,
-    and is renamed over the target; on any error the temporary file is
-    removed and the target is left as it was. The target's permission bits
-    are kept, a read-only target is refused as a plain write would refuse
-    it, and a symbolic link is written through to the file it names. A hard
-    link to the target is not: the rename gives `path` a new inode."""
+    the text goes to a temporary file in the target's own directory, is
+    flushed to disk, is given the target's metadata, and is renamed over the
+    target; on any error, or an interrupt, the temporary file is removed
+    and the target is left as it was. A symbolic link is written through to
+    the file it names. A target this user cannot write is refused with the
+    operating system's own reason, read-only file system included, as a
+    plain write would refuse it. A hard link to the target does not see the
+    edit: the rename gives `path` a new inode."""
     real = os.path.realpath(path)
-    mode = stat.S_IMODE(os.stat(real).st_mode)
-    if not os.access(real, os.W_OK):
-        raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), path)
+    try:
+        st = os.stat(real)
+        os.close(os.open(real, os.O_WRONLY))  # probe only: opens, never truncates
+    except OSError as e:
+        raise OSError(e.errno, e.strerror, path) from None
     tmp = None
     try:
         fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".rowspec-", suffix=".tmp")
@@ -262,7 +294,7 @@ def _write(path, text):
             fh.write(text)
             fh.flush()
             os.fsync(fh.fileno())
-        os.chmod(tmp, mode)
+        _keep_metadata(real, tmp, st)
         os.replace(tmp, real)
     except BaseException as e:
         if tmp is not None and os.path.lexists(tmp):

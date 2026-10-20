@@ -105,15 +105,24 @@ prose, and where the two disagree the suite wins.
   The editing commands and `rowspec check --fmt` truncated the file and
   then wrote it, and a write that failed, on a full disk say, was
   swallowed: the command printed success, exited 0 and left a truncated
-  file. They now write a temporary file beside the target, flush it to
-  disk and rename it over the target, and on any error refuse with
-  `file: <reason>`, exit 1 and leave the file byte-identical. The
-  file's permission bits are kept and a symbolic link is written
-  through. Two behaviours change: a hard link to the file no longer
-  sees the edit, since the file gets a new inode, and a file in a
-  directory rowspec cannot write to is refused, since the temporary
-  file cannot be made there. `check --fmt` on a read-only file is
-  refused instead of raising a `PermissionError` traceback.
+  file. They now write a temporary file in the target's directory,
+  flush it to disk and rename it over the target, and on any error
+  refuse with `file: <reason>`, exit 1 and leave the file
+  byte-identical. A refused write keeps the operating system's reason,
+  so a read-only file system says so. `check --fmt` on a read-only file
+  is refused instead of raising a `PermissionError` traceback.
+
+  The rewritten file keeps the original's permission bits, its group
+  where this user may set it, and its extended attributes, which on
+  Linux include POSIX ACLs. It does not keep its owner, when another
+  user edits it, or its old modification time. A symbolic link is
+  written through. Three behaviours change: a hard link to the file no
+  longer sees the edit, since the file gets a new inode; a file in a
+  directory rowspec cannot write to is refused, since the temporary file
+  cannot be made there; and a bind-mounted single file, such as a
+  Docker `-v` single-file volume, is refused with `Device or resource
+  busy`, since it cannot be renamed over. A process killed mid-write
+  can leave a `.rowspec-*.tmp` file beside the target.
 
 - **CSV mode's non-UTF-8 refusal spells a literal backslash `\\` and
   never cuts a spelled byte in half** (#242). The field holding the byte
