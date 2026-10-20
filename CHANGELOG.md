@@ -128,6 +128,17 @@ prose, and where the two disagree the suite wins.
   naming no column is not `malformed-declaration`, and that sidecar is
   `bad-order-column` alone. No other rule changes.
 
+- **SPEC.md §13: the per-file sidecar is the CSV profile's only source of
+  declarations** (#255). A source the profile does not define, such as a
+  directory-level `.rowspec.json` mapping globs to declarations, is outside
+  the profile, and so is a refusal about the source itself rather than a
+  declaration it supplies: its shape, and which of its entries applies to
+  a file. Such a refusal is not a CSV-mode refusal and §13 gives it no §9
+  identifier, so a directory-file entry holding a path separator, and a
+  file two globs match, carry none. The declarations such a source
+  supplies for a CSV are read as that CSV's sidecar would be, with the
+  same identifiers. The reference already behaves this way.
+
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
   always at the end. `--end` asks for the end. Two rows appended at the end

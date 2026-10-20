@@ -171,7 +171,9 @@ has none. The directory-level `.rowspec.json` is outside §13. One that is
 not a JSON object, and an entry's own declarations, are refused as a
 per-file sidecar's are, with the same identifier. The two refusals only it
 can make, an entry holding a path separator and a file matching two globs,
-have none until §13 gives them one (#255).
+have none: §13 puts a declaration source other than the per-file sidecar
+outside the profile, and a refusal about that source itself is not a
+CSV-mode refusal (#255).
 
 ## Two warnings, not refusals
 
