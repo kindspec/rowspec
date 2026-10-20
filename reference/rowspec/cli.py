@@ -51,9 +51,9 @@ def _not_utf8(path, e):
 
 
 def _unreadable(path, e):
-    """A path named on the command line that could not be read (#246): the
-    operating system's reason, and the file it is about when that is not
-    `path` itself, such as a sidecar."""
+    """A file that could not be read or written (#246, #243): the operating
+    system's reason, and the file it is about when that is not `path`
+    itself, such as a sidecar."""
     other = e.filename if e.filename not in (None, path) else None
     return _TableRefusal(e.strerror + (f": {other}" if other else ""), None)
 
@@ -170,6 +170,8 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
             )
         except (Malformed, UnicodeDecodeError, OSError) as e:
             if isinstance(e, OSError):
+                # Any file eval could not read, named or found in a
+                # directory, even a `.csv` it would otherwise skip.
                 found = _unreadable(path, e)
             elif not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
@@ -236,12 +238,18 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
 
 def _rewrite(path, change, out, done):
     """Read `path`, apply `change` to its text, and write the result back. A
-    refused edit raises before anything is written, so the file is untouched;
-    the refusal is printed with its identifier, a §9 one or the editing
-    API's own reason, which a program can read without parsing the message."""
+    refused edit raises before anything is written, so the file is untouched.
+    A refusal with an identifier, a §9 one or the editing API's own reason,
+    is printed with it, so a program can read it without parsing the
+    message; a file that cannot be read or written is named with the
+    operating system's reason, and carries none."""
     try:
         text = open(path, encoding="utf-8", newline="").read()
         new, what = change(text)
+        open(path, "w", encoding="utf-8", newline="").write(new)
+    except OSError as e:  # missing, a directory, read-only: name the file
+        print(f"{path}: {_unreadable(path, e)}", file=sys.stderr)
+        return 1
     except UnicodeDecodeError as e:
         f = _not_utf8(path, e)  # check's refusal, line and identifier
         print(f"{path}: {f}{_code(f.refusal)}", file=sys.stderr)
@@ -250,7 +258,6 @@ def _rewrite(path, change, out, done):
         code = e.refusal or getattr(e, "reason", None)
         print(f"{path}: {e}" + (f" [{code}]" if code else ""), file=sys.stderr)
         return 1
-    open(path, "w", encoding="utf-8", newline="").write(new)
     print(f"{path}: {done(what)}", file=out or sys.stdout)
     return 0
 
@@ -392,7 +399,10 @@ def main(argv: list[str] | None = None) -> int:
     cmd = "check"
     if argv and argv[0] in COMMANDS:
         cmd = argv.pop(0)
-    a = _parser(cmd).parse_args(argv)
+    p = _parser(cmd)
+    a = p.parse_args(argv)
+    if getattr(a, "file", None) == "":
+        p.error("the file name is empty")
     if cmd == "eval":
         return cmd_eval(a.paths, fmt=a.format)
     if cmd == "add-row":
