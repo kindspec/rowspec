@@ -166,6 +166,15 @@ prose, and where the two disagree the suite wins.
   list gains the matching clause. The reference already refused each one
   as `malformed-declaration`.
 
+- **SPEC.md §13: a CSV whose first record is one blank field has no
+  header row** (#254). One field that is empty once trimmed of ASCII space
+  and tab, quoted or not, such as an empty first line, is not a header of
+  one unnamed column, so the file is `no-table` whatever follows it. A
+  first record of two or more blank fields is still a header of duplicate
+  names, `duplicate-column`, and a single field of U+00A0 is still a name.
+  §9.13 gains a back-reference to §13. The reference already refused such
+  a file as `no-table`.
+
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
   always at the end. `--end` asks for the end. Two rows appended at the end

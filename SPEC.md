@@ -1395,7 +1395,7 @@ An implementation MUST refuse:
     `order := by(a where a = "1")`, or a `key := col` whose `col` is not a
     stored column of the table: no column of that name, or a computed one
     (§4.1.11; see §13 for the CSV profile)
-13. `no-table`: a file containing no table
+13. `no-table`: a file containing no table (see §13 for the CSV profile)
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
     not this entry
@@ -1605,8 +1605,10 @@ relaxation**, and the difference must be stated rather than discovered:
 - **column names are exempt from §4.1.9's allowlist.** The allowlist exists so
   that a name can be written inside a formula, and a CSV has no formulas, so
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
-  header cell. Only a `Cf` format character in a column name is still refused,
-  and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  header cell, except where it is the header's only field: a first record of
+  one blank field is no header row (below). Only a `Cf` format character in a
+  column name is still refused, and names still compare after NFC, so §9.2
+  refuses two that normalise alike.
   **A name is trimmed of ASCII space and tab only before §9.2 compares it**, as
   a key value is (§4.1.4): `a` with spaces or tabs around it and `a` are one
   name, and so are a header cell of spaces, one of a tab and an empty one, so
@@ -1724,6 +1726,18 @@ relaxation**, and the difference must be stated rather than discovered:
   column. A single empty line at the end of the file is not between
   rows and is accepted; a second one is between rows. A trailing line that
   holds only spaces or tabs is not empty, and is a record like any other.
+  **A first record of one blank field is not a header row**: one field that
+  is empty once trimmed of ASCII space and tab, quoted or not, such as an
+  empty first line or one holding only spaces or tabs. It names no column,
+  so the file has no header row and is §9.13, whatever follows it. It is
+  not a header of one column whose name is empty. Read as one, a first line
+  left blank would make every later record of more than one field a §9.6
+  refusal against a header nobody wrote, and a file of an empty line, then
+  `1`, then `2` would be accepted as a column of values with no name: a
+  plausible table, from a file whose header is missing. A first record of
+  two or more blank fields is still a header, of duplicate names (§9.2,
+  above), and one field holding a non-ASCII space such as U+00A0 is a
+  name, since that space is not trimmed.
 - **conflict markers are §4.1.12's, unchanged.** A line whose first seven
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
@@ -1738,8 +1752,9 @@ relaxation**, and the difference must be stated rather than discovered:
   field count: under the header `id,v`, the line `=======` is a conflict
   marker, not a data row of one field, and so are `>>>>>>> 5"pipe` and
   `=======,"x` on the file's last line. The header is the first record that
-  does not start on a conflict line, and a file with no such record, such
-  as one holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
+  does not start on a conflict line; if that record is one blank field, the
+  file has no header row (above). A file with no such record, such as one
+  holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
   empty line that only such records follow is not at the end of the file,
   so it is a data row, and §9.6 refuses it against a header of more than
   one column.
@@ -1761,7 +1776,8 @@ entry, as follows, and is reported with that entry's identifier:
   between rows included, a quoted field the file ends inside, and a stray
   quote: §9.6 `row-field-count`.
 - two rows with one value of the declared key: §9.5 `duplicate-row-id`.
-- a file with no header row, an empty file included: §9.13 `no-table`.
+- a file with no header row, an empty file and one whose first record is
+  one blank field included: §9.13 `no-table`.
 - a CSV that is not well-formed UTF-8: §9.14 `bad-encoding`.
 - **the sidecar is this profile's set of declarations**, so a sidecar that
   does not parse, or that declares what cannot be checked, is a malformed
