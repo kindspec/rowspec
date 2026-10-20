@@ -11,8 +11,11 @@ line 7 moves the moment anyone else edits the file.
 """
 
 import argparse
+import errno
 import os
+import stat
 import sys
+import tempfile
 
 from . import edit
 from .csvmode import Finding, check_file
@@ -236,6 +239,71 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
     return 1 if bad else 0
 
 
+def _keep_metadata(real, tmp, st):
+    """Give the temporary file what the target had that a rename would lose
+    (#248): its group, where this user may set it, its permission bits, and
+    its extended attributes, which on Linux hold POSIX ACLs. Not its times,
+    because the file has been edited, and not its owner, which only root may
+    give away."""
+    try:
+        os.chown(tmp, -1, st.st_gid)
+    except PermissionError:
+        pass
+    os.chmod(tmp, stat.S_IMODE(st.st_mode))
+    if not hasattr(os, "listxattr"):
+        return
+    skip = (errno.ENOTSUP, errno.EOPNOTSUPP, errno.EPERM)
+    try:
+        names = os.listxattr(real)
+    except OSError as e:
+        if e.errno in skip:
+            return
+        raise
+    for name in names:
+        try:
+            os.setxattr(tmp, name, os.getxattr(real, name))
+        except OSError as e:
+            if e.errno not in skip:
+                raise
+
+
+def _write(path, text):
+    """Replace `path`'s contents with `text`, all or nothing (#248).
+
+    `open(path, "w")` truncates at once, and a write that then fails, on a
+    full disk say, reports its error only when the file is closed -- which a
+    bare `open(...).write(...)` leaves to a finalizer that swallows it. So
+    the text goes to a temporary file in the target's own directory, is
+    flushed to disk, is given the target's metadata, and is renamed over the
+    target; on any error, or an interrupt, the temporary file is removed
+    and the target is left as it was. A symbolic link is written through to
+    the file it names. A target this user cannot write is refused with the
+    operating system's own reason, read-only file system included, as a
+    plain write would refuse it. A hard link to the target does not see the
+    edit: the rename gives `path` a new inode."""
+    real = os.path.realpath(path)
+    try:
+        st = os.stat(real)
+        os.close(os.open(real, os.O_WRONLY))  # probe only: opens, never truncates
+    except OSError as e:
+        raise OSError(e.errno, e.strerror, path) from None
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".rowspec-", suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        _keep_metadata(real, tmp, st)
+        os.replace(tmp, real)
+    except BaseException as e:
+        if tmp is not None and os.path.lexists(tmp):
+            os.unlink(tmp)
+        if isinstance(e, OSError):  # named by `path`, never by the temporary file
+            raise OSError(e.errno, e.strerror, path) from None
+        raise
+
+
 def _rewrite(path, change, out, done):
     """Read `path`, apply `change` to its text, and write the result back. A
     refused edit raises before anything is written, so the file is untouched.
@@ -246,7 +314,7 @@ def _rewrite(path, change, out, done):
     try:
         text = open(path, encoding="utf-8", newline="").read()
         new, what = change(text)
-        open(path, "w", encoding="utf-8", newline="").write(new)
+        _write(path, new)
     except OSError as e:  # missing, a directory, read-only: name the file
         print(f"{path}: {_unreadable(path, e)}", file=sys.stderr)
         return 1
@@ -471,8 +539,13 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     refused += 1
                 else:
-                    open(f, "w", encoding="utf-8", newline="").write(c)
-                    print(f"{f}: reformatted")
+                    try:
+                        _write(f, c)
+                    except OSError as e:
+                        emit(f, [_unreadable(f, e)], explained, sys.stderr)
+                        refused += 1
+                    else:
+                        print(f"{f}: reformatted")
 
     summary = f"{len(files)} file(s) checked, {refused} refused"
     if warned:
