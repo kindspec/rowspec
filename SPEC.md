@@ -1707,21 +1707,25 @@ relaxation**, and the difference must be stated rather than discovered:
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
   the line, is data.
-  **A conflict line is classified first, and is not a record**: §4.1.12
-  classifies it "before any other classification", and this profile keeps
-  that order, so RFC 4180's record boundaries are drawn over the file's other
-  lines and the conflict line is neither a record nor part of one. It is
-  therefore never counted against §9.6, whatever the header's field count:
-  under the header `id,v`, the line `=======` is a conflict marker, not a
-  record of one field.
+  **A conflict line is classified first, and does not count as a row**:
+  §4.1.12 classifies it "before any other classification". Records are still
+  split over the whole text, as RFC 4180 splits them, so a conflict line
+  inside a quoted field stays part of that field. But a record that starts
+  on a conflict line is neither the header nor a data row, so no check on
+  rows reaches it, §9.6 included, whatever the header's field count: under
+  the header `id,v`, the line `=======` is a conflict marker, not a data
+  row of one field. The header is the first record that does not start on a
+  conflict line, and a file with no such record, such as one holding only
+  `<<<<<<< HEAD`, is §9.1 alone, not also §9.13.
 
 **Every CSV-mode refusal is reported with a §9 identifier**, under §9's
 rules for reporting one. Each refusal this profile makes is read as a §9
 entry, as follows, and is reported with that entry's identifier:
 
 - a conflict marker line, inside a quoted field included: §9.1
-  `conflict-marker`. The line is not a record (above), so it is not also
-  §9.6 `row-field-count`.
+  `conflict-marker`. A record that starts on one does not count as a row
+  (above), so it is not also §9.6 `row-field-count`, and a file of nothing
+  but conflict lines is not also §9.13 `no-table`.
 - two column names that compare alike, two empty header cells included:
   §9.2 `duplicate-column`.
 - a `Cf` format character in a column name, and a declared key's value that
@@ -1746,7 +1750,8 @@ entry, as follows, and is reported with that entry's identifier:
   is complete**: a sidecar is `malformed-declaration` for these reasons and
   no others, and the clause before the colon says why they are, without
   adding to them. `order_type` is judged only against an order column that
-  exists, so beside an `order` naming no column it is none of these, and
+  exists, so a valid `order_type` (one of `number`, `date` or `text`)
+  beside an `order` naming no column is none of these, and
   that sidecar is §9.10 `bad-order-column` alone. A `columns` member naming
   that same missing column is still the last item.
 - a sidecar whose bytes are not well-formed UTF-8: §9.14 `bad-encoding`,
