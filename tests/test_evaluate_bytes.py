@@ -45,6 +45,40 @@ def test_a_byte_that_is_not_utf8_is_bad_encoding(impl):
     assert not OFFSET.search(str(ex.value)), str(ex.value)
 
 
+#: Ill-formed sequences a lenient codec lets through. `surrogatepass`
+#: decodes an encoded surrogate, and a hand-written decoder can miss the
+#: others: an overlong form, a code point above U+10FFFF, and a sequence
+#: cut off by the end of the file.
+ILL_FORMED = {
+    "encoded-surrogate": GOOD.replace(b"caf\xc3\xa9", b"caf\xed\xa0\x80"),
+    "overlong-slash": GOOD.replace(b"caf\xc3\xa9", b"caf\xc0\xaf"),
+    "above-u10ffff": GOOD.replace(b"caf\xc3\xa9", b"caf\xf4\x90\x80\x80"),
+    "truncated-at-eof": GOOD + b"# note \xe2\x82",
+}
+
+
+@pytest.mark.parametrize("data", ILL_FORMED.values(), ids=ILL_FORMED.keys())
+def test_every_ill_formed_sequence_is_bad_encoding(impl, data):
+    with pytest.raises(impl.Malformed) as ex:
+        impl.evaluate_bytes(data)
+    assert ex.value.refusal == "bad-encoding"
+    assert not OFFSET.search(str(ex.value)), str(ex.value)
+
+
+def test_the_second_implementation_names_the_byte_not_an_offset():
+    """`rowspec_alt` words its own message; it must still name the byte and
+    no position, line number or offset."""
+    from rowspec_alt.table import Malformed, evaluate_bytes
+
+    for data in (LATIN1, *ILL_FORMED.values()):
+        with pytest.raises(Malformed) as ex:
+            evaluate_bytes(data)
+        msg = str(ex.value)
+        assert re.search(r"byte 0x[0-9A-F]{2}\b", msg), msg
+        assert not OFFSET.search(msg), msg
+        assert not re.search(r"\d+ ?(?:th|st|nd|rd)? byte|index", msg), msg
+
+
 def test_bad_encoding_is_decided_before_any_line_is_classified(impl):
     """§9.14: before a line is looked at, so a file that is also a lone CR
     and a conflict marker is still `bad-encoding`."""
@@ -118,6 +152,27 @@ def test_a_case_holding_both_artifacts_fails(tmp_path):
     r = _run("rowspec.table", root)
     assert r.returncode == 1, r.stdout + r.stderr
     assert "both input.mdtbl and input.bin" in r.stdout + r.stderr
+
+
+@pytest.mark.parametrize(
+    "expect",
+    [
+        {"kind": "roundtrip"},
+        {"kind": "eval", "aggregates": {"s": 0}},
+    ],
+    ids=["roundtrip", "eval"],
+)
+def test_input_bin_outside_a_parse_case_is_a_malformed_case(tmp_path, expect):
+    """Only `parse` reads `input.bin`. Elsewhere nothing would check it, so
+    the case fails rather than passing over a file it never opened."""
+    case = tmp_path / "tree" / expect["kind"] / "c"
+    case.mkdir(parents=True)
+    (case / "input.mdtbl").write_bytes(b"| id | q |\n| --- | --: |\n\ns := sum(q)\n")
+    (case / "input.bin").write_bytes(LATIN1)
+    (case / "expect.json").write_text(json.dumps(expect))
+    r = _run("rowspec.table", tmp_path / "tree")
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert "input.bin in a" in r.stdout + r.stderr, r.stdout + r.stderr
 
 
 def test_an_implementation_without_evaluate_bytes_fails_the_case(tmp_path):
