@@ -1056,8 +1056,7 @@ CSV_MUTANTS = {
     # --- §13 (#103): every refusal carries its §9 identifier ----------------
     # Each drops one refusal's identifier. The runner fails a refusal reported
     # with none under either assertion field, so each dies to any case that
-    # reaches the path. The grouped header's identifier has no mutant: no
-    # case reaches that path, so one would survive.
+    # reaches the path.
     "csv-no-header-row-has-no-identifier": (
         '"file contains no table: there is no header row", refusal="no-table"',
         '"file contains no table: there is no header row", refusal=None',
@@ -1073,6 +1072,10 @@ CSV_MUTANTS = {
     "csv-duplicate-column-has-no-identifier": (
         '"duplicate-column": "duplicate-column"',
         '"duplicate-column": None',
+    ),
+    "csv-grouped-header-has-no-identifier": (
+        '"grouped-header": "duplicate-column"',
+        '"grouped-header": None',
     ),
     "csv-invisible-in-name-has-no-identifier": (
         '"invisible-in-name": "bad-identifier"',
@@ -1150,6 +1153,10 @@ CSV_MUTANTS = {
     "csv-duplicate-column-is-bad-identifier": (
         '"duplicate-column": "duplicate-column"',
         '"duplicate-column": "bad-identifier"',
+    ),
+    "csv-grouped-header-is-bad-identifier": (
+        '"grouped-header": "duplicate-column"',
+        '"grouped-header": "bad-identifier"',
     ),
     "csv-invisible-in-name-is-duplicate-column": (
         '"invisible-in-name": "bad-identifier"',
