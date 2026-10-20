@@ -106,8 +106,11 @@ prose, and where the two disagree the suite wins.
   and the row's key or first field are quoted with each bad byte as
   `\xNN`, but the text `\xe9` was quoted the same way as the byte 0xE9,
   and a long field could end as `'…\xe9\…'`. A literal backslash is now
-  `\\`, and truncation cuts between characters, as #239 did for `.mdtbl`
-  and sidecar quotes. Messages without a backslash or a cut escape are
+  `\\`, also in the column name that names the row, and truncation cuts
+  between characters, as #239 did for `.mdtbl` and sidecar quotes. The
+  window a long field is shown from is sized by what it shows, so twenty
+  backslashes or seven U+200B before the byte no longer push the byte out
+  of the quote. Messages without a backslash or a cut escape are
   unchanged.
 
 - **A quoted value or line no longer cuts an escape in half, and a

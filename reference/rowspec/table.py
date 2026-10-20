@@ -214,6 +214,23 @@ def _spell(s):
     return out
 
 
+def _window(before, wide=20, keep=10):
+    """`before`, a list as `_spell` gives, cut to about its last `keep`
+    characters behind an ellipsis when it is more than `wide` characters
+    wide. Measured on the spelled width, so `\\\\` and `\\u200b` count as
+    what they show, and cut between characters, so the text after it, such
+    as a bad byte, is never pushed out of a quote (#242)."""
+    if sum(map(len, before)) <= wide:
+        return before
+    kept, n = [], 0
+    for t in reversed(before):
+        if n + len(t) > keep:
+            break
+        kept.append(t)
+        n += len(t)
+    return ["\u2026"] + kept[::-1]
+
+
 def _show_bytes(s, limit=40):
     """`_show` for text that may hold undecodable bytes, spelled by `_spell`."""
     return _quote(_spell(s), limit)

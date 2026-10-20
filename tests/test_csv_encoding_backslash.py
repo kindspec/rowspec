@@ -49,3 +49,21 @@ def test_truncation_never_cuts_a_spelled_byte(tmp_path):
 def test_plain_field_is_unchanged(tmp_path):
     m = message(tmp_path, b"id,v\n1,caf\xe9\n")
     assert "row id='1': the field 'caf\\xe9' is not valid UTF-8" in m, m
+
+
+def test_window_is_sized_by_spelled_width_for_backslashes(tmp_path):
+    """20 backslashes are 40 characters spelled; a window sized on the raw
+    20 left the byte past the end of the quote."""
+    m = message(tmp_path, b"id,v\n1," + b"\\" * 20 + b"\xe9\n")
+    assert "the field '\u2026" + "\\\\" * 5 + "\\xe9'" in m, m
+
+
+def test_window_is_sized_by_spelled_width_for_cf(tmp_path):
+    """Seven U+200B are 42 characters spelled; the byte after them was lost."""
+    m = message(tmp_path, b"id,v\n1," + "\u200b".encode() * 7 + b"\xe9\n")
+    assert "the field '\u2026\\u200b\\xe9'" in m, m
+
+
+def test_column_name_tells_text_from_byte(tmp_path):
+    m = message(tmp_path, b"id\\xe9,v\n\xe9,1\n")
+    assert "row id\\\\xe9='\\xe9': the field '\\xe9'" in m, m
