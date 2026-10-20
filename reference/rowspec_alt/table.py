@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 """rowspec — a second, independent implementation, written from SPEC.md.
 
-Entry points: parse, structure, evaluate, render, canon, set_cell, Malformed.
+Entry points: parse, structure, evaluate, evaluate_bytes, render, canon,
+set_cell, Malformed.
 Standard library only.  Every non-obvious decision cites the clause it came
 from; where the prose did not determine the answer the comment says so.
 """
@@ -15,6 +16,7 @@ __all__ = [
     "parse",
     "structure",
     "evaluate",
+    "evaluate_bytes",
     "render",
     "canon",
     "set_cell",
@@ -1686,3 +1688,18 @@ def evaluate(text):
         miss = ev.static_miss(node)
         aggs[name] = display(Ref(miss) if miss else ev.eval(node, 0))
     return rows, aggs
+
+
+def evaluate_bytes(data):
+    # §9.14 -- bytes that are not well-formed UTF-8. "A property of the bytes,
+    # decided before any line is classified": so decoding is the first step,
+    # and nothing of the text is looked at until it has succeeded.  A BOM
+    # decodes fine and is left to structure() as §9.26.
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        raise Malformed(
+            "bad-encoding",
+            f"not well-formed UTF-8: byte 0x{e.object[e.start]:02X} cannot be decoded (§9.14)",
+        ) from None
+    return evaluate(text)

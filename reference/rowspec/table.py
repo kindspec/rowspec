@@ -1645,6 +1645,31 @@ def evaluate(text):
     return seq, out
 
 
+def evaluate_bytes(data):
+    """`evaluate` over a file's bytes rather than its text (#222).
+
+    §9.14 is a property of the bytes, decided before any line is classified,
+    and `evaluate` takes text, so a caller that decodes first has already
+    made the decision. This makes it here, as a refusal with its identifier.
+    The message names the first line holding a byte that is not UTF-8 and
+    the byte, never an offset, as the CLI's does (#234)."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        loose = data.decode("utf-8", "surrogateescape")
+        bad = re.compile("[\udc80-\udcff]")
+        line = next(ln for ln in loose.split("\n") if bad.search(ln)).rstrip("\r")
+        at = bad.search(line).start()
+        shown = _quote(_window(_spell(line[:at])) + _spell(line[at:]), 60)
+        raise Malformed(
+            f"not valid UTF-8: the line {shown}"
+            f" holds byte 0x{e.object[e.start]:02X}, which is not part of a valid sequence"
+            f" ({e.reason})",
+            refusal="bad-encoding",
+        ) from None
+    return evaluate(text)
+
+
 if __name__ == "__main__":
     try:
         rows, aggs = evaluate(open(sys.argv[1]).read())

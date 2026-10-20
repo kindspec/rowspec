@@ -319,6 +319,14 @@ malformed all the same: it names nothing a key can be. A missing column has no
 values, and a computed column's cells are empty (§5), so neither holds a row
 id. §6 defines exactly two order states, `order := by(c)` and the line omitted
 entirely; a third spelling is refused rather than degraded into the second.
+**So `order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and `arg`
+is a bare `ident`**, whatever `fn` is — an aggregate function, a
+row-relative operator such as `cumulative`, or any other `ident` — and
+`by` with a `where` is malformed too: `order := count(a where a = "1")`,
+`order := none(day)` and `order := by(a where a = "1")` are each refused.
+The `declaration` production generates all three, as it does
+`key := fn(col)`, so the rule is stated here rather than left to the
+grammar.
 
 **12. Conflict markers.** A conflict line is any line whose first seven
 characters are seven `<`, seven `=`, seven `>`, or **seven `|`**. All four,
@@ -1382,10 +1390,12 @@ An implementation MUST refuse:
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
     that does not match `declaration`, a `key :=` in function form such as
-    `key := by(id)`, or a `key := col` whose `col` is not a stored column of
-    the table: no column of that name, or a computed one (§4.1.11; see §13
-    for the CSV profile)
-13. `no-table`: a file containing no table
+    `key := by(id)`, an `order :=` in a function form other than `by(c)`
+    with `c` a bare `ident`, such as `order := count(a)` or
+    `order := by(a where a = "1")`, or a `key := col` whose `col` is not a
+    stored column of the table: no column of that name, or a computed one
+    (§4.1.11; see §13 for the CSV profile)
+13. `no-table`: a file containing no table (see §13 for the CSV profile)
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
     not this entry
@@ -1605,8 +1615,10 @@ relaxation**, and the difference must be stated rather than discovered:
 - **column names are exempt from §4.1.9's allowlist.** The allowlist exists so
   that a name can be written inside a formula, and a CSV has no formulas, so
   `first name`, `total (USD)` and `a-b` are column names, and so is an empty
-  header cell. Only a `Cf` format character in a column name is still refused,
-  and names still compare after NFC, so §9.2 refuses two that normalise alike.
+  header cell, except where it is the header's only field: a first record of
+  one blank field is no header row (below). Only a `Cf` format character in a
+  column name is still refused, and names still compare after NFC, so §9.2
+  refuses two that normalise alike.
   **A name is trimmed of ASCII space and tab only before §9.2 compares it**, as
   a key value is (§4.1.4): `a` with spaces or tabs around it and `a` are one
   name, and so are a header cell of spaces, one of a tab and an empty one, so
@@ -1629,7 +1641,18 @@ relaxation**, and the difference must be stated rather than discovered:
   does not hold for CSV key values either.
 - **the sidecar is one JSON object with five optional members: `key`,
   `order`, `order_type`, `columns` and `delimiter`.** It sits beside the
-  CSV, named for it: `data.csv.rowspec.json` for `data.csv`. **The sidecar
+  CSV, named for it: `data.csv.rowspec.json` for `data.csv`.
+  **The sidecar is the profile's only source of declarations.** An
+  implementation may also read declarations from a source the profile does
+  not define, such as one file that maps the CSVs of a whole directory to
+  declarations by filename glob. That source is outside the profile, and
+  so is every refusal that comes from the source itself rather than from a
+  declaration it supplies: how the source is shaped, and which of its
+  entries applies to a file. Such a refusal is not a CSV-mode refusal, so
+  the identifier rule below does not reach it, and no CSV-profile case
+  can depend on it. The declarations such a source supplies for a CSV are
+  read as that CSV's sidecar would be, with the same refusals and
+  identifiers. **The sidecar
   is UTF-8 JSON with no byte-order mark.** One that is not UTF-8 is refused,
   a sidecar encoded as UTF-16 or UTF-32 included, as RFC 8259 §8.1 requires
   UTF-8 of JSON exchanged outside a closed ecosystem. One that starts with a
@@ -1713,6 +1736,18 @@ relaxation**, and the difference must be stated rather than discovered:
   column. A single empty line at the end of the file is not between
   rows and is accepted; a second one is between rows. A trailing line that
   holds only spaces or tabs is not empty, and is a record like any other.
+  **A first record of one blank field is not a header row**: one field that
+  is empty once trimmed of ASCII space and tab, quoted or not, such as an
+  empty first line or one holding only spaces or tabs. It names no column,
+  so the file has no header row and is §9.13, whatever follows it. It is
+  not a header of one column whose name is empty. Read as one, a first line
+  left blank would make every later record of more than one field a §9.6
+  refusal against a header nobody wrote, and a file of an empty line, then
+  `1`, then `2` would be accepted as a column of values with no name: a
+  plausible table, from a file whose header is missing. A first record of
+  two or more blank fields is still a header, of duplicate names (§9.2,
+  above), and one field holding a non-ASCII space such as U+00A0 is a
+  name, since that space is not trimmed.
 - **conflict markers are §4.1.12's, unchanged.** A line whose first seven
   characters are seven `<`, `=`, `>` or `|` is refused wherever it appears,
   inside a quoted field included. A shorter run, or one that does not start
@@ -1727,8 +1762,9 @@ relaxation**, and the difference must be stated rather than discovered:
   field count: under the header `id,v`, the line `=======` is a conflict
   marker, not a data row of one field, and so are `>>>>>>> 5"pipe` and
   `=======,"x` on the file's last line. The header is the first record that
-  does not start on a conflict line, and a file with no such record, such
-  as one holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
+  does not start on a conflict line; if that record is one blank field, the
+  file has no header row (above). A file with no such record, such as one
+  holding only `<<<<<<< HEAD`, is §9.1 alone, not also §9.13. An
   empty line that only such records follow is not at the end of the file,
   so it is a data row, and §9.6 refuses it against a header of more than
   one column.
@@ -1750,7 +1786,8 @@ entry, as follows, and is reported with that entry's identifier:
   between rows included, a quoted field the file ends inside, and a stray
   quote: §9.6 `row-field-count`.
 - two rows with one value of the declared key: §9.5 `duplicate-row-id`.
-- a file with no header row, an empty file included: §9.13 `no-table`.
+- a file with no header row, an empty file and one whose first record is
+  one blank field included: §9.13 `no-table`.
 - a CSV that is not well-formed UTF-8: §9.14 `bad-encoding`.
 - **the sidecar is this profile's set of declarations**, so a sidecar that
   does not parse, or that declares what cannot be checked, is a malformed
@@ -1788,6 +1825,10 @@ entry, as follows, and is reported with that entry's identifier:
 - a value of a column typed by `columns` that is not of that type, and an
   order column holding a value that is not of its `order_type`: §9.27
   `column-type-mismatch`.
+
+A refusal that comes from a declaration source outside this profile
+itself, rather than from a declaration it supplies (above), is not a
+CSV-mode refusal, and is not read as a §9 entry here.
 
 A file can meet more than one of these, and then each applies, as §9 says:
 an order column of mixed types under an `order_type`, or under a `columns`
