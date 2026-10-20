@@ -38,7 +38,9 @@ def rowspec(*args, cwd, fsize=None):
         [sys.executable, "-m", "rowspec", *args],
         capture_output=True,
         text=True,
-        env=dict(os.environ, PYTHONPATH=REF),
+        # No bytecode: under the size limit Python would write a truncated
+        # .pyc into reference/, and every later import of it would fail.
+        env=dict(os.environ, PYTHONPATH=REF, PYTHONDONTWRITEBYTECODE="1"),
         cwd=cwd,
         preexec_fn=cap if fsize is not None else None,
     )
