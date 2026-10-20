@@ -146,6 +146,15 @@ prose, and where the two disagree the suite wins.
   supplies for a CSV are read as that CSV's sidecar would be, with the
   same identifiers. The reference already behaves this way.
 
+- **SPEC.md names `malformed-declaration` for an `order` line that parses
+  but is not `by(c)`** (#225). §4.1.11 gave `key` that sentence and not
+  `order`: `order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and
+  `arg` is a bare `ident`, whatever `fn` is and with or without a `where`,
+  so `order := count(a where a = "1")`, `order := none(day)` and
+  `order := by(a where a = "1")` are each `malformed-declaration`. §9.12's
+  list gains the matching clause. The reference already refused each one
+  as `malformed-declaration`.
+
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of
   always at the end. `--end` asks for the end. Two rows appended at the end

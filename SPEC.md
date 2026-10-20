@@ -319,6 +319,14 @@ malformed all the same: it names nothing a key can be. A missing column has no
 values, and a computed column's cells are empty (§5), so neither holds a row
 id. §6 defines exactly two order states, `order := by(c)` and the line omitted
 entirely; a third spelling is refused rather than degraded into the second.
+**So `order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and `arg`
+is a bare `ident`**, whatever `fn` is — an aggregate function, a
+row-relative operator such as `cumulative`, or any other `ident` — and
+`by` with a `where` is malformed too: `order := count(a where a = "1")`,
+`order := none(day)` and `order := by(a where a = "1")` are each refused.
+The `declaration` production generates all three, as it does
+`key := fn(col)`, so the rule is stated here rather than left to the
+grammar.
 
 **12. Conflict markers.** A conflict line is any line whose first seven
 characters are seven `<`, seven `=`, seven `>`, or **seven `|`**. All four,
@@ -1382,9 +1390,11 @@ An implementation MUST refuse:
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
     that does not match `declaration`, a `key :=` in function form such as
-    `key := by(id)`, or a `key := col` whose `col` is not a stored column of
-    the table: no column of that name, or a computed one (§4.1.11; see §13
-    for the CSV profile)
+    `key := by(id)`, an `order :=` in a function form other than `by(c)`
+    with `c` a bare `ident`, such as `order := count(a)` or
+    `order := by(a where a = "1")`, or a `key := col` whose `col` is not a
+    stored column of the table: no column of that name, or a computed one
+    (§4.1.11; see §13 for the CSV profile)
 13. `no-table`: a file containing no table
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
