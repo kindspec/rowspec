@@ -50,6 +50,14 @@ def _not_utf8(path, e):
     )
 
 
+def _unreadable(path, e):
+    """A path named on the command line that could not be read (#246): the
+    operating system's reason, and the file it is about when that is not
+    `path` itself, such as a sidecar."""
+    other = e.filename if e.filename not in (None, path) else None
+    return _TableRefusal(e.strerror + (f": {other}" if other else ""), None)
+
+
 def validate(path: str) -> list[Finding]:
     """Every finding for one file. A refusal that stops the file being read at
     all arrives as a Malformed and becomes a single finding."""
@@ -58,10 +66,14 @@ def validate(path: str) -> list[Finding]:
             return check_file(path)
         except Malformed as e:
             return [Finding("refused", str(e))]
+        except OSError as e:
+            return [_unreadable(path, e)]
     try:
         text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
         return [_not_utf8(path, e)]
+    except OSError as e:
+        return [_unreadable(path, e)]
     try:
         evaluate(text)
     except Malformed as e:
@@ -156,10 +168,12 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
             cols, formulas, _r, decls, _o, _k = parse(
                 open(path, encoding="utf-8", newline="").read()
             )
-        except (Malformed, UnicodeDecodeError) as e:
-            if not path.lower().endswith(TABLE_EXT):
+        except (Malformed, UnicodeDecodeError, OSError) as e:
+            if isinstance(e, OSError):
+                found = _unreadable(path, e)
+            elif not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            if isinstance(e, UnicodeDecodeError):
+            elif isinstance(e, UnicodeDecodeError):
                 found = _not_utf8(path, e)
             else:
                 found = _TableRefusal(str(e), e.refusal)
