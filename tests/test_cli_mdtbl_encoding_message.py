@@ -45,7 +45,7 @@ def test_the_first_bad_line_is_the_one_named(tmp_path, capsys):
 
 def test_eval_says_the_same(tmp_path, capsys):
     """`eval` builds the refusal through the same helper as `check` (#230).
-    Run as a process: `cmd_eval` binds `sys.stdout` as a default argument."""
+    Run as a process, so the route CI uses, `python -m rowspec`, is covered."""
     p = tmp_path / "row.mdtbl"
     p.write_bytes(b"| id | n |\n| --- | --- |\n| r_1 | caf\xe9 |\n\nkey := id\n")
     cli.main(["check", str(p)])
@@ -57,3 +57,13 @@ def test_eval_says_the_same(tmp_path, capsys):
     assert (r.returncode, r.stderr) == (1, want)
     assert "the line '| r_1 | caf\\xe9 |' holds byte 0xE9" in r.stderr, r.stderr
     assert not OFFSET.search(r.stderr), r.stderr
+
+
+def test_a_lone_cr_does_not_end_the_quoted_line(tmp_path, capsys):
+    """§4.1: only LF and CRLF break lines, so a lone CR between rows stays
+    inside the quoted line, spelled `\\r`."""
+    p = tmp_path / "cr.mdtbl"
+    p.write_bytes(b"| id |\r| caf\xe9 |\n")
+    assert cli.main(["check", str(p)]) == 1
+    err = capsys.readouterr().err
+    assert "the line '| id |\\r| caf\\xe9 |' holds byte 0xE9" in err, err
