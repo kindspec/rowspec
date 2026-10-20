@@ -16,6 +16,7 @@ import sys
 
 from . import edit
 from .csvmode import Finding, check_file
+from .sidecar import _undecodable_line
 from .table import Malformed, _why_not_a_number, canon, evaluate, parse
 
 CSV_EXT = (".csv", ".tsv", ".tab")
@@ -36,10 +37,17 @@ def _code(refusal):
     return f" [{refusal}]" if refusal else ""
 
 
-def _not_utf8(e):
+def _not_utf8(path, e):
     """The refusal for a `.mdtbl` that is not UTF-8, which the CLI decodes
-    itself. `check` and `eval` both build it here, so they say the same."""
-    return _TableRefusal(f"not valid UTF-8: {e}", "bad-encoding")
+    itself. `check` and `eval` both build it here, so they say the same. By
+    content, never by offset (#234): the first line holding such a byte,
+    quoted as a sidecar's message quotes it (#216), and the byte."""
+    return _TableRefusal(
+        f"not valid UTF-8: the line {_undecodable_line(path)} holds byte "
+        f"0x{e.object[e.start]:02X}, which is not part of a valid sequence "
+        f"({e.reason})",
+        "bad-encoding",
+    )
 
 
 def validate(path: str) -> list[Finding]:
@@ -53,7 +61,7 @@ def validate(path: str) -> list[Finding]:
     try:
         text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
-        return [_not_utf8(e)]
+        return [_not_utf8(path, e)]
     try:
         evaluate(text)
     except Malformed as e:
@@ -152,7 +160,7 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
             if isinstance(e, UnicodeDecodeError):
-                found = _not_utf8(e)
+                found = _not_utf8(path, e)
             else:
                 found = _TableRefusal(str(e), e.refusal)
             if fmt == "github":

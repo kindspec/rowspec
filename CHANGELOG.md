@@ -101,6 +101,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A `.mdtbl` that is not UTF-8 is refused by content, not by offset**
+  (#234). `rowspec check` and `rowspec eval` printed Python's codec
+  text, `'utf-8' codec can't decode byte 0xe9 in position 36: invalid
+  continuation byte`. They now quote the first line holding such a byte
+  and name the byte, as a sidecar's refusal does: `not valid UTF-8: the
+  line '| r_1 | caf\xe9 |' holds byte 0xE9, which is not part of a valid
+  sequence (invalid continuation byte) [bad-encoding]`. The refusal and
+  exit status are unchanged.
+
 - **`rowspec eval` refuses a `.mdtbl` that is not UTF-8 instead of
   crashing** (#230). It raised a `UnicodeDecodeError` traceback; it now
   reports what `rowspec check` reports, `file: not valid UTF-8: ...
