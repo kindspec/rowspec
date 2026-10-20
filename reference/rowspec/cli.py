@@ -228,6 +228,9 @@ def _rewrite(path, change, out, done):
     try:
         text = open(path, encoding="utf-8", newline="").read()
         new, what = change(text)
+    except OSError as e:  # missing, a directory, unreadable: name the file
+        print(f"{path}: {e.strerror}", file=sys.stderr)
+        return 1
     except UnicodeDecodeError as e:
         f = _not_utf8(path, e)  # check's refusal, line and identifier
         print(f"{path}: {f}{_code(f.refusal)}", file=sys.stderr)

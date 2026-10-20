@@ -101,6 +101,12 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **The editing commands refuse a missing file or a directory instead of
+  crashing** (#243). `add-row`, `add-column`, `delete-column` and
+  `rename-column` raised a `FileNotFoundError` or `IsADirectoryError`
+  traceback. They now print `file: No such file or directory` or
+  `file: Is a directory`, the operating system's own wording, and exit 1.
+
 - **A quoted value or line no longer cuts an escape in half, and a
   quoted `.mdtbl` or sidecar line spells a literal backslash `\\`**
   (#239). Truncating a quoted value could cut an escape, so U+200B ended
