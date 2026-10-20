@@ -101,6 +101,16 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A quoted value or line never shows an escape in part, and a literal
+  backslash in a quoted line is spelled `\\`** (#239). Truncating a
+  quoted value could cut an escape, so U+200B ended as `\u20…`, and the
+  window a non-UTF-8 sidecar line is shown from could start inside one,
+  as in `'…0bzw\u200b\xe9"}'`. Both now cut between characters. In a
+  quoted sidecar line, in the non-UTF-8 and the invalid-JSON refusals,
+  the text `\xe9` was spelled the same as the byte 0xE9; the text is now
+  `\\xe9`, so `\xe9` always means a byte. Messages without such an
+  escape or backslash are unchanged.
+
 - **`rowspec eval` refuses a `.mdtbl` that is not UTF-8 instead of
   crashing** (#230). It raised a `UnicodeDecodeError` traceback; it now
   reports what `rowspec check` reports, `file: not valid UTF-8: ...

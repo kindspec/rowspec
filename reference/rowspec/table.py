@@ -195,10 +195,22 @@ def _escape(s):
 
 def _show(s, limit=40):
     """A value as it should appear in an error: quoted, escaped, truncated."""
-    s = _escape(s)
-    if len(s) > limit:
-        s = s[: limit - 1] + "\u2026"
-    return f"'{s}'"
+    return _quote([_escape(ch) for ch in s], limit)
+
+
+def _quote(shown, limit):
+    """`shown`, one string per character as an error spells it, quoted and
+    cut to `limit` with an ellipsis. The cut falls between characters, so
+    an escape such as `\\u200b` is never shown in part (#239)."""
+    if sum(map(len, shown)) > limit:
+        kept, n = [], 0
+        for t in shown:
+            if n + len(t) > limit - 1:
+                break
+            kept.append(t)
+            n += len(t)
+        shown = kept + ["\u2026"]
+    return "'" + "".join(shown) + "'"
 
 
 def _near_marker(lines, n):

@@ -35,7 +35,7 @@ import os
 import re
 import unicodedata
 
-from .table import Malformed, _escape, _show
+from .table import Malformed, _escape, _quote
 
 SUFFIX = ".rowspec.json"
 DIR_NAME = ".rowspec.json"
@@ -161,18 +161,35 @@ def _undecodable_line(path):
 
 def _quote_at(line, at):
     """`line` quoted as `_show` quotes it, each byte `surrogateescape` kept
-    spelled `\\xNN`, and shown from just before `at` when the text shown
-    before it is long. The window is cut from the shown text, not the raw
-    line, so a character `_show` spells out, such as U+200B as `\\u200b`,
-    cannot push `at` past the end of the quote."""
+    spelled `\\xNN` and a literal backslash spelled `\\\\`, so `\\xe9` in
+    the quote is always a byte and never four characters of text (#239).
+    It is shown from just before `at` when the text shown before it is
+    long. The window is measured on the shown text, not the raw line, so a
+    character `_show` spells out, such as U+200B as `\\u200b`, cannot push
+    `at` past the end of the quote, and it is cut between characters, so
+    no escape is shown in part."""
 
     def shown(s):
-        return _escape(s.encode("utf-8", "surrogateescape").decode("utf-8", "backslashreplace"))
+        out = []
+        for ch in s:
+            if "\udc80" <= ch <= "\udcff":
+                out.append(f"\\x{ord(ch) - 0xDC00:02x}")
+            elif ch == "\\":
+                out.append("\\\\")
+            else:
+                out.append(_escape(ch))
+        return out
 
     before = shown(line[:at])
-    if len(before) > 20:
-        before = "\u2026" + before[-10:]
-    return _show(before + shown(line[at:]), 60)
+    if sum(map(len, before)) > 20:
+        kept, n = [], 0
+        for t in reversed(before):
+            if n + len(t) > 10:
+                break
+            kept.append(t)
+            n += len(t)
+        before = ["\u2026"] + kept[::-1]
+    return _quote(before + shown(line[at:]), 60)
 
 
 def _read(path):
