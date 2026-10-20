@@ -60,10 +60,11 @@ prose, and where the two disagree the suite wins.
   `dup.mdtbl: duplicate key id='r_1' [duplicate-row-id]`. With
   `--format github` the annotation's title changes from `rowspec` to
   `rowspec [duplicate-row-id]`; the message is unchanged. `rowspec check`
-  reports a `.mdtbl` that is not UTF-8 as `[bad-encoding]`. Warnings
-  and every CSV-mode line are unchanged and carry no identifier.
-  `--fmt-check`'s "not in canonical form" line carries none either; under
-  `--format github` it is now an annotation titled `rowspec` (#219). A script that matches a whole
+  and `rowspec eval` report a `.mdtbl` that is not UTF-8 as
+  `[bad-encoding]` (#230). Warnings and every CSV-mode line are
+  unchanged and carry no identifier. `--fmt-check`'s "not in canonical
+  form" line carries none either; under `--format github` it is now an
+  annotation titled `rowspec` (#219). A script that matches a whole
   plain line, or an annotation title equal to `rowspec`, needs updating;
   one that matches a substring of the message does not.
 
@@ -101,13 +102,21 @@ prose, and where the two disagree the suite wins.
 ### Fixed
 
 - **A `.mdtbl` that is not UTF-8 is refused by content, not by offset**
-  (#234). `rowspec check` printed Python's codec text, `'utf-8' codec
-  can't decode byte 0xe9 in position 36: invalid continuation byte`. It
-  now quotes the first line holding such a byte and names the byte, as
-  a sidecar's refusal does: `not valid UTF-8: the line '| r_1 | caf\xe9
-  |' holds byte 0xE9, which is not part of a valid sequence (invalid
-  continuation byte) [bad-encoding]`. The refusal and exit status are
-  unchanged.
+  (#234). `rowspec check` and `rowspec eval` printed Python's codec
+  text, `'utf-8' codec can't decode byte 0xe9 in position 36: invalid
+  continuation byte`. They now quote the first line holding such a byte
+  and name the byte, as a sidecar's refusal does: `not valid UTF-8: the
+  line '| r_1 | caf\xe9 |' holds byte 0xE9, which is not part of a valid
+  sequence (invalid continuation byte) [bad-encoding]`. The refusal and
+  exit status are unchanged.
+
+- **`rowspec eval` refuses a `.mdtbl` that is not UTF-8 instead of
+  crashing** (#230). It raised a `UnicodeDecodeError` traceback; it now
+  reports what `rowspec check` reports, `file: not valid UTF-8: ...
+  [bad-encoding]`, or under `--format github` the same annotation, and
+  exits 1. A non-UTF-8 file that `eval` does not evaluate, such as a
+  `.csv` in a directory it was given, is skipped instead of aborting the
+  run.
 
 - **`rowspec check --fmt-check --format github` annotates a file that is
   not in canonical form** (#219). It printed a plain line whatever the
@@ -128,8 +137,9 @@ prose, and where the two disagree the suite wins.
   read a different file name or message: a file named `a,b.csv` was
   annotated as `a`, and a key `50%25` was shown as `50%`. They are now
   escaped as `%25`, `%0D`, `%0A`, `%3A` and `%2C`, in `check`, in
-  `eval`'s `#REF!` annotations and in its refusal annotation (#218). `check` still replaces an LF in a
-  finding's message with a space first, so that text stays on one line.
+  `eval`'s `#REF!` annotations and in its refusal annotation (#218).
+  `check` still replaces an LF in a finding's message with a space
+  first, so that text stays on one line.
 
 - **A sidecar key naming no column names the sidecar's own file**
   (#214). The refusal said `rowspec.json declares key 'idd' but ...`,
@@ -137,6 +147,15 @@ prose, and where the two disagree the suite wins.
   `data.csv.rowspec.json declares key ...`, or `.rowspec.json declares
   key ...` for the directory form, as the `order` and `columns`
   refusals already did.
+
+- **A CSV field over 131,072 characters is checked, not a crash** (#235).
+  Python's csv module stops at that length by default, and `rowspec
+  check` died with `_csv.Error: field larger than field limit`. SPEC.md
+  sets no limit on a field and §9 has no refusal for a long one, so CSV
+  mode now lifts the module's limit while it reads a file, and puts the
+  old limit back after. The limit is one value for the whole process, so
+  checks in two threads take turns rather than restore it out of order;
+  other code using `csv` while a check runs sees the lifted limit.
 
 - **`set_cell` and `rowspec add-row` keep a file's line endings and refuse
   a line break in a value** (#194). `set_cell` wrote the edited row with LF

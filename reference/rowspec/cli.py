@@ -37,6 +37,19 @@ def _code(refusal):
     return f" [{refusal}]" if refusal else ""
 
 
+def _not_utf8(path, e):
+    """The refusal for a `.mdtbl` that is not UTF-8, which the CLI decodes
+    itself. `check` and `eval` both build it here, so they say the same. By
+    content, never by offset (#234): the first line holding such a byte,
+    quoted as a sidecar's message quotes it (#216), and the byte."""
+    return _TableRefusal(
+        f"not valid UTF-8: the line {_undecodable_line(path)} holds byte "
+        f"0x{e.object[e.start]:02X}, which is not part of a valid sequence "
+        f"({e.reason})",
+        "bad-encoding",
+    )
+
+
 def validate(path: str) -> list[Finding]:
     """Every finding for one file. A refusal that stops the file being read at
     all arrives as a Malformed and becomes a single finding."""
@@ -48,15 +61,7 @@ def validate(path: str) -> list[Finding]:
     try:
         text = open(path, encoding="utf-8", newline="").read()
     except UnicodeDecodeError as e:
-        # By content, never by offset (#234), as a sidecar's message (#216).
-        return [
-            _TableRefusal(
-                f"not valid UTF-8: the line {_undecodable_line(path)} holds byte "
-                f"0x{e.object[e.start]:02X}, which is not part of a valid sequence "
-                f"({e.reason})",
-                "bad-encoding",
-            )
-        ]
+        return [_not_utf8(path, e)]
     try:
         evaluate(text)
     except Malformed as e:
@@ -151,13 +156,17 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
             cols, formulas, _r, decls, _o, _k = parse(
                 open(path, encoding="utf-8", newline="").read()
             )
-        except Malformed as e:
+        except (Malformed, UnicodeDecodeError) as e:
             if not path.lower().endswith(TABLE_EXT):
                 continue  # `eval` is for tables; `check` owns everything else
-            if fmt == "github":
-                _print_github(path, [_TableRefusal(str(e), e.refusal)], None, out)
+            if isinstance(e, UnicodeDecodeError):
+                found = _not_utf8(path, e)
             else:
-                print(f"{path}: {e}{_code(e.refusal)}", file=sys.stderr)
+                found = _TableRefusal(str(e), e.refusal)
+            if fmt == "github":
+                _print_github(path, [found], None, out)
+            else:
+                print(f"{path}: {found}{_code(found.refusal)}", file=sys.stderr)
             bad += 1
             continue
 

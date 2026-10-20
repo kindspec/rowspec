@@ -9,6 +9,7 @@ the byte, as a sidecar's message does (#216). The refusal is still
 
 import os
 import re
+import subprocess
 import sys
 
 sys.path.insert(
@@ -40,3 +41,19 @@ def test_the_first_bad_line_is_the_one_named(tmp_path, capsys):
     assert "title=rowspec [bad-encoding]::not valid UTF-8: the line '| id\\xff | n |'" in err
     assert "holds byte 0xFF, which is not part of a valid sequence (invalid start byte)" in err
     assert not OFFSET.search(err), err
+
+
+def test_eval_says_the_same(tmp_path, capsys):
+    """`eval` builds the refusal through the same helper as `check` (#230).
+    Run as a process: `cmd_eval` binds `sys.stdout` as a default argument."""
+    p = tmp_path / "row.mdtbl"
+    p.write_bytes(b"| id | n |\n| --- | --- |\n| r_1 | caf\xe9 |\n\nkey := id\n")
+    cli.main(["check", str(p)])
+    want = capsys.readouterr().err
+    env = dict(os.environ, PYTHONPATH=os.path.dirname(os.path.dirname(cli.__file__)))
+    r = subprocess.run(
+        [sys.executable, "-m", "rowspec", "eval", str(p)], capture_output=True, text=True, env=env
+    )
+    assert (r.returncode, r.stderr) == (1, want)
+    assert "the line '| r_1 | caf\\xe9 |' holds byte 0xE9" in r.stderr, r.stderr
+    assert not OFFSET.search(r.stderr), r.stderr
