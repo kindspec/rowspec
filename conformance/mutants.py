@@ -924,7 +924,7 @@ CSV_MUTANTS = {
     ),
     # --- refused either way: see CSV_EQUIVALENT ------------------------------
     "csv-empty-file-check-removed": (
-        '    if not raw.strip(b" \\t\\r\\n"):',
+        "    if not raw.strip(blank):",
         "    if False:",
     ),
     "csv-grouped-header-disabled": (
@@ -997,7 +997,7 @@ CSV_MUTANTS = {
         '(len(records[0]) < 2 and not "".join(records[0]).strip())',
     ),
     "csv-empty-file-check-trims-vt-and-ff": (
-        '    if not raw.strip(b" \\t\\r\\n"):',
+        "    if not raw.strip(blank):",
         "    if not raw.strip():",
     ),
     # §4.1.6 by `table.py`'s recogniser (#164): restores the regex this file

@@ -95,6 +95,29 @@ def test_a_refusing_finding_carries_its_identifier(tmp_path, data, side, rule, r
     assert _refusals(tmp_path, data, side) == ({refusal}, {rule})
 
 
+@pytest.mark.parametrize(
+    "name, data, side",
+    [
+        ("one-tab.tsv", b"\t\n", None),
+        ("two-tabs.tsv", b"\t\t\n", None),
+        ("tab-header-over-a-tab-row.tsv", b"\t\n\t\n", None),
+        ("one-space.csv", b" \n", {"delimiter": " "}),
+    ],
+)
+def test_blank_cells_split_by_a_tab_or_space_delimiter_are_duplicate_columns(
+    tmp_path, name, data, side
+):
+    """§13: each blank header cell is a column name, all one name, so a
+    header of them is §9.2, not an empty file, even when the delimiter is
+    itself a space or a tab."""
+    p = tmp_path / name
+    p.write_bytes(data)
+    if side is not None:
+        (tmp_path / (name + ".rowspec.json")).write_text(json.dumps(side))
+    findings = check_file(str(p))
+    assert {f.refusal for f in findings if f.level == "refuse"} == {"duplicate-column"}
+
+
 def test_every_finding_rule_is_driven_above():
     """A rule added to `REFUSALS` without a row here is a path nothing pins."""
     assert {f[3] for f in FINDINGS} == set(REFUSALS)

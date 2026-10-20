@@ -112,7 +112,9 @@ prose, and where the two disagree the suite wins.
   tab, is now refused as `duplicate-column`, as §13 reads it, rather than
   as `no-table`: each blank cell is a column name, and they are one name.
   A first record of one blank field is still `no-table` until §13 decides
-  it (#254).
+  it (#254). A header of blank cells split by a tab or space delimiter,
+  such as `\t\n` in a `.tsv`, was read as an empty file, and is now
+  `duplicate-column` too.
 
 - **SPEC.md §13 settles two CSV-mode readings it left open** (#103). A
   record that starts on a conflict-marker line is neither the header nor a

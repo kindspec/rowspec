@@ -807,10 +807,15 @@ def check_file(path):
     side = sidecar_mod.find(path)
     with open(path, "rb") as fh:
         raw = fh.read()
+    delimiter = _delimiter(path, side)
     # ASCII space, tab and line breaks only: VT or FF alone is a column name.
-    if not raw.strip(b" \t\r\n"):
+    # A delimiter is not blank here: a space or tab one separates blank
+    # cells, which are column names (§13), so `\t\n` in a .tsv is a header
+    # of two, not an empty file.
+    blank = "".join(c for c in " \t\r\n" if c != delimiter).encode()
+    if not raw.strip(blank):
         raise Malformed("file contains no table: the file is empty", refusal="no-table")
-    text, warnings = _decode(raw, "the file", _delimiter(path, side), side and side.key)
+    text, warnings = _decode(raw, "the file", delimiter, side and side.key)
     if "\r\n" in text:
         warnings.append(
             _warn(
@@ -830,7 +835,7 @@ def check_file(path):
                 "so the rows on either side of it share one line in every diff and merge.",
             )
         )
-    findings = check_text(text, path, side, _delimiter(path, side))
+    findings = check_text(text, path, side, delimiter)
     return findings + warnings
 
 
