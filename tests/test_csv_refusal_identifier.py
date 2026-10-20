@@ -240,10 +240,10 @@ def test_a_warning_carries_no_identifier(tmp_path, data):
 
 
 # --- the directory-level `.rowspec.json` -------------------------------------
-# SPEC.md §13 defines the per-file sidecar only, so the three refusals that
-# exist only for the directory form carry no identifier. An entry's own
-# declarations are validated as a per-file sidecar's are, and carry the
-# identifier §13 gives that refusal.
+# SPEC.md §13 defines the per-file sidecar only. A directory file that is not
+# a JSON object, and an entry's own declarations, are refused as a per-file
+# sidecar's are, with its identifier. The two refusals only the directory
+# form can make carry none until §13 gives them one (#255).
 
 
 def _dir_check(tmp_path, table, data=b"id\nr1\n"):
@@ -257,13 +257,12 @@ def _dir_check(tmp_path, table, data=b"id\nr1\n"):
 @pytest.mark.parametrize(
     "table, word",
     [
-        (["key"], "glob -> declarations"),
         ({"sub/*.csv": {"key": "id"}}, "path separator"),
         ({"*.csv": {"key": "id"}, "d*": {"key": "id"}}, "more than one glob"),
     ],
-    ids=["not-an-object", "path-separator", "two-globs"],
+    ids=["path-separator", "two-globs"],
 )
-def test_a_directory_form_refusal_carries_no_identifier(tmp_path, table, word):
+def test_a_directory_form_only_refusal_carries_no_identifier(tmp_path, table, word):
     with pytest.raises(Malformed) as e:
         _dir_check(tmp_path, table)
     assert word in str(e.value), str(e.value)
@@ -273,12 +272,13 @@ def test_a_directory_form_refusal_carries_no_identifier(tmp_path, table, word):
 @pytest.mark.parametrize(
     "table, refusal",
     [
+        ([1], "malformed-declaration"),
         ({"*.csv": {"oder": "id"}}, "malformed-declaration"),
         ({"*.csv": {"order": "id"}}, "order-without-key"),
         (b'{"*.csv": {"key": "id", "key": "id"}}', "duplicate-declaration"),
         (b"{", "malformed-declaration"),
     ],
-    ids=["unknown-member", "order-without-key", "repeated-member", "not-json"],
+    ids=["not-an-object", "unknown-member", "order-without-key", "repeated-member", "not-json"],
 )
 def test_a_directory_form_entry_refusal_carries_the_sidecar_identifier(tmp_path, table, refusal):
     with pytest.raises(Malformed) as e:

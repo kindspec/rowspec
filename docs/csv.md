@@ -167,8 +167,11 @@ sidecar whose bytes are not UTF-8 is §9.14 (`bad-encoding`). §9.27
 types. §13 lists
 the identifier every CSV-mode refusal is reported with, and `rowspec check`
 ends each refused line with it, as the sample output below shows. A warning
-has none. The directory-level `.rowspec.json` is outside §13, so a refusal
-only it can make, such as a file matching two globs, has none either.
+has none. The directory-level `.rowspec.json` is outside §13. One that is
+not a JSON object, and an entry's own declarations, are refused as a
+per-file sidecar's are, with the same identifier. The two refusals only it
+can make, an entry holding a path separator and a file matching two globs,
+have none until §13 gives them one (#255).
 
 ## Two warnings, not refusals
 

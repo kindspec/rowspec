@@ -245,7 +245,14 @@ def find(data_path):
     if os.path.exists(shared):
         table = _read(shared)
         if not isinstance(table, dict):
-            raise Malformed(f"{DIR_NAME}: must be a JSON object of glob -> declarations")
+            raise Malformed(
+                f"{DIR_NAME}: must be a JSON object of glob -> declarations",
+                refusal="malformed-declaration",
+            )
+        # The two refusals below exist only for the directory form, which
+        # SPEC.md §13 does not define, so they carry no identifier until §13
+        # gives them one (#255).
+        #
         # Every entry's declarations are validated, not only the one that
         # applies, so a malformed entry for another file is reported rather
         # than left to wait for the one file that would reach it. A key is
