@@ -1,0 +1,8 @@
+{
+  "accept": false,
+  "kind": "check",
+  "refusal": [
+    "malformed-declaration",
+    "no-table"
+  ]
+}

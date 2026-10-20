@@ -18,3 +18,15 @@ because the CSV profile carries no §9 identifiers yet (§13). The case is
 built so that the field count is the only fault in the file and its sidecar,
 so a reader that refuses it has refused for that reason or for one §13 does
 not give. What the case does not pin is which reason the reader reports.
+
+## Identifier
+
+This case asserts `refusal: "row-field-count"`.
+
+§13: "Every CSV-mode refusal is reported with a §9 identifier, under §9's rules for reporting one. Each refusal this profile makes is read as a §9 entry, as follows, and is reported with that entry's identifier:"
+
+§13: "a record whose field count differs from the header's, an empty line between rows included, a quoted field the file ends inside, and a stray quote: §9.6 `row-field-count`."
+
+§9.6: "`row-field-count`: a data row whose field count differs from the header"
+
+The earlier paragraph on `refusal_contains: ""` describes this case before §13 gave CSV-mode refusals identifiers; it now asserts `row-field-count` instead.

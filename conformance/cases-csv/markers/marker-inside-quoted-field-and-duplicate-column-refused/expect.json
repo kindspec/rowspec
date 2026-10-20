@@ -1,0 +1,8 @@
+{
+  "accept": false,
+  "kind": "check",
+  "refusal": [
+    "conflict-marker",
+    "duplicate-column"
+  ]
+}

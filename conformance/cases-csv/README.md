@@ -73,11 +73,10 @@ would test one library's matcher rather than SPEC.md.
 | `check` | `accept`, `refusal`, `refusal_contains`, `warns`, `warning_contains` | the file is refused, or accepted, or accepted with a warning §13 requires |
 
 - `accept: false` with `refusal`: the file is refused, and every refusal
-  carries an identifier `refusal` lists. See "Asserting the identifier"
-  below.
+  reported carries a listed §9 identifier (below).
 - `accept: false` with `refusal_contains`: the file is refused, and at least
-  one refusal's message contains that substring. A refused case carries
-  exactly one of `refusal` and `refusal_contains`.
+  one refusal's message contains that substring. No case in this tree uses
+  it any more.
 - `accept: true`: the file is not refused, and nothing is asserted about
   warnings. This is the shape of a control case.
 - `accept: true` with `warns: true`: the file is not refused and at least one
@@ -93,8 +92,7 @@ case check. The runner refuses `warns` with any value but `true`.
 A refused file asserts nothing about warnings, and an accepted file has no
 refusal to match, so `warns` or `warning_contains` on `accept: false`, and
 `refusal_contains` on `accept: true`, are refused by the runner rather than
-silently not checked, and so is `refusal` on `accept: true`. So is any
-field not in the table.
+silently not checked. So is any field not in the table.
 
 `refusal_contains: ""` means *refuse, for any stated reason*, and
 `warning_contains: ""` means *warn, for any stated reason*. Use them where the
@@ -124,10 +122,51 @@ refusing case asserts it with `refusal` in place of `refusal_contains`:
   and of the `Malformed` it raises for a file it cannot read at all; a runner
   in another language reads it from wherever that language's binding puts it.
 
-The runner reads `refusal` for this tree (#103). It still reads
-`refusal_contains`, which the cases written before #103 carry, and under
-either field it fails a refusal reported with no identifier, since §13
-requires one on every refusal.
+Every refusing case here carries `refusal`. A runner that does not yet read `refusal` (#103) cannot
+run this tree until it does. Each refusing case's `WHY.md` ends with an
+`## Identifier` section quoting the §13 reading and the §9 entry that decide
+its list. The quotes are verbatim from SPEC.md except that markdown bold
+markers are dropped.
+
+## Counts
+
+280 cases: 100 accepted and 180 refused, and every refused case carries
+`refusal`.
+
+134 refusing cases were converted from `refusal_contains: ""` to `refusal`,
+and 56 cases were added: 46 refusing and 10 accepted. Of those, 46 (36
+refusing, 10 accepted) were written against SPEC.md at `72f41cf`, and 10
+refusing ones against the amendment at `df99ea1`, which classifies a
+conflict line before records count as rows and makes §13's list of
+malformed sidecars complete. No input or sidecar byte of an existing case
+changed.
+
+## Identifier to cases
+
+"Sole" counts cases listing only that identifier; "with others" counts cases
+listing it beside at least one more, marked `*` in the last column. §9
+entries no CSV case can reach (`duplicate-aggregate`,
+`alignment-field-count`, `alignment-row-in-data`, `rowrel-without-order`,
+`unknown-aggregate`, `value-in-computed-cell`, `malformed-table-line`,
+`unclassified-line`, `malformed-formula`, `bad-alignment-row`,
+`computed-column-compared`, `nesting-too-deep`, `ident-compared-in-if`)
+are left out, and so are `lone-cr` and `leading-bom`, which §13 makes
+warnings.
+
+| identifier | sole refusal | with others | cases |
+| --- | --- | --- | --- |
+| `conflict-marker` | 15 | 3 | `markers/diff3-base-marker-refused`, `markers/eight-ours-marker-chars-refused`, `markers/empty-line-then-only-a-conflict-record-refused`*, `markers/full-conflict-block-refused`, `markers/leading-marker-line-before-the-header-refused`, `markers/marker-inside-quoted-field-and-duplicate-column-refused`*, `markers/marker-inside-quoted-field-the-file-ends-inside-refused`*, `markers/marker-line-in-a-two-column-file-refused`, `markers/marker-line-inside-quoted-field-refused`, `markers/only-a-head-marker-refused`, `markers/only-conflict-lines-refused`, `markers/ours-marker-refused`, `markers/separator-marker-refused`, `markers/separator-marker-with-suffix-refused`, `markers/stray-quote-on-a-marker-line-refused`, `markers/theirs-marker-refused`, `markers/two-separator-lines-with-a-declared-key-refused`, `markers/unterminated-quote-opened-on-a-conflict-record-refused` |
+| `duplicate-column` | 12 | 3 | `columns/all-ascii-blank-names-refused`, `columns/all-empty-names-refused`, `columns/cf-name-and-duplicate-name-refused`*, `columns/duplicate-column-after-nfc-refused`, `columns/duplicate-column-refused`, `columns/no-break-space-suffix-in-a-data-row-under-two-empty-names-refused`, `columns/padded-name-and-bare-name-refused`, `columns/repeated-empty-name-refused`, `columns/repeated-non-ascii-space-name-refused`, `columns/space-name-and-empty-name-refused`, `columns/tab-name-and-empty-name-refused`, `columns/tab-padded-name-and-bare-name-refused`, `columns/two-empty-names-refused`, `fieldcount/duplicate-column-and-short-row-refused`*, `markers/marker-inside-quoted-field-and-duplicate-column-refused`* |
+| `duplicate-declaration` | 8 | 1 | `identity/sidecar-duplicate-key-member-refused`, `sidecar/repeated-columns-member-refused`, `sidecar/repeated-delimiter-member-refused`, `sidecar/repeated-member-and-undefined-member-refused`*, `sidecar/repeated-member-spelled-with-an-escape-refused`, `sidecar/repeated-name-inside-columns-refused`, `sidecar/repeated-order-member-refused`, `types/two-names-for-one-column-nfc-and-nfd-refused`, `types/two-names-for-one-column-padded-and-bare-refused` |
+| `duplicate-row-id` | 9 | 2 | `ident/key-value-with-space-repeated-refused`*, `identity/duplicate-id-after-nfc-refused`, `identity/duplicate-id-after-tab-trim-refused`, `identity/duplicate-id-beside-a-lone-cr-in-a-quoted-field-refused`, `identity/duplicate-id-in-a-file-with-a-leading-bom-refused`, `identity/duplicate-id-quoted-and-bare-refused`, `identity/duplicate-id-with-key-refused`, `identity/key-on-second-column-refused`, `sidecar/empty-key-name-names-an-empty-header-cell-applies-refused`, `sidecar/key-name-padded-with-space-and-tab-applies-refused`, `types/key-column-typed-number-with-repeated-text-ids-refused`* |
+| `row-field-count` | 16 | 3 | `delimiter/semicolon-applies-refused`, `fieldcount/blank-line-between-rows-refused`, `fieldcount/duplicate-column-and-short-row-refused`*, `fieldcount/extra-field-refused`, `fieldcount/hash-line-is-a-record-refused`, `fieldcount/missing-field-refused`, `fieldcount/trailing-line-of-one-space-refused`, `fieldcount/two-trailing-empty-lines-refused`, `markers/empty-line-then-only-a-conflict-record-refused`*, `markers/marker-inside-quoted-field-the-file-ends-inside-refused`*, `markers/six-char-leading-run-is-the-header-refused`, `rfc4180/lone-cr-unterminated-quote-at-record-start-refused`, `rfc4180/quote-inside-unquoted-field-refused`, `rfc4180/quote-pair-inside-unquoted-field-refused`, `rfc4180/quoted-comma-is-one-field-refused`, `rfc4180/space-after-closing-quote-refused`, `rfc4180/text-after-closing-quote-refused`, `rfc4180/unterminated-quote-refused`, `rfc4180/unterminated-quote-with-escaped-quote-refused` |
+| `bad-order-column` | 33 | 7 | `order/arabic-indic-digit-beside-numbers-refused`, `order/cell-of-a-tab-refused`, `order/cell-of-spaces-refused`, `order/empty-cell-refused`, `order/empty-name-names-an-empty-header-cell-with-inf-refused`, `order/empty-name-with-no-empty-header-cell-refused`, `order/exponent-beside-numbers-refused`, `order/four-hundred-digit-number-refused`, `order/inf-beside-text-refused`, `order/invalid-order-type-beside-an-order-naming-no-column-refused`*, `order/leading-plus-beside-numbers-refused`, `order/mixed-separator-date-beside-dates-refused`, `order/names-no-column-refused`, `order/nan-in-every-row-refused`, `order/negative-four-hundred-digit-number-refused`, `order/no-break-space-padded-number-beside-numbers-refused`, `order/numbers-and-dates-refused`, `order/numbers-and-text-refused`, `order/only-minus-inf-refused`, `order/only-minus-infinity-mixed-case-refused`, `order/only-plus-inf-upper-case-refused`, `order/only-plus-nan-refused`, `order/order-type-date-with-a-cell-of-spaces-refused`, `order/order-type-number-over-a-trailing-point-refused`*, `order/order-type-number-over-numbers-and-text-refused`*, `order/order-type-number-with-a-blank-cell-refused`, `order/order-type-number-with-a-four-hundred-digit-number-refused`, `order/order-type-number-with-inf-refused`*, `order/order-type-text-over-text-with-inf-refused`, `order/order-type-with-order-naming-no-column-refused`, `order/quoted-date-ending-in-lf-beside-a-date-refused`, `order/quoted-number-ending-in-lf-beside-a-number-refused`, `order/text-column-with-one-minus-inf-cell-refused`, `order/text-column-with-one-minus-infinity-mixed-case-cell-refused`, `order/text-column-with-one-plus-inf-upper-case-cell-refused`, `order/text-column-with-one-plus-nan-cell-refused`, `order/without-key-over-mixed-types-refused`*, `types/columns-member-naming-a-missing-order-column-refused`*, `types/order-column-typed-number-over-numbers-and-text-refused`*, `types/order-column-typed-number-with-a-blank-cell-refused` |
+| `malformed-declaration` | 36 | 6 | `delimiter/combining-sequence-refused`, `delimiter/cr-refused`, `delimiter/double-quote-refused`, `delimiter/empty-string-refused`, `delimiter/lf-refused`, `delimiter/lone-surrogate-escape-refused`, `delimiter/not-a-string-refused`, `delimiter/two-scalars-refused`, `encoding/invalid-utf8-and-undefined-sidecar-member-refused`*, `identity/sidecar-invalid-json-refused`, `identity/sidecar-key-names-absent-column-refused`, `order/invalid-order-type-beside-an-order-naming-no-column-refused`*, `order/not-a-string-refused`, `order/order-type-capitalised-refused`, `order/order-type-not-a-string-refused`, `order/order-type-unknown-string-refused`, `order/order-type-without-order-refused`, `order/without-key-and-undefined-member-refused`*, `sidecar/array-refused`, `sidecar/empty-file-refused`, `sidecar/empty-key-name-with-no-empty-header-cell-refused`, `sidecar/key-name-one-byte-short-refused`, `sidecar/key-name-with-a-trailing-no-break-space-refused`, `sidecar/key-not-a-string-refused`, `sidecar/key-null-refused`, `sidecar/leading-bom-refused`, `sidecar/member-name-in-another-case-refused`, `sidecar/null-refused`, `sidecar/repeated-member-and-undefined-member-refused`*, `sidecar/string-refused`, `sidecar/trailing-comma-refused`, `sidecar/undefined-member-refused`, `sidecar/utf16le-without-bom-refused`, `sidecar/utf32be-refused`, `sidecar/utf32le-without-bom-refused`, `table/empty-file-with-a-key-sidecar-refused`*, `types/columns-member-naming-a-missing-order-column-refused`*, `types/columns-not-an-object-refused`, `types/empty-name-with-no-empty-header-cell-refused`, `types/names-no-column-refused`, `types/type-not-a-string-refused`, `types/unknown-type-refused` |
+| `no-table` | 2 | 1 | `table/bom-only-file-refused`, `table/empty-file-refused`, `table/empty-file-with-a-key-sidecar-refused`* |
+| `bad-encoding` | 7 | 1 | `encoding/invalid-utf8-and-undefined-sidecar-member-refused`*, `encoding/invalid-utf8-refused`, `encoding/leading-bom-and-invalid-utf8-refused`, `sidecar/non-utf8-byte-in-a-name-refused`, `sidecar/utf16be-with-bom-refused`, `sidecar/utf16le-with-bom-refused`, `sidecar/utf16le-without-bom-non-ascii-name-refused`, `sidecar/utf32le-with-bom-refused` |
+| `bad-identifier` | 8 | 2 | `columns/cf-name-and-duplicate-name-refused`*, `ident/column-name-with-cf-refused`, `ident/column-name-with-interior-feff-refused`, `ident/key-value-empty-refused`, `ident/key-value-leading-em-space-refused`, `ident/key-value-leading-nbsp-refused`, `ident/key-value-trailing-ideographic-space-refused`, `ident/key-value-with-cf-refused`, `ident/key-value-with-space-refused`, `ident/key-value-with-space-repeated-refused`* |
+| `order-without-key` | 1 | 2 | `order/without-key-and-undefined-member-refused`*, `order/without-key-over-mixed-types-refused`*, `order/without-key-refused` |
+| `column-type-mismatch` | 15 | 5 | `order/order-type-number-over-a-trailing-point-refused`*, `order/order-type-number-over-dates-refused`, `order/order-type-number-over-numbers-and-text-refused`*, `order/order-type-number-with-inf-refused`*, `order/order-type-text-over-numbers-refused`, `order/order-type-text-over-one-number-refused`, `types/date-column-with-a-number-refused`, `types/date-column-with-a-quoted-date-ending-in-lf-refused`, `types/date-column-with-mixed-separators-refused`, `types/key-column-typed-number-with-repeated-text-ids-refused`*, `types/key-column-typed-number-with-text-ids-refused`, `types/number-column-with-a-no-break-space-padded-number-refused`, `types/number-column-with-a-trailing-point-refused`, `types/number-column-with-inf-refused`, `types/number-column-with-signed-inf-refused`, `types/number-column-with-text-refused`, `types/order-column-typed-number-over-numbers-and-text-refused`*, `types/order-column-typed-text-over-numbers-refused`, `types/text-column-with-a-date-refused`, `types/text-column-with-a-number-refused` |
 
 ## Ground rules
 
@@ -395,3 +434,52 @@ CHANGELOG.md that state the count:
 
 Each `WHY.md` quotes the sentences of SPEC.md that decide it, and records
 no new open question.
+
+The identifier assertions (#103) were written from SPEC.md alone, by an
+author who read no implementation: not `reference/`, not a second
+implementation, not the runner, and no repository on disk or on GitHub.
+They were written in two passes.
+
+1. **Against rowspec `72f41cf`.** The inputs were four given files and
+   nothing else: SPEC.md, this README, `case-body.schema.json`, and this
+   tree as it stood. That pass converted 134 cases, added 46, and left two
+   cases without `refusal`, because that text did not settle their
+   identifiers.
+2. **Against rowspec `df99ea1`**, an amendment to §13 that settles both of
+   those cases. The inputs were the amended SPEC.md and its diff from
+   `72f41cf`, and nothing else. That pass gave the two cases `refusal`,
+   re-checked every case against the diff, and added 10 cases for the
+   readings the amendment introduces. No other case's outcome or
+   identifiers changed. Every quote from the first pass is still verbatim
+   in `df99ea1`. Seven `markers/*` notes that described the old open
+   question were rewritten.
+
+Every `refusal` list is derived from §13's reading of each refusal as a §9
+entry, and from §9's rule that a case names every identifier that applies.
+No checker decided an outcome. The scripts that wrote the files checked
+only that:
+
+- each quoted sentence occurs in SPEC.md at `df99ea1`;
+- no existing input byte changed;
+- each `refusal` fits `case-body.schema.json`;
+- each of the 14 one-byte twins differs from its pair by one byte.
+
+`AMBIGUITIES.md` beside this tree records the two settled questions, and
+`DISPUTES.md` records that no existing verdict was disputed.
+
+The amendment's files, by sha256:
+
+    832a8568c6a1f54edb9c930bb806c45ac3077990fcfb6077853fc00f39df4a6e  given2/SPEC.md
+    2e2c1a0566f70a1989a91c8fe71f5b5ff94caba9e591d200e9c0deb55622a080  given2/SPEC-72f41cf-to-new.diff
+
+The first pass's given files, by sha256:
+
+    762ba02a5080156c0e26d3b2aff8df6a777bf92883f77a801c2e27e72114829a  SPEC.md
+    a591f98f047d069af7049379dfd28d7e0643083433bc8799105a911ffdd74f99  cases-csv-README.md
+    13bf7b49b093bcf8766c9c767712d06449225263892fa73d38bd283662f399cc  case-body.schema.json
+
+and each of the 799 files of the given tree, `conformance/cases-csv/`, is
+listed with its sha256 in `GIVEN.sha256` beside this tree, one line per
+file in `sha256sum` format, sorted by path in the C locale. That manifest's
+own sha256 is
+`951595fc4684fccd4c065226148c3d810e5f3968c15b5880cf90a80534a6e90e`.
