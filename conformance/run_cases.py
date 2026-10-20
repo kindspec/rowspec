@@ -261,17 +261,35 @@ def adapter_for(impl):
         if len(res) != 1:
             yield f"{len(res)} distinct outcomes across merge orders"
 
+    def reads_no_bytes(handler):
+        """Only `parse` reads `input.bin`. Anywhere else it is a file nothing
+        checks, in a case that would still report a pass, so the case is
+        malformed rather than run."""
+
+        def run(case):
+            if os.path.isfile(os.path.join(case.dir, MDTBL_BYTES)):
+                yield f"{MDTBL_BYTES} in a {case.expect.get('kind')!r} case; only parse reads it"
+                return
+            yield from handler(case)
+
+        return run
+
     return Adapter(
         fixture_suffixes=(".mdtbl",),
         handlers={
             "parse": parse,
-            "roundtrip": roundtrip,
-            "eval": eval_,
-            "rowrel": rowrel,
-            "mutate": mutate,
-            "canon": canon,
-            "merge": merge,
-            "confluence": confluence,
+            **{
+                kind: reads_no_bytes(handler)
+                for kind, handler in {
+                    "roundtrip": roundtrip,
+                    "eval": eval_,
+                    "rowrel": rowrel,
+                    "mutate": mutate,
+                    "canon": canon,
+                    "merge": merge,
+                    "confluence": confluence,
+                }.items()
+            },
         },
     )
 

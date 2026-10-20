@@ -65,7 +65,8 @@ one case. The runner reads `input.bin` itself, as bytes, and hands them to
 the implementation's bytes entry point, which decides SPEC §9.14 before
 anything else; in Python that is `evaluate_bytes(data)`. A case holding both
 `input.mdtbl` and `input.bin` fails, because which one it checks would be a
-guess.
+guess, and so does a case of any other kind that holds `input.bin`, because
+nothing would read it.
 
 ## Kinds
 
