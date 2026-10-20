@@ -48,10 +48,11 @@ prose, and where the two disagree the suite wins.
   survived, 3 equivalent.
 
 - **A CSV case for the grouped header**:
-  `columns/grouped-header-of-repeated-labels-refused`, a header of
-  repeated labels above a row of distinct names, is `duplicate-column`
-  (§13, §9.2). It was added from the code's coverage gap, not blind: its
-  author had read `csvmode.py`. It reaches the grouped-header path, so
+  `columns/grouped-header-of-repeated-names-refused`, a header of
+  repeated names above a row of distinct names, is `duplicate-column`
+  (§13, §9.2). It was written from SPEC.md at rowspec `1786215` alone,
+  by an author who saw no implementation. It reaches the grouped-header
+  path, so
   `just mutants-csv` gains that path's two identifier mutants, one that
   drops the identifier and one that reports `bad-identifier`, both
   killed: `mutants.py --profile csv` reports 85 killed, 0 survived, 3
