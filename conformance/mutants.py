@@ -795,6 +795,17 @@ for r in seq:
         '    if v[:1] in ("+", "-"):\n        v = v[1:]',
         '    v = v.lstrip("+-")',
     ),
+    # §9.14 (#222): bytes that are not well-formed UTF-8, decided by
+    # `evaluate_bytes` before any line is classified, and killed by
+    # parse/latin-1-byte-in-a-cell-refused, held as `input.bin`.
+    "bytes-that-are-not-utf8-are-decoded-loosely": (
+        '        text = data.decode("utf-8")',
+        '        text = data.decode("utf-8", "replace")',
+    ),
+    "bytes-that-are-not-utf8-are-another-refusal": (
+        'refusal="bad-encoding"',
+        'refusal="lone-cr"',
+    ),
 }
 
 

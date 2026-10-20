@@ -412,3 +412,14 @@ the case's `WHY.md`.
   is also §9.20. And §4 puts the alignment row's field count among what makes
   it valid, so a count mismatch is also §9.21, as `parse/align-mismatch`
   already says.
+
+## Cases written knowing the implementation
+
+These cases were written by the author of the code they cover, who had read
+it. Each lands in a change separate from that code, per CONTRIBUTING.md, and
+says so in its `WHY.md`; none is independent evidence.
+
+- `parse/latin-1-byte-in-a-cell-refused` (#222) asserts `bad-encoding`
+  alone, the first case held as `input.bin`. Its author wrote
+  `evaluate_bytes` in both implementations and the runner path that reads
+  `input.bin`.

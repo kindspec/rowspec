@@ -1,0 +1,7 @@
+| id | item | qty |
+| --- | --- | --: |
+| r_1 | widget | 1 |
+| r_2 | café | 2 |
+
+key := id
+s := sum(qty)
