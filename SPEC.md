@@ -1389,7 +1389,12 @@ An implementation MUST refuse:
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
     not this entry
-15. `lone-cr`: a lone `CR` (§3)
+15. `lone-cr`: a lone `CR` (§3). Like §9.14 it is a property of the bytes,
+    decided before any line is classified, so a lone `CR` is never also a
+    character of the line holding it: that line is classified as though the
+    `CR` were not there. Without this, every lone `CR` would also be §9.12,
+    §9.18 or §9.19, because `char` excludes `CR` and the line holding one
+    matches no alternative of `line`
 16. `bad-identifier`: an identifier — column name, aggregate name, `key`/`order`
     argument, or a value of the key column — that is empty, or that contains
     whitespace, a `Cf` format character, or any character outside `ident`
@@ -1503,6 +1508,11 @@ refusal, with the same identifier, on every run, or `render` and `canon` are
 not functions of the input. A conformance case that names one identifier is
 therefore a case in which exactly one refusal applies; where several apply, the
 case names each of them, and reporting any one passes.
+
+Three entries name a particular case of a broader one: §9.7 of §9.21, §9.18
+of §9.19, and §9.24 of §9.20. A file that meets the narrower entry always
+meets the broader one too, so either identifier is a correct report, and no
+conformance case asserts the narrower one alone.
 
 **Reject when degrading could yield a plausible VALUE; preserve and warn when it
 could only lose DECORATION.**
