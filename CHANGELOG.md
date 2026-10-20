@@ -101,6 +101,12 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`rowspec check` and `rowspec eval` refuse an empty path as a usage
+  error** (#250), exit 2, as the editing commands do. They reported it
+  as a missing file named by nothing, `: No such file or directory`, or
+  under `--format github` as an annotation with an empty `file=`, and
+  checked the rest. An empty path is most often an unset variable.
+
 - **CSV mode's non-UTF-8 refusal spells a literal backslash `\\` and
   never cuts a spelled byte in half** (#242). The field holding the byte
   and the row's key or first field are quoted with each bad byte as
