@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC0-1.0 -->
 # Disputed verdicts
 
 None. Every one of the 224 existing cases was checked against SPEC.md at

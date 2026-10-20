@@ -76,7 +76,7 @@ would test one library's matcher rather than SPEC.md.
   reported carries a listed §9 identifier (below).
 - `accept: false` with `refusal_contains`: the file is refused, and at least
   one refusal's message contains that substring. No case in this tree uses
-  it any more.
+  it any more. A refused case carries exactly one of the two fields.
 - `accept: true`: the file is not refused, and nothing is asserted about
   warnings. This is the shape of a control case.
 - `accept: true` with `warns: true`: the file is not refused and at least one
@@ -91,8 +91,8 @@ case check. The runner refuses `warns` with any value but `true`.
 
 A refused file asserts nothing about warnings, and an accepted file has no
 refusal to match, so `warns` or `warning_contains` on `accept: false`, and
-`refusal_contains` on `accept: true`, are refused by the runner rather than
-silently not checked. So is any field not in the table.
+`refusal` or `refusal_contains` on `accept: true`, are refused by the runner
+rather than silently not checked. So is any field not in the table.
 
 `refusal_contains: ""` means *refuse, for any stated reason*, and
 `warning_contains: ""` means *warn, for any stated reason*. Use them where the
@@ -122,8 +122,10 @@ refusing case asserts it with `refusal` in place of `refusal_contains`:
   and of the `Malformed` it raises for a file it cannot read at all; a runner
   in another language reads it from wherever that language's binding puts it.
 
-Every refusing case here carries `refusal`. A runner that does not yet read `refusal` (#103) cannot
-run this tree until it does. Each refusing case's `WHY.md` ends with an
+Every refusing case here carries `refusal`. A runner that does not yet read
+`refusal` (#103) cannot run this tree until it does. This repository's
+runner also fails a refusal reported with no identifier under
+`refusal_contains`, since §13 requires one on every refusal. Each refusing case's `WHY.md` ends with an
 `## Identifier` section quoting the §13 reading and the §9 entry that decide
 its list. The quotes are verbatim from SPEC.md except that markdown bold
 markers are dropped.
@@ -464,7 +466,7 @@ only that:
 - each `refusal` fits `case-body.schema.json`;
 - each of the 14 one-byte twins differs from its pair by one byte.
 
-`AMBIGUITIES.md` beside this tree records the two settled questions, and
+`AMBIGUITIES.md` in this directory records the two settled questions, and
 `DISPUTES.md` records that no existing verdict was disputed.
 
 The amendment's files, by sha256:
@@ -479,7 +481,7 @@ The first pass's given files, by sha256:
     13bf7b49b093bcf8766c9c767712d06449225263892fa73d38bd283662f399cc  case-body.schema.json
 
 and each of the 799 files of the given tree, `conformance/cases-csv/`, is
-listed with its sha256 in `GIVEN.sha256` beside this tree, one line per
+listed with its sha256 in `GIVEN.sha256` in this directory, one line per
 file in `sha256sum` format, sorted by path in the C locale. That manifest's
 own sha256 is
 `951595fc4684fccd4c065226148c3d810e5f3968c15b5880cf90a80534a6e90e`.

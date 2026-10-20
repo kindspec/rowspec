@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC0-1.0 -->
 # Identifier ambiguities in the CSV profile
 
 None remain under SPEC.md at `df99ea1`. Every refusing case in
