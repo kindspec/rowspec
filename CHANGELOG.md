@@ -47,6 +47,13 @@ prose, and where the two disagree the suite wins.
   wrong answer: `mutants.py --profile csv` reports 44 killed, 0
   survived, 3 equivalent.
 
+- **The mutation gate covers the two `order` guards** (#202). Two
+  mutants in `table.py`: one reads `order := count(a where a = "1")` as an
+  aggregate named `order` again, and one accepts `order := by(n)` naming
+  no column when the table has no rows. Each undoes one guard added for
+  #202, and the cases added for it kill both: `just mutants` reports 112
+  killed, 0 survived, 2 equivalent.
+
 - **2 conformance cases that each assert one §9 identifier alone** (#99),
   written from SPEC.md without the implementation: `conflict-marker` and
   `alignment-row-in-data`. The floor is now 630 cases.
@@ -127,6 +134,26 @@ prose, and where the two disagree the suite wins.
   `order_type` (one of `number`, `date` or `text`) beside an `order`
   naming no column is not `malformed-declaration`, and that sidecar is
   `bad-order-column` alone. No other rule changes.
+
+- **SPEC.md §13: the per-file sidecar is the CSV profile's only source of
+  declarations** (#255). A source the profile does not define, such as a
+  directory-level `.rowspec.json` mapping globs to declarations, is outside
+  the profile, and so is a refusal about the source itself rather than a
+  declaration it supplies: its shape, and which of its entries applies to
+  a file. Such a refusal is not a CSV-mode refusal and §13 gives it no §9
+  identifier, so a directory-file entry holding a path separator, and a
+  file two globs match, carry none. The declarations such a source
+  supplies for a CSV are read as that CSV's sidecar would be, with the
+  same identifiers. The reference already behaves this way.
+
+- **SPEC.md names `malformed-declaration` for an `order` line that parses
+  but is not `by(c)`** (#225). §4.1.11 gave `key` that sentence and not
+  `order`: `order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and
+  `arg` is a bare `ident`, whatever `fn` is and with or without a `where`,
+  so `order := count(a where a = "1")`, `order := none(day)` and
+  `order := by(a where a = "1")` are each `malformed-declaration`. §9.12's
+  list gains the matching clause. The reference already refused each one
+  as `malformed-declaration`.
 
 - **SPEC.md §13: a CSV whose first record is one blank field has no
   header row** (#254). One field that is empty once trimmed of ASCII space
