@@ -101,6 +101,18 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **A quoted value or line no longer cuts an escape in half, and a
+  quoted `.mdtbl` or sidecar line spells a literal backslash `\\`**
+  (#239). Truncating a quoted value could cut an escape, so U+200B ended
+  as `\u20…`, and the window a non-UTF-8 sidecar line is shown from
+  could start inside one, as in `'…0bzw\u200b\xe9"}'`. Both now cut
+  between characters. In the line quoted by the `.mdtbl` and sidecar
+  non-UTF-8 refusals and by the invalid-JSON refusal, the text `\xe9`
+  was spelled the same as the byte 0xE9; the text is now `\\xe9`, so
+  `\xe9` always means a byte. CSV mode's non-UTF-8 field quote is not
+  covered: it spells bytes before truncating (#242). Messages without
+  such an escape or backslash are unchanged.
+
 - **The editing commands refuse a `.mdtbl` that is not UTF-8 instead of
   crashing** (#238). `add-row`, `add-column`, `delete-column` and
   `rename-column` raised a `UnicodeDecodeError` traceback that gave the
