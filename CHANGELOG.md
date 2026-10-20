@@ -106,10 +106,19 @@ prose, and where the two disagree the suite wins.
   quoted value could cut an escape, so U+200B ended as `\u20…`, and the
   window a non-UTF-8 sidecar line is shown from could start inside one,
   as in `'…0bzw\u200b\xe9"}'`. Both now cut between characters. In a
-  quoted sidecar line, in the non-UTF-8 and the invalid-JSON refusals,
-  the text `\xe9` was spelled the same as the byte 0xE9; the text is now
-  `\\xe9`, so `\xe9` always means a byte. Messages without such an
+  quoted line, in the `.mdtbl` and sidecar non-UTF-8 refusals and the
+  invalid-JSON refusal, the text `\xe9` was spelled the same as the byte
+  0xE9; the text is now `\\xe9`, so `\xe9` always means a byte. Messages without such an
   escape or backslash are unchanged.
+
+- **A `.mdtbl` that is not UTF-8 is refused by content, not by offset**
+  (#234). `rowspec check` and `rowspec eval` printed Python's codec
+  text, `'utf-8' codec can't decode byte 0xe9 in position 36: invalid
+  continuation byte`. They now quote the first line holding such a byte
+  and name the byte, as a sidecar's refusal does: `not valid UTF-8: the
+  line '| r_1 | caf\xe9 |' holds byte 0xE9, which is not part of a valid
+  sequence (invalid continuation byte) [bad-encoding]`. The refusal and
+  exit status are unchanged.
 
 - **`rowspec eval` refuses a `.mdtbl` that is not UTF-8 instead of
   crashing** (#230). It raised a `UnicodeDecodeError` traceback; it now

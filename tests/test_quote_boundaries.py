@@ -55,3 +55,13 @@ def test_invalid_json_line_tells_an_escape_from_a_character(tmp_path, capsys):
     assert cli.main(["check", str(tmp_path / "j.csv")]) == 1
     err = capsys.readouterr().err
     assert "in the line '{\"\\\\u200b\\u200b\" x}'" in err, err
+
+
+def test_mdtbl_refusal_tells_text_from_byte(tmp_path, capsys):
+    """The `.mdtbl` non-UTF-8 refusal quotes its line through `_quote_at`
+    too (#234)."""
+    p = tmp_path / "t.mdtbl"
+    p.write_bytes(b"| id |\n| --- |\n| \\xe9\xe9 |\n")
+    assert cli.main(["check", str(p)]) == 1
+    err = capsys.readouterr().err
+    assert "the line '| \\\\xe9\\xe9 |' holds byte 0xE9" in err, err
