@@ -101,15 +101,17 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
-- **A quoted value or line never shows an escape in part, and a literal
-  backslash in a quoted line is spelled `\\`** (#239). Truncating a
-  quoted value could cut an escape, so U+200B ended as `\u20…`, and the
-  window a non-UTF-8 sidecar line is shown from could start inside one,
-  as in `'…0bzw\u200b\xe9"}'`. Both now cut between characters. In a
-  quoted line, in the `.mdtbl` and sidecar non-UTF-8 refusals and the
-  invalid-JSON refusal, the text `\xe9` was spelled the same as the byte
-  0xE9; the text is now `\\xe9`, so `\xe9` always means a byte. Messages without such an
-  escape or backslash are unchanged.
+- **A quoted value or line no longer cuts an escape in half, and a
+  quoted `.mdtbl` or sidecar line spells a literal backslash `\\`**
+  (#239). Truncating a quoted value could cut an escape, so U+200B ended
+  as `\u20…`, and the window a non-UTF-8 sidecar line is shown from
+  could start inside one, as in `'…0bzw\u200b\xe9"}'`. Both now cut
+  between characters. In the line quoted by the `.mdtbl` and sidecar
+  non-UTF-8 refusals and by the invalid-JSON refusal, the text `\xe9`
+  was spelled the same as the byte 0xE9; the text is now `\\xe9`, so
+  `\xe9` always means a byte. CSV mode's non-UTF-8 field quote is not
+  covered: it spells bytes before truncating (#242). Messages without
+  such an escape or backslash are unchanged.
 
 - **A `.mdtbl` that is not UTF-8 is refused by content, not by offset**
   (#234). `rowspec check` and `rowspec eval` printed Python's codec
