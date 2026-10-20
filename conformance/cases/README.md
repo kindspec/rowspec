@@ -58,6 +58,16 @@ that is `evaluate(text, base=case_dir)`.
 `confluence`, which take `base.mdtbl` / `ours.mdtbl` / `theirs.mdtbl` /
 `branch<N>.mdtbl` instead and stage them through real git.
 
+A `parse` case may hold its artifact as `input.bin` instead, and must when
+the bytes are not UTF-8: a runner reads every `.mdtbl` in the tree as UTF-8
+text, so one that does not decode stops the whole tree rather than failing
+one case. The runner reads `input.bin` itself, as bytes, and hands them to
+the implementation's bytes entry point, which decides SPEC §9.14 before
+anything else; in Python that is `evaluate_bytes(data)`. A case holding both
+`input.mdtbl` and `input.bin` fails, because which one it checks would be a
+guess, and so does a case of any other kind that holds `input.bin`, because
+nothing would read it.
+
 ## Kinds
 
 | kind | fields | assertion |
