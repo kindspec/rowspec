@@ -69,6 +69,14 @@ CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-ca
 #: rowspec's filing convention, which is why the kit is handed texts.
 ARTIFACT = "a.mdtbl"
 
+#: A `parse` case whose artifact is not UTF-8 holds it here instead of in
+#: `input.mdtbl` (#222). kindkit reads every `.mdtbl` as UTF-8 text before any
+#: handler runs, and one that does not decode is a fault in the whole TREE, so
+#: §9.14 could not be asserted by a case at all. This suffix is not a fixture
+#: suffix: the handler reads the file itself, as bytes, and hands them to the
+#: implementation's `evaluate_bytes`, which decodes and then evaluates.
+MDTBL_BYTES = "input.bin"
+
 
 def ev_at(ref, text, base):
     """Evaluate `text` as if it were the artifact sitting in `base`.
@@ -110,8 +118,17 @@ def adapter_for(impl):
             # to the old schema assert less than its author meant.
             yield "`refusal_contains` is no longer read; name the §9 identifier in `refusal`"
             return
+        raw = os.path.join(case.dir, MDTBL_BYTES)
+        held_as_bytes = os.path.isfile(raw)
+        if held_as_bytes and "input" in case.files:
+            yield f"both input.mdtbl and {MDTBL_BYTES}; which one the case checks is a guess"
+            return
         try:
-            ev_at(ref, case.files["input"], case.dir)
+            if held_as_bytes:
+                with open(raw, "rb") as fh:
+                    ref.evaluate_bytes(fh.read())
+            else:
+                ev_at(ref, case.files["input"], case.dir)
             got = None
         except ref.Malformed as ex:
             # SPEC §9: the identifier is read from the refusal, never parsed

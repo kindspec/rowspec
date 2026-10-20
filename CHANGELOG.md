@@ -9,6 +9,13 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **`evaluate_bytes(data)`, in both implementations**: `evaluate` over a
+  file's bytes, refusing bytes that are not well-formed UTF-8 with §9.14's
+  `bad-encoding` before anything else is looked at (#222). The reference's
+  message quotes the first line holding such a byte and names the byte, as
+  `rowspec check` does. The conformance runner hands a `parse` case's
+  `input.bin`, read as bytes, to it, so a case can hold a file that is not
+  UTF-8, which kindkit's UTF-8 read of every `.mdtbl` ruled out.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
   `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
