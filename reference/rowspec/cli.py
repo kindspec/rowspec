@@ -11,8 +11,11 @@ line 7 moves the moment anyone else edits the file.
 """
 
 import argparse
+import errno
 import os
+import stat
 import sys
+import tempfile
 
 from . import edit
 from .csvmode import Finding, check_file
@@ -236,6 +239,39 @@ def cmd_eval(paths, out=sys.stdout, fmt="plain") -> int:
     return 1 if bad else 0
 
 
+def _write(path, text):
+    """Replace `path`'s contents with `text`, all or nothing (#248).
+
+    `open(path, "w")` truncates at once, and a write that then fails, on a
+    full disk say, reports its error only when the file is closed -- which a
+    bare `open(...).write(...)` leaves to a finalizer that swallows it. So
+    the text goes to a temporary file beside the target, is flushed to disk,
+    and is renamed over the target; on any error the temporary file is
+    removed and the target is left as it was. The target's permission bits
+    are kept, a read-only target is refused as a plain write would refuse
+    it, and a symbolic link is written through to the file it names. A hard
+    link to the target is not: the rename gives `path` a new inode."""
+    real = os.path.realpath(path)
+    mode = stat.S_IMODE(os.stat(real).st_mode)
+    if not os.access(real, os.W_OK):
+        raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), path)
+    tmp = None
+    try:
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(real), prefix=".rowspec-", suffix=".tmp")
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, real)
+    except BaseException as e:
+        if tmp is not None and os.path.lexists(tmp):
+            os.unlink(tmp)
+        if isinstance(e, OSError):  # named by `path`, never by the temporary file
+            raise OSError(e.errno, e.strerror, path) from None
+        raise
+
+
 def _rewrite(path, change, out, done):
     """Read `path`, apply `change` to its text, and write the result back. A
     refused edit raises before anything is written, so the file is untouched.
@@ -246,7 +282,7 @@ def _rewrite(path, change, out, done):
     try:
         text = open(path, encoding="utf-8", newline="").read()
         new, what = change(text)
-        open(path, "w", encoding="utf-8", newline="").write(new)
+        _write(path, new)
     except OSError as e:  # missing, a directory, read-only: name the file
         print(f"{path}: {_unreadable(path, e)}", file=sys.stderr)
         return 1
@@ -471,8 +507,13 @@ def main(argv: list[str] | None = None) -> int:
                     )
                     refused += 1
                 else:
-                    open(f, "w", encoding="utf-8", newline="").write(c)
-                    print(f"{f}: reformatted")
+                    try:
+                        _write(f, c)
+                    except OSError as e:
+                        emit(f, [_unreadable(f, e)], explained, sys.stderr)
+                        refused += 1
+                    else:
+                        print(f"{f}: reformatted")
 
     summary = f"{len(files)} file(s) checked, {refused} refused"
     if warned:
