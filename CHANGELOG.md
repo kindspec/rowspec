@@ -15,7 +15,11 @@ prose, and where the two disagree the suite wins.
   message quotes the first line holding such a byte and names the byte, as
   `rowspec check` does. The conformance runner hands a `parse` case's
   `input.bin`, read as bytes, to it, so a case can hold a file that is not
-  UTF-8, which kindkit's UTF-8 read of every `.mdtbl` ruled out.
+  UTF-8, which kindkit's UTF-8 read of every `.mdtbl` ruled out; any
+  other kind of case holding `input.bin` fails. **The two `evaluate_bytes`
+  are not independent:** one author wrote both, and both rest on CPython's
+  strict `utf-8` codec. A case that both pass is therefore no more evidence
+  for §9.14 than the reference passing it.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
   `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
