@@ -471,6 +471,8 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(argv)
     if getattr(a, "file", None) == "":
         p.error("the file name is empty")
+    if "" in getattr(a, "paths", ()):  # most often an unset variable (#250)
+        p.error("a path is empty")
     if cmd == "eval":
         return cmd_eval(a.paths, fmt=a.format)
     if cmd == "add-row":
