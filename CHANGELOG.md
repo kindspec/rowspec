@@ -138,8 +138,8 @@ prose, and where the two disagree the suite wins.
   between characters. In the line quoted by the `.mdtbl` and sidecar
   non-UTF-8 refusals and by the invalid-JSON refusal, the text `\xe9`
   was spelled the same as the byte 0xE9; the text is now `\\xe9`, so
-  `\xe9` always means a byte. CSV mode's non-UTF-8 field quote is not
-  covered: it spells bytes before truncating (#242). Messages without
+  `\xe9` always means a byte. CSV mode's non-UTF-8 field quote gets the
+  same rules in its own entry (#242). Messages without
   such an escape or backslash are unchanged.
 
 - **The editing commands refuse a `.mdtbl` that is not UTF-8 instead of
