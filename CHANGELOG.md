@@ -47,6 +47,13 @@ prose, and where the two disagree the suite wins.
   wrong answer: `mutants.py --profile csv` reports 44 killed, 0
   survived, 3 equivalent.
 
+- **The mutation gate covers the two `order` guards** (#202). Two
+  mutants in `table.py`: one reads `order := count(a where a = "1")` as an
+  aggregate named `order` again, and one accepts `order := by(n)` naming
+  no column when the table has no rows. Each undoes one guard added for
+  #202, and the cases added for it kill both: `just mutants` reports 112
+  killed, 0 survived, 2 equivalent.
+
 - **2 conformance cases that each assert one §9 identifier alone** (#99),
   written from SPEC.md without the implementation: `conflict-marker` and
   `alignment-row-in-data`. The floor is now 630 cases.
