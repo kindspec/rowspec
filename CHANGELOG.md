@@ -101,12 +101,22 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **The editing commands refuse a file they cannot read or write
+  instead of crashing** (#243). `add-row`, `add-column`, `delete-column`
+  and `rename-column` raised a `FileNotFoundError`, `IsADirectoryError`
+  or, for a read-only file, `PermissionError` traceback. They now print
+  the file and the operating system's reason, as `rowspec check` does
+  (#246), for example `file: No such file or directory`, and exit 1. An
+  empty file name is a usage error, exit 2.
+
 - **`rowspec check` and `rowspec eval` refuse a missing file instead of
   crashing** (#246). A path given on the command line that did not exist
   raised a `FileNotFoundError` traceback. It is now reported as `file:
   No such file or directory`, the operating system's own wording, or as
   an annotation under `--format github`; the file counts as refused and
-  the run exits 1.
+  the run exits 1. `eval` reports any file it cannot read, including a
+  `.csv` it found in a directory, which it would skip if it were
+  readable.
 
 - **A quoted value or line no longer cuts an escape in half, and a
   quoted `.mdtbl` or sidecar line spells a literal backslash `\\`**
