@@ -101,6 +101,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`rowspec check` and `rowspec eval` refuse a missing file instead of
+  crashing** (#246). A path given on the command line that did not exist
+  raised a `FileNotFoundError` traceback. It is now reported as `file:
+  No such file or directory`, the operating system's own wording, or as
+  an annotation under `--format github`; the file counts as refused and
+  the run exits 1.
+
 - **A quoted value or line no longer cuts an escape in half, and a
   quoted `.mdtbl` or sidecar line spells a literal backslash `\\`**
   (#239). Truncating a quoted value could cut an escape, so U+200B ended
