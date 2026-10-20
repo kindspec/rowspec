@@ -797,7 +797,7 @@ for r in seq:
     ),
     # §9.14 (#222): bytes that are not well-formed UTF-8, decided by
     # `evaluate_bytes` before any line is classified, and killed by
-    # parse/latin-1-byte-in-a-cell-refused, held as `input.bin`.
+    # parse/non-utf8-byte-in-a-cell-refused, held as `input.bin`.
     "bytes-that-are-not-utf8-are-decoded-loosely": (
         '        text = data.decode("utf-8")',
         '        text = data.decode("utf-8", "replace")',

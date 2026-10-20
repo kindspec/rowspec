@@ -16,11 +16,11 @@ prose, and where the two disagree the suite wins.
   `rowspec check` does. The conformance runner hands a `parse` case's
   `input.bin`, read as bytes, to it, so a case can hold a file that is not
   UTF-8, which kindkit's UTF-8 read of every `.mdtbl` ruled out.
-- **`parse/latin-1-byte-in-a-cell-refused`**, the first case that asserts
-  `bad-encoding` (§9.14), alone (#222): a valid file whose `café` cell holds
-  the Latin-1 byte `0xE9`, held as `input.bin`. Its author also wrote
-  `evaluate_bytes`, and its `WHY.md` says so. Two mutants of
-  `evaluate_bytes` are killed by it.
+- **`parse/non-utf8-byte-in-a-cell-refused`**, the first case that asserts
+  `bad-encoding` (§9.14), alone (#222): a table whose `café` cell holds the
+  Latin-1 byte `0xE9`, held as `input.bin`. It was written from SPEC.md at
+  rowspec `1786215` alone, by an author who saw no implementation. Two
+  mutants of `evaluate_bytes` are killed by it.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
   `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
