@@ -80,7 +80,15 @@ prose, and where the two disagree the suite wins.
   or `order_type` declares, which no `.mdtbl` file can reach. A
   CSV-profile case passes only when every refusal reported carries an
   identifier the case lists. Decided by the project owner. The code
-  follows in the next entry; the cases follow separately.
+  follows in the next entry, and the cases in the one after.
+
+- **Every refusing CSV-profile case asserts its §9 identifier** (#103),
+  written from SPEC.md by an author who read no implementation: 134 cases
+  converted from `refusal_contains` to `refusal`, and 56 added, for 280.
+  `conformance/cases-csv/AMBIGUITIES.md`, `DISPUTES.md` and
+  `GIVEN.sha256` record the questions the text settled, the verdicts
+  re-checked, and the files the author was given. The floor of
+  `just conform-csv` is now 280 cases.
 
 - **CSV mode reports every refusal with its §9 identifier** (#103), as
   SPEC.md §13 reads it. Each refusing finding from
@@ -96,9 +104,10 @@ prose, and where the two disagree the suite wins.
   runner judges `refusal` on a CSV-profile case as §13 says: at least one
   refusal, and each one reported carries an identifier the case lists. It
   still reads `refusal_contains`, and under either field it fails a
-  refusal reported with no identifier. `just mutants-csv` gains a mutant
-  per refusal path that drops its identifier: 19 in `csvmode.py` and 15
-  in `sidecar.py`, all killed.
+  refusal reported with no identifier. `just mutants-csv` gains, per
+  refusal path, a mutant that drops its identifier and one that reports a
+  wrong one: 20 and 19 in `csvmode.py`, 15 and 15 in `sidecar.py`, all
+  killed. The grouped header has neither, since no case reaches it.
   A first record of several blank cells, such as `,,` or a space and a
   tab, is now refused as `duplicate-column`, as §13 reads it, rather than
   as `no-table`: each blank cell is a column name, and they are one name.

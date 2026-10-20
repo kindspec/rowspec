@@ -22,11 +22,11 @@ with a GitHub Action.
     0 broken                  just mutants
     112 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
-    224 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
+    280 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
     0 failures                just conform-csv
-    44 killed, 3 equivalent   just mutants-csv (csv profile)
-    11 killed, 0 equivalent   just mutants-csv (sidecar profile)
-    1375 passed, 2 skipped    just test
+    83 killed, 3 equivalent   just mutants-csv (csv profile)
+    41 killed, 0 equivalent   just mutants-csv (sidecar profile)
+    1583 passed, 2 skipped    just test
     28 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
