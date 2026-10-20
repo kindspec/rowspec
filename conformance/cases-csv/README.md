@@ -487,5 +487,9 @@ own sha256 is
 `951595fc4684fccd4c065226148c3d810e5f3968c15b5880cf90a80534a6e90e`.
 
 One case, `columns/grouped-header-of-repeated-names-refused`, was written
-from SPEC.md at rowspec `1786215` alone, by an author who saw no
-implementation. Its `WHY.md` lists the files that author read, by sha256.
+by an author who saw no implementation, from four files fetched with
+`gh api repos/kindspec/rowspec/contents/<path>?ref=<ref>`: SPEC.md,
+`conformance/cases/README.md` and `conformance/cases-csv/README.md` at
+`1786215`, and `conformance/cases/README.md` at `ef28bed`, a commit on
+the #262 branch at the time. That file documents the case format and holds
+no code. Its `WHY.md` lists the four by sha256.

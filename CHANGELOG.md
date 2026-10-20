@@ -9,6 +9,17 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **`evaluate_bytes(data)`, in both implementations**: `evaluate` over a
+  file's bytes, refusing bytes that are not well-formed UTF-8 with §9.14's
+  `bad-encoding` before anything else is looked at (#222). The reference's
+  message quotes the first line holding such a byte and names the byte, as
+  `rowspec check` does. The conformance runner hands a `parse` case's
+  `input.bin`, read as bytes, to it, so a case can hold a file that is not
+  UTF-8, which kindkit's UTF-8 read of every `.mdtbl` ruled out; any
+  other kind of case holding `input.bin` fails. **The two `evaluate_bytes`
+  are not independent:** one author wrote both, and both rest on CPython's
+  strict `utf-8` codec. A case that both pass is therefore no more evidence
+  for §9.14 than the reference passing it.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
   `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
@@ -47,16 +58,26 @@ prose, and where the two disagree the suite wins.
   wrong answer: `mutants.py --profile csv` reports 44 killed, 0
   survived, 3 equivalent.
 
+- **The mutation gate covers the two `order` guards** (#202). Two
+  mutants in `table.py`: one reads `order := count(a where a = "1")` as an
+  aggregate named `order` again, and one accepts `order := by(n)` naming
+  no column when the table has no rows. Each undoes one guard added for
+  #202, and the cases added for it kill both: `just mutants` reports 112
+  killed, 0 survived, 2 equivalent.
+
 - **A CSV case for the grouped header**:
   `columns/grouped-header-of-repeated-names-refused`, a header of
   repeated names above a row of distinct names, is `duplicate-column`
-  (§13, §9.2). It was written from SPEC.md at rowspec `1786215` alone,
-  by an author who saw no implementation. It reaches the grouped-header
-  path, so
-  `just mutants-csv` gains that path's two identifier mutants, one that
-  drops the identifier and one that reports `bad-identifier`, both
-  killed: `mutants.py --profile csv` reports 85 killed, 0 survived, 3
-  equivalent. The floor of `just conform-csv` is now 281 cases.
+  (§13, §9.2). It was written by an author who saw no implementation,
+  from four files fetched with `gh api`: SPEC.md,
+  `conformance/cases/README.md` and `conformance/cases-csv/README.md` at
+  `1786215`, and `conformance/cases/README.md` at `ef28bed`, a commit on
+  the #262 branch. Its `WHY.md` lists them by sha256. It reaches the
+  grouped-header path, so `just mutants-csv` gains that path's two
+  identifier mutants, one that drops the identifier and one that reports
+  `bad-identifier`, both killed: `mutants.py --profile csv` reports 85
+  killed, 0 survived, 3 equivalent. The floor of `just conform-csv` is
+  now 281 cases.
 
 - **2 conformance cases that each assert one §9 identifier alone** (#99),
   written from SPEC.md without the implementation: `conflict-marker` and
@@ -139,6 +160,35 @@ prose, and where the two disagree the suite wins.
   `order_type` (one of `number`, `date` or `text`) beside an `order`
   naming no column is not `malformed-declaration`, and that sidecar is
   `bad-order-column` alone. No other rule changes.
+
+- **SPEC.md §13: the per-file sidecar is the CSV profile's only source of
+  declarations** (#255). A source the profile does not define, such as a
+  directory-level `.rowspec.json` mapping globs to declarations, is outside
+  the profile, and so is a refusal about the source itself rather than a
+  declaration it supplies: its shape, and which of its entries applies to
+  a file. Such a refusal is not a CSV-mode refusal and §13 gives it no §9
+  identifier, so a directory-file entry holding a path separator, and a
+  file two globs match, carry none. The declarations such a source
+  supplies for a CSV are read as that CSV's sidecar would be, with the
+  same identifiers. The reference already behaves this way.
+
+- **SPEC.md names `malformed-declaration` for an `order` line that parses
+  but is not `by(c)`** (#225). §4.1.11 gave `key` that sentence and not
+  `order`: `order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and
+  `arg` is a bare `ident`, whatever `fn` is and with or without a `where`,
+  so `order := count(a where a = "1")`, `order := none(day)` and
+  `order := by(a where a = "1")` are each `malformed-declaration`. §9.12's
+  list gains the matching clause. The reference already refused each one
+  as `malformed-declaration`.
+
+- **SPEC.md §13: a CSV whose first record is one blank field has no
+  header row** (#254). One field that is empty once trimmed of ASCII space
+  and tab, quoted or not, such as an empty first line, is not a header of
+  one unnamed column, so the file is `no-table` whatever follows it. A
+  first record of two or more blank fields is still a header of duplicate
+  names, `duplicate-column`, and a single field of U+00A0 is still a name.
+  §9.13 gains a back-reference to §13. The reference already refused such
+  a file as `no-table`.
 
 - **`rowspec add-row` with no position puts the row where its key sorts**,
   by code point, when the table's rows are already in key order, instead of

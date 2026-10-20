@@ -488,6 +488,28 @@ for r in seq:
         'if fn != "by":',
         "if False:",
     ),
+    # §4.1.11, §9.12 and §9.10 (#202, #207): `order := count(a where ...)` is
+    # read as an aggregate named `order`, and `order := by(n)` naming no
+    # column is accepted when the table has no rows. Each undoes one of
+    # #207's guards; #211's cases kill them.
+    "an-order-line-with-where-is-an-aggregate": (
+        'if nm_ == "order":',
+        "if False:",
+    ),
+    "a-missing-order-column-is-refused-only-with-rows": (
+        "if order not in cols:\n"
+        "    raise Malformed(\n"
+        '        f"order := by({order}) but there is no column {order!r}",\n'
+        '        refusal="bad-order-column",\n'
+        "    )\n"
+        "if order in formulas:",
+        "if False:\n"
+        "    raise Malformed(\n"
+        '        f"order := by({order}) but there is no column {order!r}",\n'
+        '        refusal="bad-order-column",\n'
+        "    )\n"
+        "if order in formulas:",
+    ),
     # --- a data row that looks like an alignment row is silently dropped --------
     "is-align-matches-any-dashed-cell": (
         "return bool(cells) and all(_ANY.fullmatch(c) for c in cells)",
