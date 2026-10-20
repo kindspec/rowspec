@@ -141,6 +141,21 @@ prose, and where the two disagree the suite wins.
   such as `\t\n` in a `.tsv`, was read as an empty file, and is now
   `duplicate-column` too.
 
+- **SPEC.md §9.15 decides a lone `CR` before any line is classified**
+  (#99), as §9.14 and §9.26 already decide their bytes. In a `.mdtbl` file
+  a lone `CR` is no longer also a character of its line: the line is
+  classified as though the `CR` were not there, so it is not also
+  `malformed-declaration`, `malformed-table-line` or `unclassified-line`
+  because of the `CR`. That reading can expose another refusal. In
+  `parse/lone-cr-refused` the `CR` sits between two rows, which then read as
+  one line of 11 fields, so that file is `row-field-count` too. §13 now says
+  CSV mode does not read a CSV this way: a lone `CR` outside a quoted field
+  ends a record, and inside one it is part of the field. §9 now also
+  records that §9.7, §9.18 and §9.24 each name a case of a broader entry,
+  so either identifier is correct and none is asserted alone. No file
+  changes from refused to accepted or back. The three `lone-cr` case lists
+  follow separately.
+
 - **SPEC.md §13 settles two CSV-mode readings it left open** (#103). A
   record that starts on a conflict-marker line is neither the header nor a
   data row, so in a file of more than one column the line is
