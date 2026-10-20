@@ -101,6 +101,15 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **CSV mode's non-UTF-8 refusal spells a literal backslash `\\` and
+  never cuts a spelled byte in half** (#242). The field holding the byte
+  and the row's key or first field are quoted with each bad byte as
+  `\xNN`, but the text `\xe9` was quoted the same way as the byte 0xE9,
+  and a long field could end as `'…\xe9\…'`. A literal backslash is now
+  `\\`, and truncation cuts between characters, as #239 did for `.mdtbl`
+  and sidecar quotes. Messages without a backslash or a cut escape are
+  unchanged.
+
 - **A quoted value or line no longer cuts an escape in half, and a
   quoted `.mdtbl` or sidecar line spells a literal backslash `\\`**
   (#239). Truncating a quoted value could cut an escape, so U+200B ended

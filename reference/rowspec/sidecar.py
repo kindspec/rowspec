@@ -35,7 +35,7 @@ import os
 import re
 import unicodedata
 
-from .table import Malformed, _escape, _quote
+from .table import Malformed, _quote, _spell
 
 SUFFIX = ".rowspec.json"
 DIR_NAME = ".rowspec.json"
@@ -169,18 +169,7 @@ def _quote_at(line, at):
     `at` past the end of the quote, and it is cut between characters, so
     no escape is shown in part."""
 
-    def shown(s):
-        out = []
-        for ch in s:
-            if "\udc80" <= ch <= "\udcff":
-                out.append(f"\\x{ord(ch) - 0xDC00:02x}")
-            elif ch == "\\":
-                out.append("\\\\")
-            else:
-                out.append(_escape(ch))
-        return out
-
-    before = shown(line[:at])
+    before = _spell(line[:at])
     if sum(map(len, before)) > 20:
         kept, n = [], 0
         for t in reversed(before):
@@ -189,7 +178,7 @@ def _quote_at(line, at):
             kept.append(t)
             n += len(t)
         before = ["\u2026"] + kept[::-1]
-    return _quote(before + shown(line[at:]), 60)
+    return _quote(before + _spell(line[at:]), 60)
 
 
 def _read(path):

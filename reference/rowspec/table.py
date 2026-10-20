@@ -198,6 +198,27 @@ def _show(s, limit=40):
     return _quote([_escape(ch) for ch in s], limit)
 
 
+def _spell(s):
+    """`s` one string per character, as an error that quotes undecodable
+    bytes spells it: each byte `surrogateescape` kept as `\\xNN`, a
+    literal backslash as `\\\\` so that `\\xNN` is always a byte (#239,
+    #242), and anything else as `_escape` spells it."""
+    out = []
+    for ch in s:
+        if "\udc80" <= ch <= "\udcff":
+            out.append(f"\\x{ord(ch) - 0xDC00:02x}")
+        elif ch == "\\":
+            out.append("\\\\")
+        else:
+            out.append(_escape(ch))
+    return out
+
+
+def _show_bytes(s, limit=40):
+    """`_show` for text that may hold undecodable bytes, spelled by `_spell`."""
+    return _quote(_spell(s), limit)
+
+
 def _quote(shown, limit):
     """`shown`, one string per character as an error spells it, quoted and
     cut to `limit` with an ellipsis. The cut falls between characters, so
