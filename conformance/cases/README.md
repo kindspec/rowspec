@@ -413,3 +413,7 @@ the case's `WHY.md`.
   is also §9.20. And §4 puts the alignment row's field count among what makes
   it valid, so a count mismatch is also §9.21, as `parse/align-mismatch`
   already says.
+- **`parse/non-utf8-byte-in-a-cell-refused`** (#222) asserts
+  `bad-encoding` alone, and is the first case held as `input.bin`. It was
+  written from SPEC.md at rowspec `1786215` and the case-format README, by
+  an author who saw no implementation. Its `WHY.md` lists the files read, by sha256.
