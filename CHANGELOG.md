@@ -101,6 +101,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **The editing commands refuse a `.mdtbl` that is not UTF-8 instead of
+  crashing** (#238). `add-row`, `add-column`, `delete-column` and
+  `rename-column` raised a `UnicodeDecodeError` traceback that gave the
+  byte's position. They now print the refusal `rowspec check` prints,
+  `file: not valid UTF-8: the line ... holds byte 0xE9, ...
+  [bad-encoding]`, exit 1, and leave the file untouched.
+
 - **A `.mdtbl` that is not UTF-8 is refused by content, not by offset**
   (#234). `rowspec check` and `rowspec eval` printed Python's codec
   text, `'utf-8' codec can't decode byte 0xe9 in position 36: invalid
