@@ -319,6 +319,14 @@ malformed all the same: it names nothing a key can be. A missing column has no
 values, and a computed column's cells are empty (§5), so neither holds a row
 id. §6 defines exactly two order states, `order := by(c)` and the line omitted
 entirely; a third spelling is refused rather than degraded into the second.
+**So `order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and `arg`
+is a bare `ident`**, whatever `fn` is — an aggregate function, a
+row-relative operator such as `cumulative`, or any other `ident` — and
+`by` with a `where` is malformed too: `order := count(a where a = "1")`,
+`order := none(day)` and `order := by(a where a = "1")` are each refused.
+The `declaration` production generates all three, as it does
+`key := fn(col)`, so the rule is stated here rather than left to the
+grammar.
 
 **12. Conflict markers.** A conflict line is any line whose first seven
 characters are seven `<`, seven `=`, seven `>`, or **seven `|`**. All four,
@@ -1382,9 +1390,11 @@ An implementation MUST refuse:
 11. `unknown-aggregate`: an unknown aggregate function
 12. `malformed-declaration`: a malformed declaration — a line containing `:=`
     that does not match `declaration`, a `key :=` in function form such as
-    `key := by(id)`, or a `key := col` whose `col` is not a stored column of
-    the table: no column of that name, or a computed one (§4.1.11; see §13
-    for the CSV profile)
+    `key := by(id)`, an `order :=` in a function form other than `by(c)`
+    with `c` a bare `ident`, such as `order := count(a)` or
+    `order := by(a where a = "1")`, or a `key := col` whose `col` is not a
+    stored column of the table: no column of that name, or a computed one
+    (§4.1.11; see §13 for the CSV profile)
 13. `no-table`: a file containing no table
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
@@ -1619,7 +1629,18 @@ relaxation**, and the difference must be stated rather than discovered:
   does not hold for CSV key values either.
 - **the sidecar is one JSON object with five optional members: `key`,
   `order`, `order_type`, `columns` and `delimiter`.** It sits beside the
-  CSV, named for it: `data.csv.rowspec.json` for `data.csv`. **The sidecar
+  CSV, named for it: `data.csv.rowspec.json` for `data.csv`.
+  **The sidecar is the profile's only source of declarations.** An
+  implementation may also read declarations from a source the profile does
+  not define, such as one file that maps the CSVs of a whole directory to
+  declarations by filename glob. That source is outside the profile, and
+  so is every refusal that comes from the source itself rather than from a
+  declaration it supplies: how the source is shaped, and which of its
+  entries applies to a file. Such a refusal is not a CSV-mode refusal, so
+  the identifier rule below does not reach it, and no CSV-profile case
+  can depend on it. The declarations such a source supplies for a CSV are
+  read as that CSV's sidecar would be, with the same refusals and
+  identifiers. **The sidecar
   is UTF-8 JSON with no byte-order mark.** One that is not UTF-8 is refused,
   a sidecar encoded as UTF-16 or UTF-32 included, as RFC 8259 §8.1 requires
   UTF-8 of JSON exchanged outside a closed ecosystem. One that starts with a
@@ -1778,6 +1799,10 @@ entry, as follows, and is reported with that entry's identifier:
 - a value of a column typed by `columns` that is not of that type, and an
   order column holding a value that is not of its `order_type`: §9.27
   `column-type-mismatch`.
+
+A refusal that comes from a declaration source outside this profile
+itself, rather than from a declaration it supplies (above), is not a
+CSV-mode refusal, and is not read as a §9 entry here.
 
 A file can meet more than one of these, and then each applies, as §9 says:
 an order column of mixed types under an `order_type`, or under a `columns`
