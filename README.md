@@ -97,8 +97,8 @@ stock `git merge`, evaluates the merged file, and asserts on the computed
 number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
-    630 conformance cases          two implementations, both passing
-    114 mutants, all distinct      112 killed, 2 equivalent
+    631 conformance cases          two implementations, both passing
+    116 mutants, all distinct      114 killed, 2 equivalent
                                      0 survived, 0 stale, 0 broken
 
 **The second implementation is the point.** `reference/rowspec_alt/` was written

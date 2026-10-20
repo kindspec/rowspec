@@ -20,6 +20,12 @@ prose, and where the two disagree the suite wins.
   are not independent:** one author wrote both, and both rest on CPython's
   strict `utf-8` codec. A case that both pass is therefore no more evidence
   for §9.14 than the reference passing it.
+- **`parse/non-utf8-byte-in-a-cell-refused`**, the first case that asserts
+  `bad-encoding` (§9.14), alone (#222): a table whose `café` cell holds the
+  Latin-1 byte `0xE9`, held as `input.bin`. It was written from SPEC.md at
+  rowspec `1786215` and the case-format README, by an author who saw no
+  implementation. Two mutants of `evaluate_bytes` are killed by it. The
+  floor is now 631 cases.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
   `insert_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
