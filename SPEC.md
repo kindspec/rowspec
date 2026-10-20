@@ -1629,7 +1629,18 @@ relaxation**, and the difference must be stated rather than discovered:
   does not hold for CSV key values either.
 - **the sidecar is one JSON object with five optional members: `key`,
   `order`, `order_type`, `columns` and `delimiter`.** It sits beside the
-  CSV, named for it: `data.csv.rowspec.json` for `data.csv`. **The sidecar
+  CSV, named for it: `data.csv.rowspec.json` for `data.csv`.
+  **The sidecar is the profile's only source of declarations.** An
+  implementation may also read declarations from a source the profile does
+  not define, such as one file that maps the CSVs of a whole directory to
+  declarations by filename glob. That source is outside the profile, and
+  so is every refusal that comes from the source itself rather than from a
+  declaration it supplies: how the source is shaped, and which of its
+  entries applies to a file. Such a refusal is not a CSV-mode refusal, so
+  the identifier rule below does not reach it, and no CSV-profile case
+  can depend on it. The declarations such a source supplies for a CSV are
+  read as that CSV's sidecar would be, with the same refusals and
+  identifiers. **The sidecar
   is UTF-8 JSON with no byte-order mark.** One that is not UTF-8 is refused,
   a sidecar encoded as UTF-16 or UTF-32 included, as RFC 8259 §8.1 requires
   UTF-8 of JSON exchanged outside a closed ecosystem. One that starts with a
@@ -1788,6 +1799,10 @@ entry, as follows, and is reported with that entry's identifier:
 - a value of a column typed by `columns` that is not of that type, and an
   order column holding a value that is not of its `order_type`: §9.27
   `column-type-mismatch`.
+
+A refusal that comes from a declaration source outside this profile
+itself, rather than from a declaration it supplies (above), is not a
+CSV-mode refusal, and is not read as a §9 entry here.
 
 A file can meet more than one of these, and then each applies, as §9 says:
 an order column of mixed types under an `order_type`, or under a `columns`
