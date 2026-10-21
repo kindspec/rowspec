@@ -253,7 +253,8 @@ prose, and where the two disagree the suite wins.
   `0.30000000000000004` was saved as `0.3`, and `-0.0` as `-0`, which reads
   back as the integer `0`. The exporter's workbook now saves each finite float
   with `repr`, in both modes, by replacing openpyxl's number-to-string step for
-  the length of the save. The cells in memory keep their real values. That
+  the length of the save, and those saves hold a lock so that one thread's
+  save cannot end another's. The cells in memory keep their real values. That
   step is private to openpyxl, so the `xlsx` extra now requires
   `openpyxl>=3.1,<3.2`, and a test fails if a save stops going through it.
 

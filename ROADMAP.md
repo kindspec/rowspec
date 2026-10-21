@@ -27,7 +27,7 @@ with a GitHub Action.
     85 killed, 3 equivalent   just mutants-csv (csv profile)
     41 killed, 0 equivalent   just mutants-csv (sidecar profile)
     1613 passed, 2 skipped    just test
-    60 passed                 just test-xlsx
+    61 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
                                 pytest tests/test_xlsx_libreoffice.py -q -s

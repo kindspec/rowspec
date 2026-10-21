@@ -24,6 +24,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import zipfile
 
 import pytest
@@ -622,3 +623,46 @@ def test_the_module_entry_point_parses_its_arguments(argv, code, capsys):
     from rowspec_xlsx.__main__ import main
 
     assert main(argv) == code
+
+
+def test_concurrent_saves_are_each_exact(tmp_path):
+    """`_Workbook.save` swaps a module-level function. Unserialized, one
+    thread's restore lands inside another thread's save, and the rest of that
+    file is written with 16 digits. A tiny switch interval makes threads
+    interleave inside a save, which is where that shows. The race is a matter
+    of chance: without the lock this test failed 10 runs in 10, measured, and
+    a single pass of it would not prove the lock is there."""
+    old = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+    text = (
+        "| id | a |\n| -- | -: |\n"
+        + "".join(f"| r_{i} | 0.30000000000000004 |\n" for i in range(500))
+        + "\nkey := id\n"
+    )
+    books = [to_workbook(text, values=True) for _ in range(8)]
+    errors = []
+
+    def save(wb, dst):
+        try:
+            wb.save(dst)
+        except Exception as e:  # a thread's exception is otherwise lost
+            errors.append(e)
+
+    try:
+        for trial in range(20):
+            paths = [tmp_path / f"{trial}-{i}.xlsx" for i in range(len(books))]
+            threads = [
+                threading.Thread(target=save, args=a) for a in zip(books, paths, strict=True)
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            for p in paths:
+                with zipfile.ZipFile(p) as z:
+                    xml = z.read("xl/worksheets/sheet1.xml").decode()
+                assert xml.count("<v>0.30000000000000004</v>") == 500, p.name
+    finally:
+        sys.setswitchinterval(old)
+    assert not errors, errors
+    assert cell_writer.safe_string is openpyxl_safe_string

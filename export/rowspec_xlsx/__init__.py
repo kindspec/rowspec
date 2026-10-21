@@ -108,6 +108,7 @@ except ModuleNotFoundError as exc:  # the extra is absent, which is the default
 
 import math
 import re
+import threading
 
 from rowspec.table import (
     _GROUP,
@@ -235,21 +236,29 @@ def _exact(value):
     return _SAFE_STRING(value)
 
 
+# Held for the whole install, save and restore, so `_Workbook` saves are
+# serialized: unguarded, one thread's restore lands in the middle of another's
+# save, and the rest of that file is written with 16 digits.
+_SAVE_LOCK = threading.Lock()
+
+
 class _Workbook(Workbook):
     """A workbook whose `save` writes every number cell exactly.
 
     The override of openpyxl's number-to-string step lasts only for the save,
-    so the cells in memory keep their real values, and no other workbook in
-    the process is affected unless it saves at the same moment on another
-    thread.
+    so the cells in memory keep their real values. `_Workbook` saves are
+    serialized by `_SAVE_LOCK`. A plain openpyxl save running at the same
+    moment in another thread also sees the override and spells its floats
+    with `repr`, which is harmless: those digits are exact too.
     """
 
     def save(self, filename):
-        _cell_writer.safe_string = _exact
-        try:
-            super().save(filename)
-        finally:
-            _cell_writer.safe_string = _SAFE_STRING
+        with _SAVE_LOCK:
+            _cell_writer.safe_string = _exact
+            try:
+                super().save(filename)
+            finally:
+                _cell_writer.safe_string = _SAFE_STRING
 
 
 def _ref(col):
