@@ -129,6 +129,24 @@ def test_check_is_still_the_default_command(table):
     assert cli.main([str(table)]) == 0
 
 
+@pytest.mark.parametrize("name", ["delete-row", "rename-colum", "set-formula"])
+def test_an_unknown_command_is_refused_not_checked(table, capsys, name):
+    assert cli.main([name, str(table), "r_01"]) == 2
+    out, err = capsys.readouterr()
+    assert f"unknown command {name!r}" in err
+    assert "add-row" in err
+    assert "checked" not in out + err
+    assert table.read_bytes() == SRC.encode()
+
+
+def test_a_path_shaped_like_a_command_is_still_checked(table, capsys, monkeypatch):
+    monkeypatch.chdir(table.parent)
+    os.mkdir("old-tables")
+    os.rename(table, os.path.join("old-tables", "t.mdtbl"))
+    assert cli.main(["old-tables"]) == 0
+    assert "1 file(s) checked" in capsys.readouterr().out
+
+
 def test_add_row_goes_where_its_key_sorts_by_default(table):
     assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_015"]) == 0
     assert [r["id"] for r in parse(table.read_text(encoding="utf-8"))[2]] == [

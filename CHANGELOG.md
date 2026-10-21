@@ -237,6 +237,14 @@ prose, and where the two disagree the suite wins.
   with that refusal's identifier, where it used to read only the table's
   shape and write a row into a file that was already refused.
 
+- **`rowspec` refuses an unknown command instead of checking it as a
+  path**, exit 2, when the first argument is spelled like a command,
+  lowercase words joined by `-`, and no such path exists.
+  `rowspec delete-row k.mdtbl r_1` used to check three paths and report
+  two of them missing. A first argument that is not shaped like a
+  command, or that exists, is still checked, so `rowspec FILE` is
+  unchanged.
+
 ### Fixed
 
 - **`rowspec check` and `rowspec eval` refuse an empty path as a usage

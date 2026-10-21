@@ -13,6 +13,7 @@ line 7 moves the moment anyone else edits the file.
 import argparse
 import errno
 import os
+import re
 import stat
 import sys
 import tempfile
@@ -374,6 +375,11 @@ COMMANDS = {
 }
 
 
+# A word that looks like a command rather than a path: lowercase words joined by
+# `-`, as every editing command is spelled.
+_COMMAND_SHAPE = re.compile(r"[a-z]+(?:-[a-z]+)+")
+
+
 def _help():
     width = max(len(c) for c in COMMANDS)
     lines = [f"  {c:<{width}}  {d}" for c, d in COMMANDS.items()]
@@ -468,6 +474,13 @@ def main(argv: list[str] | None = None) -> int:
     cmd = "check"
     if argv and argv[0] in COMMANDS:
         cmd = argv.pop(0)
+    elif argv and _COMMAND_SHAPE.fullmatch(argv[0]) and not os.path.lexists(argv[0]):
+        # `rowspec delete-row FILE KEY` would otherwise check three paths.
+        print(
+            f"rowspec: unknown command {argv[0]!r}; the commands are {', '.join(COMMANDS)}",
+            file=sys.stderr,
+        )
+        return 2
     p = _parser(cmd)
     a = p.parse_args(argv)
     if getattr(a, "file", None) == "":
