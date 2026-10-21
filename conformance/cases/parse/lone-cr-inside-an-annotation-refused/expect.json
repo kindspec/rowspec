@@ -1,8 +1,5 @@
 {
   "accept": false,
   "kind": "parse",
-  "refusal": [
-    "lone-cr",
-    "unclassified-line"
-  ]
+  "refusal": "lone-cr"
 }
