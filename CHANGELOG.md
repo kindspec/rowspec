@@ -178,8 +178,8 @@ prose, and where the two disagree the suite wins.
   `rowspec [duplicate-row-id]`. A warning promoted by `--strict` still
   prints none. A directory-level `.rowspec.json` that is not a JSON object,
   and an entry's own declarations, carry what a per-file sidecar's would;
-  the two refusals only the directory form makes carry none until SPEC.md
-  §13 gives them one (#255). The
+  the two refusals only the directory form makes carry none, since SPEC.md
+  §13 gives them none (#255). The
   runner judges `refusal` on a CSV-profile case as §13 says: at least one
   refusal, and each one reported carries an identifier the case lists. It
   still reads `refusal_contains`, and under either field it fails a
