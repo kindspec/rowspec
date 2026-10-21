@@ -351,6 +351,13 @@ def test_the_text_and_the_subject_are_positional_only(call):
         call()
 
 
+def test_add_column_takes_no_per_row_values():
+    """`values` names a row's cells by column in add_row; add_column gives
+    every cell `value` and has no second meaning for the word."""
+    with pytest.raises(TypeError, match="values"):
+        edit.add_column(BASE, "n", values={"r_01": "x"})
+
+
 def test_renaming_onto_a_number_says_where_it_would_be_read_as_one():
     with pytest.raises(edit.EditRefused) as e:
         edit.rename_column(BASE, "qty", "3")

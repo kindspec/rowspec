@@ -452,13 +452,10 @@ def delete_row(text, row_key, /):
     return d.result()
 
 
-def add_column(
-    text, name, /, *, formula=None, value="", values=None, after=None, before=None, align="---"
-):
+def add_column(text, name, /, *, formula=None, value="", after=None, before=None, align="---"):
     """Add a column after or before the column `after`/`before`, or last. A
-    stored column's cells hold `value`, or `values[id]` for the row keyed `id`;
-    a computed column (`formula` given) has empty cells. `align` is the new
-    alignment cell.
+    stored column's cells hold `value`; a computed column (`formula` given)
+    has empty cells. `align` is the new alignment cell.
 
     The diff is every table line: §9.6 gives each row the header's field
     count, so no writer can add a column in fewer."""
@@ -467,12 +464,9 @@ def add_column(
     _check_ident(name, "column name")
     align = _text_value(align, "alignment cell").strip(WSP)
     value = _cell_value(value, "value")
-    per_row = {}
-    for rid, v in (values or {}).items():
-        per_row[d.row(rid)] = _cell_value(v, f"value for row {rid!r}")
     if formula is not None:
         formula = _text_value(formula, "formula").strip(WSP)
-        if value != "" or per_row:
+        if value != "":
             raise Malformed(
                 f"{name!r} is a computed column; its cells are empty (§5)",
                 refusal="value-in-computed-cell",
@@ -488,7 +482,7 @@ def add_column(
         k = d.column(before) if before is not None else len(d.cols)
     cells = {d.header: head, d.align: align}
     for i in d.data:
-        cells[i] = per_row.get(i, value)
+        cells[i] = value
     lay = d.layout()
     if lay:
         width = max(len(escape_cell(c)) for c in cells.values()) + 2
