@@ -621,11 +621,17 @@ def set_formula(text, column, formula, /):
             f"{column!r} is a stored column; giving it a formula would empty every cell",
         )
     formula = _text_value(formula, "formula").strip(WSP)
+    if formula == d.formulas[column]:
+        return text
     body = d.body(d.header)
     a, b = _spans(body)[k]
     inner = body[a:b]
-    eq = a + inner.index("=") + 1
-    d.set_body(d.header, _replace(body, [(eq, b, _refill(body[eq:b], escape_cell(formula)))]))
+    # The whole cell is refilled, so that the spaces around the old formula
+    # are read as the cell's padding, not as a centred cell of their own.
+    eq = inner.index("=") + 1
+    gap = " " if inner[eq : eq + 1] in WSP else ""
+    content = inner[:eq].lstrip(WSP) + gap + escape_cell(formula)
+    d.set_body(d.header, _replace(body, [(a, b, _refill(inner, content))]))
     out = d.result()
     if parse(out)[1].get(column) != formula:
         raise EditRefused("not-representable", f"the formula would not read back as {formula!r}")
