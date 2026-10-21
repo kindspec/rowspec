@@ -44,14 +44,17 @@ The next release has no version yet; until it ships, PyPI and the Action
 list.
 
 **`rowspec.edit`, an editing API** (#198, #201), with the `rowspec add-column`,
-`delete-column` and `rename-column` subcommands over it and `add-row` now able
-to place a row beside a key. Each edit changes only the lines it is about. It
+`delete-column` and `rename-column` subcommands over it. `add-row` can place a
+row beside a key, and with no position it now puts the row where its key
+sorts when the rows are in key order, where 0.4.0 always appended; `--end`
+asks for the end. Each edit changes only the lines it is about. It
 was reviewed before release (#203), and the rulings from that review are
 applied (#271). One defect is open against it: `set_formula` centres a formula
 padded on both sides (#272).
 
 **xlsx `--values`** (#89), an export of `rowspec eval`'s values, exactly, in
-place of formulas, including a stored number that needs 17 digits (#269). Both
+place of formulas. In both modes the export now saves every number with all
+its digits (#269), and the `xlsx` extra requires `openpyxl>=3.1,<3.2`. Both
 landed in #270.
 
 ## Shipped in 0.4.0
@@ -119,13 +122,14 @@ that consumer.* It survived, on every number. Recording the criterion next to
 the result is the point — a bar that is deleted once it is cleared is a bar
 that could have moved.
 
-**And the second half of it now has a second consumer to answer it.**
+**The second half of it is still open, and now has a second consumer to
+answer it.**
 blockspec's conformance CI runs kindkit's case-tree validator and runner,
 checked out at a pinned commit, as rowspec's does. Whether the kit was fitted to
 rowspec is for that use to show, and nothing here settles it. kindkit is not on
 PyPI, so a `conformance` extra that would let `pip install` run the suite waits
-on it (#47); until then the README and `conformance/README.md` say to run it
-through `uv sync` (#268).
+on it (#47); until then the README and, since #268, `conformance/README.md`
+say to run it through `uv sync`.
 
 **This is load-bearing**, so it takes more than one independent review pass.
 
