@@ -404,8 +404,18 @@ def test_the_text_and_the_subject_are_positional_only(call):
         lambda: edit.add_row(BASE, {"item": "x"}, row_key=9),
         lambda: edit.add_column(BASE, "n", value=0),
         lambda: edit.set_declaration(BASE, "g", 3),
+        lambda: edit.set_formula(BASE, "total", 2),
+        lambda: edit.add_column(BASE, "t2", formula=2),
     ],
-    ids=["int value", "float value", "int row_key", "int column value", "int declaration"],
+    ids=[
+        "int value",
+        "float value",
+        "int row_key",
+        "int column value",
+        "int declaration",
+        "int formula",
+        "int new-column formula",
+    ],
 )
 def test_a_value_that_is_not_a_str_is_a_type_error(call):
     """Not coerced: `str()` would choose a number's spelling for the caller,
