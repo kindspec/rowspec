@@ -71,6 +71,20 @@ prose, and where the two disagree the suite wins.
   #202, and the cases added for it kill both: `just mutants` reports 112
   killed, 0 survived, 2 equivalent.
 
+- **A CSV case for the grouped header**:
+  `columns/grouped-header-of-repeated-names-refused`, a header of
+  repeated names above a row of distinct names, is `duplicate-column`
+  (§13, §9.2). It was written by an author who saw no implementation,
+  from four files fetched with `gh api`: SPEC.md,
+  `conformance/cases/README.md` and `conformance/cases-csv/README.md` at
+  `1786215`, and `conformance/cases/README.md` at `ef28bed`, a commit on
+  the #262 branch. Its `WHY.md` lists them by sha256. It reaches the
+  grouped-header path, so `just mutants-csv` gains that path's two
+  identifier mutants, one that drops the identifier and one that reports
+  `bad-identifier`, both killed: `mutants.py --profile csv` reports 85
+  killed, 0 survived, 3 equivalent. The floor of `just conform-csv` is
+  now 281 cases.
+
 - **2 conformance cases that each assert one §9 identifier alone** (#99),
   written from SPEC.md without the implementation: `conflict-marker` and
   `alignment-row-in-data`. The floor is now 630 cases.
@@ -139,7 +153,8 @@ prose, and where the two disagree the suite wins.
   refusal reported with no identifier. `just mutants-csv` gains, per
   refusal path, a mutant that drops its identifier and one that reports a
   wrong one: 20 and 19 in `csvmode.py`, 15 and 15 in `sidecar.py`, all
-  killed. The grouped header has neither, since no case reaches it.
+  killed. The grouped header had neither, since no case reached it,
+  until the case for it above.
   A first record of several blank cells, such as `,,` or a space and a
   tab, is now refused as `duplicate-column`, as §13 reads it, rather than
   as `no-table`: each blank cell is a column name, and they are one name.
