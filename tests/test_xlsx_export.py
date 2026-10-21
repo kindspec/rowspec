@@ -13,8 +13,13 @@ no formula holds a coordinate, and what a spreadsheet cannot say is refused.
 Nothing here computes a formula, so nothing here claims what one evaluates to;
 whether LibreOffice recalculates them to `rowspec eval`'s values is
 kindspec/rowspec#36.
+
+The `values=True` export (#89) holds no formula, so its check is here and not
+there: every computed cell and aggregate it writes must equal `evaluate`'s,
+exactly, over every conformance `.mdtbl` rowspec accepts.
 """
 
+import glob
 import os
 import re
 import subprocess
@@ -36,7 +41,7 @@ if os.environ.get("ROWSPEC_REQUIRE_XLSX") == "1":
 else:
     openpyxl = pytest.importorskip("openpyxl")
 
-from rowspec.table import Malformed  # noqa: E402
+from rowspec.table import Malformed, evaluate, parse  # noqa: E402
 from rowspec_xlsx import NotExpressible, export_file, to_workbook  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -164,65 +169,63 @@ def test_the_coordinate_check_can_fail():
     assert not COORDINATE.search("SUBTOTAL(109,rowspec)")
 
 
-@pytest.mark.parametrize(
-    ("table", "why"),
-    [
-        (
-            "| id | d | a | c = cumulative(a) |\n| - | - | - | - |\n| r_1 | 1 | 2 |  |\n\n"
-            "key := id\norder := by(d)\n",
-            "preceding row",
-        ),
-        (
-            "| id | g | a | t = sum(a where g = @g) |\n| - | - | - | - |\n| r_1 | x | 2 |  |\n\n"
-            "key := id\n",
-            "where",
-        ),
-        (
-            "| id | g | a |\n| - | - | - |\n| r_1 | x | 2 |\n\n"
-            'key := id\ns := sum(a where g = "x")\n',
-            "where",
-        ),
-        (
-            '| id | q | t = if(q = "3", 1, 0) |\n| - | - | - |\n| r_1 | 3.0 |  |\n\nkey := id\n',
-            "spelling",
-        ),
-        ("| id | ab | AB |\n| - | - | - |\n| r_1 | 1 | 2 |\n\nkey := id\n", "case"),
-        ("| id | a |\n| - | - |\n\nkey := id\n", "no rows"),
-        (
-            "| id | a | t = a * 1.23456789012345678 |\n| - | - | - |\n| r_1 | 1 |  |\n\n"
-            "key := id\n",
-            "significant digits",
-        ),
-        ("| id | a |\n| - | - |\n| r_1 | a\x0cb |\n\nkey := id\n", "no spreadsheet file"),
-        ("| id | a |\n| - | - |\n| r_1 | a\x0bb |\n\nkey := id\n", "no spreadsheet file"),
-        ("| id | a |\n| - | - |\n| r_1 | a\x00b |\n\nkey := id\n", "no spreadsheet file"),
-        (
-            '| id | g | t = if(g = "x\x0c", 1, 0) |\n| - | - | - |\n| r_1 | y |  |\n\nkey := id\n',
-            "no spreadsheet file",
-        ),
-        ("| id | a |\n| - | - |\n| r_1 | a\ufffeb |\n\nkey := id\n", "no spreadsheet file"),
-        (
-            '| id | g | t = if(g = "x\uffff", 1, 0) |\n| - | - | - |\n'
-            "| r_1 | y |  |\n\nkey := id\n",
-            "no spreadsheet file",
-        ),
-    ],
-    ids=[
-        "row-relative",
-        "group-where",
-        "declaration-where",
-        "text-vs-number",
-        "case",
-        "empty",
-        "literal",
-        "form-feed-cell",
-        "vertical-tab-cell",
-        "nul-cell",
-        "form-feed-string-literal",
-        "fffe-cell",
-        "ffff-string-literal",
-    ],
-)
+REFUSED_TABLES = [
+    (
+        "| id | d | a | c = cumulative(a) |\n| - | - | - | - |\n| r_1 | 1 | 2 |  |\n\n"
+        "key := id\norder := by(d)\n",
+        "preceding row",
+    ),
+    (
+        "| id | g | a | t = sum(a where g = @g) |\n| - | - | - | - |\n| r_1 | x | 2 |  |\n\n"
+        "key := id\n",
+        "where",
+    ),
+    (
+        '| id | g | a |\n| - | - | - |\n| r_1 | x | 2 |\n\nkey := id\ns := sum(a where g = "x")\n',
+        "where",
+    ),
+    (
+        '| id | q | t = if(q = "3", 1, 0) |\n| - | - | - |\n| r_1 | 3.0 |  |\n\nkey := id\n',
+        "spelling",
+    ),
+    ("| id | ab | AB |\n| - | - | - |\n| r_1 | 1 | 2 |\n\nkey := id\n", "case"),
+    ("| id | a |\n| - | - |\n\nkey := id\n", "no rows"),
+    (
+        "| id | a | t = a * 1.23456789012345678 |\n| - | - | - |\n| r_1 | 1 |  |\n\nkey := id\n",
+        "significant digits",
+    ),
+    ("| id | a |\n| - | - |\n| r_1 | a\x0cb |\n\nkey := id\n", "no spreadsheet file"),
+    ("| id | a |\n| - | - |\n| r_1 | a\x0bb |\n\nkey := id\n", "no spreadsheet file"),
+    ("| id | a |\n| - | - |\n| r_1 | a\x00b |\n\nkey := id\n", "no spreadsheet file"),
+    (
+        '| id | g | t = if(g = "x\x0c", 1, 0) |\n| - | - | - |\n| r_1 | y |  |\n\nkey := id\n',
+        "no spreadsheet file",
+    ),
+    ("| id | a |\n| - | - |\n| r_1 | a\ufffeb |\n\nkey := id\n", "no spreadsheet file"),
+    (
+        '| id | g | t = if(g = "x\uffff", 1, 0) |\n| - | - | - |\n| r_1 | y |  |\n\nkey := id\n',
+        "no spreadsheet file",
+    ),
+]
+REFUSED_IDS = [
+    "row-relative",
+    "group-where",
+    "declaration-where",
+    "text-vs-number",
+    "case",
+    "empty",
+    "literal",
+    "form-feed-cell",
+    "vertical-tab-cell",
+    "nul-cell",
+    "form-feed-string-literal",
+    "fffe-cell",
+    "ffff-string-literal",
+]
+REFUSED = dict(zip(REFUSED_IDS, REFUSED_TABLES, strict=True))
+
+
+@pytest.mark.parametrize(("table", "why"), REFUSED_TABLES, ids=REFUSED_IDS)
 def test_what_a_spreadsheet_cannot_say_is_refused(table, why):
     with pytest.raises(NotExpressible, match=why):
         to_workbook(table)
@@ -339,3 +342,160 @@ def test_tab_in_a_cell_is_exported():
 def test_a_sheet_title_xml_cannot_hold_is_refused():
     with pytest.raises(NotExpressible, match="no spreadsheet file"):
         to_workbook("| id | a |\n| - | - |\n| r_1 | 1 |\n\nkey := id\n", "a\x0cb")
+
+
+# --- values=True (#89) -------------------------------------------------------
+
+CASES = os.path.join(ROOT, "conformance", "cases")
+
+# What the formula export refuses only because no formula says it. Values mode
+# has `evaluate`'s value for each, so it exports them.
+FOR_WANT_OF_A_FORMULA = [
+    "row-relative",
+    "group-where",
+    "declaration-where",
+    "text-vs-number",
+    "literal",
+    "form-feed-string-literal",
+    "ffff-string-literal",
+]
+
+
+def test_values_mode_matches_rowspec_eval_on_every_accepted_case(tmp_path):
+    """Every computed cell and every aggregate, read back from the saved file,
+    is `evaluate`'s value: the same number exactly, an error cell for each
+    `#REF!`, no cell for a blank. No cell anywhere is a formula.
+
+    A refusal is allowed only for a reason values mode keeps (`case`, `no
+    rows`, a character XML cannot hold), and every case the formula export
+    refuses for want of a formula must be exported."""
+    numbers = errors = blanks = 0
+    refused, gained, wrong = [], 0, []
+    for src in sorted(glob.glob(f"{CASES}/**/*.mdtbl", recursive=True)):
+        case = os.path.relpath(src, CASES)
+        with open(src, encoding="utf-8", newline="") as fh:
+            text = fh.read()
+        try:
+            rows, aggs = evaluate(text)
+        except Malformed:
+            continue
+        try:
+            wb = to_workbook(text, values=True)
+        except NotExpressible as e:
+            refused.append(f"{case}: {e}")
+            continue
+        try:
+            to_workbook(text)
+        except NotExpressible:
+            gained += 1
+        dst = tmp_path / "out.xlsx"
+        wb.save(dst)
+        assert not formulas_in(dst), f"{case}: a formula in a values export"
+        ws = sheet(dst)
+        cols, formulas = parse(text)[:2]
+        got = [
+            (want, ws.cell(i, j), f"{c} row {i}")
+            for i, row in enumerate(rows, 2)
+            for j, c in enumerate(cols, 1)
+            if c in formulas
+            for want in [row[c]]
+        ]
+        below = {ws.cell(r, 1).value: ws.cell(r, 2) for r in range(len(rows) + 2, ws.max_row + 1)}
+        got += [(want, below[name], name) for name, want in aggs.items()]
+        for want, cell, where in got:
+            if isinstance(want, str) and want.startswith("#REF!"):
+                ok = cell.data_type == "e" and cell.value == "#REF!"
+                errors += 1
+            elif want == "":
+                ok = cell.value is None and cell.data_type == "n"
+                blanks += 1
+            else:
+                ok = type(cell.value) in (int, float) and cell.value == want
+                ok = ok and repr(float(cell.value)) == repr(float(want))
+                numbers += 1
+            if not ok:
+                wrong.append(f"{case} {where}: eval {want!r}, workbook {cell.value!r}")
+    assert not wrong, "\n".join(wrong[:20])
+    for r in refused:
+        assert re.search("differ only by case|no rows|no spreadsheet file", r), r
+    # A comparison over nothing is a check that cannot fail.
+    assert numbers > 1000 and errors > 500 and blanks > 0 and gained > 100, (
+        numbers,
+        errors,
+        blanks,
+        gained,
+    )
+
+
+@pytest.mark.parametrize("name", FOR_WANT_OF_A_FORMULA)
+def test_values_mode_exports_what_only_a_formula_could_not_say(name):
+    table, _why = REFUSED[name]
+    rows, aggs = evaluate(table)
+    ws = to_workbook(table, values=True).active
+    assert ws.max_row >= len(rows) + 1
+
+
+@pytest.mark.parametrize("name", sorted(set(REFUSED) - set(FOR_WANT_OF_A_FORMULA)))
+def test_values_mode_still_refuses_what_a_sheet_cannot_hold(name):
+    table, why = REFUSED[name]
+    with pytest.raises(NotExpressible, match=why):
+        to_workbook(table, values=True)
+
+
+def test_values_mode_writes_ref_as_an_error_cell_not_text(tmp_path):
+    """A spreadsheet `SUM` skips text, so a `#REF!` written as text would let a
+    total over it come out as a number. As an error cell it propagates."""
+    src = tmp_path / "t.mdtbl"
+    src.write_text(
+        "| id | a | z | t = a / z |\n| -- | -: | -: | -: |\n"
+        "| r_1 | 5 | 0 |  |\n| r_2 | 6 | 2 |  |\n\nkey := id\ns := sum(t)\n"
+    )
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx"), values=True))
+    assert (ws.cell(2, 4).value, ws.cell(2, 4).data_type) == ("#REF!", "e")
+    assert (ws.cell(3, 4).value, ws.cell(3, 4).data_type) == (3, "n")
+    assert ws.cell(ws.max_row, 1).value == "s"
+    assert (ws.cell(ws.max_row, 2).value, ws.cell(ws.max_row, 2).data_type) == ("#REF!", "e")
+
+
+def test_values_mode_keeps_what_spreadsheet_arithmetic_loses(tmp_path):
+    """The two disagreements the formula export has with `rowspec eval`, #83's
+    and #88's: values mode writes eval's answer for both, to the last digit."""
+    src = tmp_path / "t.mdtbl"
+    src.write_text(
+        "| id | a | b | k | c = a + b | d = if(c = 0.3, 1, 0) | z = a + b - k |\n"
+        "| -- | -: | -: | -: | -: | -: | -: |\n"
+        "| r_1 | 0.1 | 0.2 | 0.3 |  |  |  |\n"
+        "| r_2 | 10000000000000000 | 0 | 0 |  |  |  |\n"
+        "| r_3 | 1 | 0 | 0 |  |  |  |\n"
+        "| r_4 | -10000000000000000 | 0 | 0 |  |  |  |\n\nkey := id\ns := sum(a)\n",
+    )
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx"), values=True))
+    assert [ws.cell(2, c).value for c in (5, 6, 7)] == [
+        0.30000000000000004,
+        0,
+        5.551115123125783e-17,
+    ]
+    assert ws.cell(ws.max_row, 2).value == 1.1
+
+
+def test_the_default_export_is_still_formulas(tmp_path):
+    src = tmp_path / "t.mdtbl"
+    src.write_text(TABLE)
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx")))
+    assert ws.cell(2, 5).data_type == "f"
+
+
+def test_the_module_entry_point_takes_values(tmp_path):
+    src = tmp_path / "t.mdtbl"
+    src.write_text(TABLE)
+    dst = tmp_path / "t.xlsx"
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join([f"{ROOT}/export", f"{ROOT}/reference"]))
+    r = subprocess.run(
+        [sys.executable, "-m", "rowspec_xlsx", "--values", str(src), str(dst)],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert [c[4] for c in grid(str(dst))[1:3]] == [120, 13.5]
+    assert not formulas_in(str(dst))

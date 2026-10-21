@@ -9,6 +9,18 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **xlsx export takes `--values`** (#89). `python -m rowspec_xlsx --values`,
+  or `to_workbook(text, values=True)`, writes `rowspec eval`'s computed values
+  in place of formulas. Each number is written at full binary64 precision, and
+  each `#REF!` as the spreadsheet error `#REF!`, so a spreadsheet `SUM` over it
+  is not silently skipped. Formulas stay the default. With no formula to
+  write, this mode exports `cumulative`, `prior`, `delta`, `where`, an `if`
+  comparing a number column with text, a literal of more than 15 significant
+  digits, and a string literal XML cannot hold. It still refuses column names
+  that differ only by case, a table with no rows, and a character XML cannot
+  hold in the sheet itself. `just test-xlsx` compares every computed cell and
+  aggregate with `rowspec eval` over every conformance `.mdtbl` rowspec
+  accepts.
 - **`evaluate_bytes(data)`, in both implementations**: `evaluate` over a
   file's bytes, refusing bytes that are not well-formed UTF-8 with §9.14's
   `bad-encoding` before anything else is looked at (#222). The reference's

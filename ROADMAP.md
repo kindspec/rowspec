@@ -27,7 +27,7 @@ with a GitHub Action.
     85 killed, 3 equivalent   just mutants-csv (csv profile)
     41 killed, 0 equivalent   just mutants-csv (sidecar profile)
     1613 passed, 2 skipped    just test
-    28 passed                 just test-xlsx
+    46 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
                                 pytest tests/test_xlsx_libreoffice.py -q -s
@@ -126,7 +126,8 @@ with `rowspec eval`. Still open:
   §7's exact sum does not, at ordinary magnitudes as well as near `1e308`.
 - **Comparison (#88).** Tolerant comparison and subtraction flip `if`
   branches.
-- **A static-values export (#89),** proposed as the exact option.
+- **A values export (#89)** is built: `--values` writes `rowspec eval`'s
+  values, exactly, in place of formulas.
 - **Filtered and group aggregates (#35).** A `where` predicate with an
   exact-text spreadsheet form is not designed yet.
 

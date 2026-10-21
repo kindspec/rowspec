@@ -70,6 +70,25 @@ Two further differences are deliberate and stay:
 A stored cell is still never a formula: `_append` forces every string cell to
 text, because a stored cell is text under §5 and a spreadsheet application
 would otherwise read a leading `=` as a live formula.
+
+**`values=True` writes `rowspec eval`'s values instead of formulas**
+(kindspec/rowspec#89). Every computed cell and aggregate is the binary64 value
+`evaluate` computed, so the numbers are exactly the format's, and none of the
+spreadsheet arithmetic above applies. A `#REF!` is written as the spreadsheet
+error `#REF!`, an error cell and not text, so a spreadsheet `SUM` over it
+answers an error instead of skipping it; its name is lost, as in a formula
+export. The workbook holds no formula, so nothing in it recalculates: it is
+the table as computed when it was exported.
+
+What the formula export refuses only because no formula says it is exported
+in this mode, since `evaluate` has its value: `cumulative`, `prior`, `delta`,
+`where` on a column or a declaration, the `if` that compares a number column
+with text, the literal of more than 15 significant digits, and a string
+literal holding a character XML cannot hold. Three refusals stay, because
+they are about the sheet and not about a formula: column names that differ
+only by case and a table with no rows, which a spreadsheet table cannot be,
+and a character XML cannot hold in a header, a stored cell or the sheet
+title.
 """
 
 try:
@@ -176,6 +195,25 @@ def _formula(cell, text):
     _expressible(text)
     cell.value = "=" + text
     cell.data_type = "f"
+
+
+def _static(cell, v):
+    """One of `evaluate`'s values, as it is. §4.2 rule 10 gives a computed
+    value two kinds, a number and an error, and §7 lets a blank through.
+    `#REF!(qty)` becomes the error `#REF!`, never the text, because a
+    spreadsheet `SUM` skips text and a `#REF!` must not be skipped."""
+    if isinstance(v, str) and v.startswith("#REF!"):
+        cell.value = "#REF!"
+        cell.data_type = "e"
+    elif v == "":
+        cell.value = None
+    else:
+        # openpyxl saves a number as `%.16g`, a digit short of binary64, so
+        # 0.30000000000000004 would be saved as 0.3. `repr` is the shortest
+        # spelling that reads back as the same double, and a string held as a
+        # number cell's value is written as it is.
+        cell.value = v
+        cell._value = repr(v)
 
 
 def _ref(col):
@@ -321,14 +359,17 @@ def _aggregate(fn, col, pred, cols, name):
     return form
 
 
-def to_workbook(text, sheet_title="table"):
+def to_workbook(text, sheet_title="table", *, values=False):
     """Build a workbook from `.mdtbl` source.
+
+    With `values=True`, computed cells and aggregates are `rowspec eval`'s
+    values rather than formulas.
 
     Raises `Malformed` on a bad table, and `NotExpressible` on a valid one a
     spreadsheet cannot say.
     """
     cols, formulas, _rows, decls, _order, key = parse(text)
-    rows, _aggs = evaluate(text)
+    rows, aggs = evaluate(text)
     folded = {}
     for c in cols:
         if c.casefold() in folded:
@@ -339,13 +380,19 @@ def to_workbook(text, sheet_title="table"):
         folded[c.casefold()] = c
     if not rows:
         raise NotExpressible("the table has no rows, and a spreadsheet table needs one")
-    col_formula = _column_formulas(cols, formulas, rows, key)
-    agg_formula = {nm: _aggregate(fn, col, pred, cols, nm) for nm, (fn, col, pred) in decls.items()}
+    if values:
+        col_formula, agg_formula = {}, {}
+    else:
+        col_formula = _column_formulas(cols, formulas, rows, key)
+        agg_formula = {
+            nm: _aggregate(fn, col, pred, cols, nm) for nm, (fn, col, pred) in decls.items()
+        }
 
     wb = Workbook()
-    # Nothing written here carries a cached value, so a spreadsheet must
-    # compute every formula when the file opens.
-    wb.calculation = CalcProperties(fullCalcOnLoad=True)
+    if not values:
+        # Nothing written here carries a cached value, so a spreadsheet must
+        # compute every formula when the file opens.
+        wb.calculation = CalcProperties(fullCalcOnLoad=True)
     ws = wb.active
     _expressible(sheet_title)
     ws.title = sheet_title
@@ -363,14 +410,17 @@ def to_workbook(text, sheet_title="table"):
         )
         for i, c in enumerate(cols, 1):
             if c in formulas:
-                _formula(ws.cell(ws.max_row, i), col_formula[c])
+                if values:
+                    _static(ws.cell(ws.max_row, i), row[c])
+                else:
+                    _formula(ws.cell(ws.max_row, i), col_formula[c])
     table = Table(displayName=TABLE, ref=f"A1:{ws.cell(len(rows) + 1, len(cols)).coordinate}")
     table.tableColumns = [
         TableColumn(
             id=i,
             name=c,
             calculatedColumnFormula=TableFormula(attr_text=col_formula[c])
-            if c in formulas
+            if c in col_formula
             else None,
         )
         for i, c in enumerate(cols, 1)
@@ -379,12 +429,15 @@ def to_workbook(text, sheet_title="table"):
     for name in decls:
         _append(ws, [None])  # one blank row between the grid and the aggregates
         _append(ws, [name])
-        _formula(ws.cell(ws.max_row, 2), agg_formula[name])
+        if values:
+            _static(ws.cell(ws.max_row, 2), aggs[name])
+        else:
+            _formula(ws.cell(ws.max_row, 2), agg_formula[name])
     return wb
 
 
-def export_file(src, dst, sheet_title="table"):
+def export_file(src, dst, sheet_title="table", *, values=False):
     with open(src, encoding="utf-8") as fh:
-        wb = to_workbook(fh.read(), sheet_title)
+        wb = to_workbook(fh.read(), sheet_title, values=values)
     wb.save(dst)
     return dst
