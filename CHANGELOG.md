@@ -54,9 +54,7 @@ prose, and where the two disagree the suite wins.
   end, where two concurrent appends always conflict. **`rowspec add-column`,
   `delete-column` and `rename-column`** edit a file through `rowspec.edit`.
   A refused edit leaves the file untouched and prints the refusal's
-  identifier in brackets. `add-row`'s own refusals are `[no-key]` for a
-  table with no key, which it still refuses, and `[value-count]` for the
-  wrong number of values.
+  identifier in brackets.
 
 - **The CSV mutation gate covers the quoted-LF and empty `order` name
   cases** (#192). Three mutants in `csvmode.py`: a date matched with
@@ -237,13 +235,19 @@ prose, and where the two disagree the suite wins.
   with that refusal's identifier, where it used to read only the table's
   shape and write a row into a file that was already refused.
 
+- **`rowspec add-row`'s own refusals carry an identifier**: `[no-key]`
+  for a table with no key, which it still refuses, and `[value-count]`
+  for the wrong number of values. Both messages used to end without one.
+
 - **`rowspec` refuses an unknown command instead of checking it as a
   path**, exit 2, when the first argument is spelled like a command,
   lowercase words joined by `-`, and no such path exists.
   `rowspec delete-row k.mdtbl r_1` used to check three paths and report
   two of them missing. A first argument that is not shaped like a
-  command, or that exists, is still checked, so `rowspec FILE` is
-  unchanged.
+  command, or that exists, is still checked. A missing path that is shaped
+  like a command is the one case that changes: `rowspec my-table k.mdtbl`
+  now exits 2 and checks nothing, where it used to report `my-table`
+  missing and still check `k.mdtbl`.
 
 ### Fixed
 
