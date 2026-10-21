@@ -248,6 +248,20 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **xlsx export saves every number with all its digits** (#269). openpyxl
+  writes a number cell as `%.16g`, one digit short of binary64, so a stored
+  `0.30000000000000004` was saved as `0.3`, and `-0.0` as `-0`, which reads
+  back as the integer `0`. The exporter's workbook now saves each finite float
+  with `repr`, in both modes, by replacing openpyxl's number-to-string step for
+  the length of the save. The cells in memory keep their real values. That
+  step is private to openpyxl, so the `xlsx` extra now requires
+  `openpyxl>=3.1,<3.2`, and a test fails if a save stops going through it.
+
+- **`python -m rowspec_xlsx` parses its arguments with argparse.** `-h` now
+  prints help and exits 0, an option is never matched by an abbreviation, and
+  a source path beginning with `-` must follow `--`. A usage error still exits
+  2.
+
 - **`rowspec check` and `rowspec eval` refuse an empty path as a usage
   error** (#250), exit 2, as the editing commands do. They reported it
   as a missing file named by nothing, `: No such file or directory`, or

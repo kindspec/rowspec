@@ -13,6 +13,7 @@ import sys
 def main(argv=None):
     p = argparse.ArgumentParser(
         prog="python -m rowspec_xlsx",
+        allow_abbrev=False,
         description="Export a .mdtbl to .xlsx. Computed cells are formulas unless --values.",
     )
     p.add_argument("src", metavar="SRC.mdtbl")

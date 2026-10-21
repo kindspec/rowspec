@@ -190,16 +190,20 @@ independent implementation of a table format must not be required to read xlsx.
 A test fails if anything under `reference/` ever imports outside the standard
 library, so the boundary is a check rather than a convention.
 
-It writes one sheet holding a spreadsheet table named `rowspec`. Computed
-columns are live formulas over structured references, such as
-`rowspec[[#This Row],[qty]]`, and the declared aggregates sit below the grid as
-`SUBTOTAL` forms. No formula holds a coordinate. The formulas are written to
+It writes one sheet holding a spreadsheet table named `rowspec`, with the
+declared aggregates below the grid. In both modes every number cell, stored or
+computed, is saved with all the digits its binary64 value needs
+([#269](https://github.com/kindspec/rowspec/issues/269)).
+
+By default, computed columns are live formulas over structured references,
+such as `rowspec[[#This Row],[qty]]`, and the aggregates are `SUBTOTAL` forms.
+No formula holds a coordinate. The formulas are written to
 carry this format's rules rather than the spreadsheet's: a blank operand, text
 in a summed column, or the minimum of nothing is an error, not a `0`. A `#REF!`
 arrives as a spreadsheet error value, though without the name in its
 parentheses.
 
-The workbook computes with spreadsheet arithmetic, which is not this format's.
+A formula workbook computes with spreadsheet arithmetic, which is not this format's.
 Tolerant comparison and subtraction can make an `if` take the other branch
 ([#88](https://github.com/kindspec/rowspec/issues/88)), and left-to-right
 addition can cancel a total that §7's exact sum keeps
@@ -229,7 +233,8 @@ arithmetic, which can disagree with `rowspec eval` as described above
 ([#83](https://github.com/kindspec/rowspec/issues/83),
 [#88](https://github.com/kindspec/rowspec/issues/88)). `--values` writes
 `rowspec eval`'s computed values in place of the formulas, at full binary64
-precision, so its computed cells and aggregates are exactly the format's
+precision, so its computed cells and aggregates are exactly the format's, as
+are its stored numbers
 ([#89](https://github.com/kindspec/rowspec/issues/89)). Each `#REF!` is written
 as the spreadsheet error `#REF!`, an error cell and not text, so a spreadsheet
 `SUM` over it is an error rather than skipping it. The name in its parentheses

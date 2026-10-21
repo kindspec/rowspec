@@ -71,6 +71,10 @@ A stored cell is still never a formula: `_append` forces every string cell to
 text, because a stored cell is text under §5 and a spreadsheet application
 would otherwise read a leading `=` as a live formula.
 
+Every number cell, stored or computed, is saved with the shortest spelling
+that reads back as the same binary64 value (`_Workbook.save`), where openpyxl
+alone keeps 16 significant digits (#269).
+
 **`values=True` writes `rowspec eval`'s values instead of formulas**
 (kindspec/rowspec#89). Every computed cell and aggregate is the binary64 value
 `evaluate` computed, so the numbers are exactly the format's, and none of the
@@ -93,6 +97,7 @@ title.
 
 try:
     from openpyxl import Workbook
+    from openpyxl.cell import _writer as _cell_writer
     from openpyxl.workbook.properties import CalcProperties
     from openpyxl.worksheet.table import Table, TableColumn, TableFormula
 except ModuleNotFoundError as exc:  # the extra is absent, which is the default
@@ -207,13 +212,44 @@ def _static(cell, v):
         cell.data_type = "e"
     elif v == "":
         cell.value = None
-    else:
-        # openpyxl saves a number as `%.16g`, a digit short of binary64, so
-        # 0.30000000000000004 would be saved as 0.3. `repr` is the shortest
-        # spelling that reads back as the same double, and a string held as a
-        # number cell's value is written as it is.
+    elif isinstance(v, int | float) and not isinstance(v, bool):
         cell.value = v
-        cell._value = repr(v)
+    else:
+        raise TypeError(f"{v!r}: a computed value is a number, a blank or a #REF!")
+
+
+# openpyxl writes a number cell's `<v>` with `safe_string`, which spells a
+# float as `%.16g`: a digit short of binary64, so 0.30000000000000004 is saved
+# as 0.3, and -0.0 as `-0`, which reads back as the integer 0 (#269). Bound at
+# import, so an openpyxl without the name fails here, not silently at save.
+# pyproject pins openpyxl below 3.2 because this is a private module, and
+# tests/test_xlsx_export.py fails if a save stops going through it.
+_SAFE_STRING = _cell_writer.safe_string
+
+
+def _exact(value):
+    """`repr` for a finite float: the shortest spelling that reads back as the
+    same double. Everything else is openpyxl's own spelling."""
+    if isinstance(value, float) and math.isfinite(value):
+        return repr(value)
+    return _SAFE_STRING(value)
+
+
+class _Workbook(Workbook):
+    """A workbook whose `save` writes every number cell exactly.
+
+    The override of openpyxl's number-to-string step lasts only for the save,
+    so the cells in memory keep their real values, and no other workbook in
+    the process is affected unless it saves at the same moment on another
+    thread.
+    """
+
+    def save(self, filename):
+        _cell_writer.safe_string = _exact
+        try:
+            super().save(filename)
+        finally:
+            _cell_writer.safe_string = _SAFE_STRING
 
 
 def _ref(col):
@@ -388,11 +424,11 @@ def to_workbook(text, sheet_title="table", *, values=False):
             nm: _aggregate(fn, col, pred, cols, nm) for nm, (fn, col, pred) in decls.items()
         }
 
-    wb = Workbook()
-    if not values:
-        # Nothing written here carries a cached value, so a spreadsheet must
-        # compute every formula when the file opens.
-        wb.calculation = CalcProperties(fullCalcOnLoad=True)
+    wb = _Workbook()
+    # A formula written here carries no cached value, so a spreadsheet must
+    # compute every formula when the file opens. A values workbook holds none,
+    # and openpyxl's default would still ask for a full recalculation.
+    wb.calculation = CalcProperties(fullCalcOnLoad=not values)
     ws = wb.active
     _expressible(sheet_title)
     ws.title = sheet_title

@@ -41,8 +41,10 @@ if os.environ.get("ROWSPEC_REQUIRE_XLSX") == "1":
 else:
     openpyxl = pytest.importorskip("openpyxl")
 
+from openpyxl.cell import _writer as cell_writer  # noqa: E402
+from openpyxl.compat import safe_string as openpyxl_safe_string  # noqa: E402
 from rowspec.table import Malformed, evaluate, parse  # noqa: E402
-from rowspec_xlsx import NotExpressible, export_file, to_workbook  # noqa: E402
+from rowspec_xlsx import NotExpressible, _static, export_file, to_workbook  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -499,3 +501,124 @@ def test_the_module_entry_point_takes_values(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
     assert [c[4] for c in grid(str(dst))[1:3]] == [120, 13.5]
     assert not formulas_in(str(dst))
+
+
+def accepted_cases():
+    for src in sorted(glob.glob(f"{CASES}/**/*.mdtbl", recursive=True)):
+        with open(src, encoding="utf-8", newline="") as fh:
+            text = fh.read()
+        try:
+            yield os.path.relpath(src, CASES), text, evaluate(text)
+        except Malformed:
+            continue
+
+
+def test_values_mode_cells_in_memory_are_eval_numbers():
+    """The workbook `to_workbook` returns, before any save: a number cell holds
+    a number, the one `evaluate` computed, never its spelling as text. The
+    exact digits are a matter for the save, not for the cell."""
+    seen, wrong = 0, []
+    for case, text, (rows, aggs) in accepted_cases():
+        try:
+            ws = to_workbook(text, values=True).active
+        except NotExpressible:
+            continue
+        cols, formulas = parse(text)[:2]
+        pairs = [
+            (f"{c} row {i}", row[c], ws.cell(i, j).value)
+            for i, row in enumerate(rows, 2)
+            for j, c in enumerate(cols, 1)
+            if c in formulas
+        ]
+        below = {
+            ws.cell(r, 1).value: ws.cell(r, 2).value for r in range(len(rows) + 2, ws.max_row + 1)
+        }
+        pairs += [(name, want, below[name]) for name, want in aggs.items()]
+        for where, want, got in pairs:
+            if isinstance(want, int | float):
+                seen += 1
+                if not (isinstance(got, int | float) and repr(got) == repr(want)):
+                    wrong.append(f"{case} {where}: eval {want!r}, cell {got!r}")
+    assert not wrong, "\n".join(wrong[:20])
+    assert seen > 500, seen
+
+
+STORED_17 = (
+    "| id | a | t = a * 1 |\n| -- | -: | -: |\n| r_1 | 0.30000000000000004 |  |\n\nkey := id\n"
+)
+
+
+@pytest.mark.parametrize("values", [False, True], ids=["formulas", "values"])
+def test_a_stored_number_keeps_its_17th_digit(tmp_path, values):
+    """#269: openpyxl alone saves a number with 16 significant digits, so a
+    stored `0.30000000000000004` came back as `0.3`, in either mode."""
+    src = tmp_path / "t.mdtbl"
+    src.write_text(STORED_17)
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx"), values=values))
+    assert repr(ws.cell(2, 2).value) == "0.30000000000000004"
+
+
+def test_the_exact_digits_hook_still_applies(tmp_path):
+    """The exact spelling depends on replacing `openpyxl.cell._writer.safe_string`
+    during a save, a private name. If openpyxl stops writing cells through it,
+    the replacement silently does nothing, and this fails on the saved XML.
+    It also checks that the save puts openpyxl's own function back."""
+    wb = to_workbook(
+        "| id | a | u = 0 * -1 |\n| -- | -: | -: |\n"
+        "| r_1 | 0.30000000000000004 |  |\n\nkey := id\n",
+        values=True,
+    )
+    dst = tmp_path / "t.xlsx"
+    wb.save(dst)
+    with zipfile.ZipFile(dst) as z:
+        xml = z.read("xl/worksheets/sheet1.xml").decode()
+    assert "<v>0.30000000000000004</v>" in xml and "<v>-0.0</v>" in xml, xml
+    # Against openpyxl's own function, not a copy taken here: an earlier save
+    # that failed to restore it would have left the replacement in place.
+    assert cell_writer.safe_string is openpyxl_safe_string
+
+
+def test_minus_zero_is_written_as_minus_zero(tmp_path):
+    """No conformance case computes -0.0, so this one does: `0 * -1` is -0.0
+    under binary64, and `%.16g` spells it `-0`, which reads back as the
+    integer 0."""
+    src = tmp_path / "t.mdtbl"
+    src.write_text("| id | a | u = a * -1 |\n| -- | -: | -: |\n| r_1 | 0 |  |\n\nkey := id\n")
+    assert repr(evaluate(src.read_text())[0][0]["u"]) == "-0.0"
+    ws = sheet(export_file(str(src), str(tmp_path / "t.xlsx"), values=True))
+    assert repr(ws.cell(2, 3).value) == "-0.0"
+
+
+def test_to_workbook_defaults_to_formulas():
+    wb = to_workbook(TABLE)
+    assert wb.active.cell(2, 5).data_type == "f"
+    assert wb.calculation.fullCalcOnLoad is True
+
+
+def test_values_mode_asks_for_no_recalculation(tmp_path):
+    """A values workbook has no formula, and openpyxl's default `calcPr` would
+    still ask the spreadsheet for a full recalculation on load."""
+    src = tmp_path / "t.mdtbl"
+    src.write_text(TABLE)
+    path = export_file(str(src), str(tmp_path / "t.xlsx"), values=True)
+    assert not openpyxl.load_workbook(path).calculation.fullCalcOnLoad
+    path = export_file(str(src), str(tmp_path / "f.xlsx"))
+    assert openpyxl.load_workbook(path).calculation.fullCalcOnLoad
+
+
+@pytest.mark.parametrize("v", ["hello", True, None, [1]])
+def test_a_computed_value_that_is_not_a_number_blank_or_ref_is_refused(v):
+    cell = openpyxl.Workbook().active["A1"]
+    with pytest.raises(TypeError, match="a number, a blank or a #REF!"):
+        _static(cell, v)
+
+
+@pytest.mark.parametrize(
+    ("argv", "code"),
+    [(["--val", "a.mdtbl", "b.xlsx"], 2), (["-h"], 0), (["only-one"], 2)],
+    ids=["abbreviation", "help", "one-path"],
+)
+def test_the_module_entry_point_parses_its_arguments(argv, code, capsys):
+    from rowspec_xlsx.__main__ import main
+
+    assert main(argv) == code
