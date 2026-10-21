@@ -70,10 +70,34 @@ Two further differences are deliberate and stay:
 A stored cell is still never a formula: `_append` forces every string cell to
 text, because a stored cell is text under §5 and a spreadsheet application
 would otherwise read a leading `=` as a live formula.
+
+Every number cell, stored or computed, is saved with the shortest spelling
+that reads back as the same binary64 value (`_Workbook.save`), where openpyxl
+alone keeps 16 significant digits (#269).
+
+**`values=True` writes `rowspec eval`'s values instead of formulas**
+(kindspec/rowspec#89). Every computed cell and aggregate is the binary64 value
+`evaluate` computed, so the numbers are exactly the format's, and none of the
+spreadsheet arithmetic above applies. A `#REF!` is written as the spreadsheet
+error `#REF!`, an error cell and not text, so a spreadsheet `SUM` over it
+answers an error instead of skipping it; its name is lost, as in a formula
+export. The workbook holds no formula, so nothing in it recalculates: it is
+the table as computed when it was exported.
+
+What the formula export refuses only because no formula says it is exported
+in this mode, since `evaluate` has its value: `cumulative`, `prior`, `delta`,
+`where` on a column or a declaration, the `if` that compares a number column
+with text, the literal of more than 15 significant digits, and a string
+literal holding a character XML cannot hold. Three refusals stay, because
+they are about the sheet and not about a formula: column names that differ
+only by case and a table with no rows, which a spreadsheet table cannot be,
+and a character XML cannot hold in a header, a stored cell or the sheet
+title.
 """
 
 try:
     from openpyxl import Workbook
+    from openpyxl.cell import _writer as _cell_writer
     from openpyxl.workbook.properties import CalcProperties
     from openpyxl.worksheet.table import Table, TableColumn, TableFormula
 except ModuleNotFoundError as exc:  # the extra is absent, which is the default
@@ -84,6 +108,7 @@ except ModuleNotFoundError as exc:  # the extra is absent, which is the default
 
 import math
 import re
+import threading
 
 from rowspec.table import (
     _GROUP,
@@ -176,6 +201,70 @@ def _formula(cell, text):
     _expressible(text)
     cell.value = "=" + text
     cell.data_type = "f"
+
+
+def _static(cell, v):
+    """One of `evaluate`'s values, as it is. §4.2 rule 10 gives a computed
+    value two kinds, a number and an error, and §7 lets a blank through.
+    `#REF!(qty)` becomes the error `#REF!`, never the text, because a
+    spreadsheet `SUM` skips text and a `#REF!` must not be skipped."""
+    if isinstance(v, str) and v.startswith("#REF!"):
+        cell.value = "#REF!"
+        cell.data_type = "e"
+    elif v == "":
+        cell.value = None
+    elif isinstance(v, int | float) and not isinstance(v, bool):
+        cell.value = v
+    else:
+        raise TypeError(f"{v!r}: a computed value is a number, a blank or a #REF!")
+
+
+# openpyxl writes a number cell's `<v>` with `safe_string`, which spells a
+# float as `%.16g`: a digit short of binary64, so 0.30000000000000004 is saved
+# as 0.3, and -0.0 as `-0`, which reads back as the integer 0 (#269). Bound at
+# import, so an openpyxl without the name fails here, not silently at save.
+# pyproject pins openpyxl below 3.2 because this is a private module, and
+# tests/test_xlsx_export.py fails if a save stops going through it.
+_SAFE_STRING = _cell_writer.safe_string
+
+
+def _exact(value):
+    """`float.__repr__` for a finite float: the shortest spelling that reads
+    back as the same double. Everything else is openpyxl's own spelling.
+
+    `float.__repr__`, not `repr`: a float subclass may spell itself otherwise,
+    and `numpy.float64` is `np.float64(0.1)`, which is not a number in XML."""
+    if isinstance(value, float) and math.isfinite(value):
+        return float.__repr__(value)
+    return _SAFE_STRING(value)
+
+
+# Held for the whole install, save and restore, so `_Workbook` saves are
+# serialized: unguarded, one thread's restore lands in the middle of another's
+# save, and the rest of that file is written with 16 digits.
+_SAVE_LOCK = threading.Lock()
+
+
+class _Workbook(Workbook):
+    """A workbook whose `save` writes every number cell exactly.
+
+    The override of openpyxl's number-to-string step lasts only for the save,
+    so the cells in memory keep their real values. `_Workbook` saves are
+    serialized by `_SAVE_LOCK`. A plain openpyxl save running at the same
+    moment in another thread also sees the override, so its finite floats get
+    the same exact spelling instead of openpyxl's 16 digits.
+
+    Only this `save` installs the override. Calling openpyxl's
+    `save_workbook(wb, ...)` directly bypasses it and writes 16 digits.
+    """
+
+    def save(self, filename):
+        with _SAVE_LOCK:
+            _cell_writer.safe_string = _exact
+            try:
+                super().save(filename)
+            finally:
+                _cell_writer.safe_string = _SAFE_STRING
 
 
 def _ref(col):
@@ -321,14 +410,17 @@ def _aggregate(fn, col, pred, cols, name):
     return form
 
 
-def to_workbook(text, sheet_title="table"):
+def to_workbook(text, sheet_title="table", *, values=False):
     """Build a workbook from `.mdtbl` source.
+
+    With `values=True`, computed cells and aggregates are `rowspec eval`'s
+    values rather than formulas.
 
     Raises `Malformed` on a bad table, and `NotExpressible` on a valid one a
     spreadsheet cannot say.
     """
     cols, formulas, _rows, decls, _order, key = parse(text)
-    rows, _aggs = evaluate(text)
+    rows, aggs = evaluate(text)
     folded = {}
     for c in cols:
         if c.casefold() in folded:
@@ -339,13 +431,19 @@ def to_workbook(text, sheet_title="table"):
         folded[c.casefold()] = c
     if not rows:
         raise NotExpressible("the table has no rows, and a spreadsheet table needs one")
-    col_formula = _column_formulas(cols, formulas, rows, key)
-    agg_formula = {nm: _aggregate(fn, col, pred, cols, nm) for nm, (fn, col, pred) in decls.items()}
+    if values:
+        col_formula, agg_formula = {}, {}
+    else:
+        col_formula = _column_formulas(cols, formulas, rows, key)
+        agg_formula = {
+            nm: _aggregate(fn, col, pred, cols, nm) for nm, (fn, col, pred) in decls.items()
+        }
 
-    wb = Workbook()
-    # Nothing written here carries a cached value, so a spreadsheet must
-    # compute every formula when the file opens.
-    wb.calculation = CalcProperties(fullCalcOnLoad=True)
+    wb = _Workbook()
+    # A formula written here carries no cached value, so a spreadsheet must
+    # compute every formula when the file opens. A values workbook holds none,
+    # and openpyxl's default would still ask for a full recalculation.
+    wb.calculation = CalcProperties(fullCalcOnLoad=not values)
     ws = wb.active
     _expressible(sheet_title)
     ws.title = sheet_title
@@ -363,14 +461,17 @@ def to_workbook(text, sheet_title="table"):
         )
         for i, c in enumerate(cols, 1):
             if c in formulas:
-                _formula(ws.cell(ws.max_row, i), col_formula[c])
+                if values:
+                    _static(ws.cell(ws.max_row, i), row[c])
+                else:
+                    _formula(ws.cell(ws.max_row, i), col_formula[c])
     table = Table(displayName=TABLE, ref=f"A1:{ws.cell(len(rows) + 1, len(cols)).coordinate}")
     table.tableColumns = [
         TableColumn(
             id=i,
             name=c,
             calculatedColumnFormula=TableFormula(attr_text=col_formula[c])
-            if c in formulas
+            if c in col_formula
             else None,
         )
         for i, c in enumerate(cols, 1)
@@ -379,12 +480,15 @@ def to_workbook(text, sheet_title="table"):
     for name in decls:
         _append(ws, [None])  # one blank row between the grid and the aggregates
         _append(ws, [name])
-        _formula(ws.cell(ws.max_row, 2), agg_formula[name])
+        if values:
+            _static(ws.cell(ws.max_row, 2), aggs[name])
+        else:
+            _formula(ws.cell(ws.max_row, 2), agg_formula[name])
     return wb
 
 
-def export_file(src, dst, sheet_title="table"):
+def export_file(src, dst, sheet_title="table", *, values=False):
     with open(src, encoding="utf-8") as fh:
-        wb = to_workbook(fh.read(), sheet_title)
+        wb = to_workbook(fh.read(), sheet_title, values=values)
     wb.save(dst)
     return dst

@@ -9,6 +9,18 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **xlsx export takes `--values`** (#89). `python -m rowspec_xlsx --values`,
+  or `to_workbook(text, values=True)`, writes `rowspec eval`'s computed values
+  in place of formulas. Each number is written at full binary64 precision, and
+  each `#REF!` as the spreadsheet error `#REF!`, so a spreadsheet `SUM` over it
+  is not silently skipped. Formulas stay the default. With no formula to
+  write, this mode exports `cumulative`, `prior`, `delta`, `where`, an `if`
+  comparing a number column with text, a literal of more than 15 significant
+  digits, and a string literal XML cannot hold. It still refuses column names
+  that differ only by case, a table with no rows, and a character XML cannot
+  hold in the sheet itself. `just test-xlsx` compares every computed cell and
+  aggregate with `rowspec eval` over every conformance `.mdtbl` rowspec
+  accepts.
 - **`evaluate_bytes(data)`, in both implementations**: `evaluate` over a
   file's bytes, refusing bytes that are not well-formed UTF-8 with §9.14's
   `bad-encoding` before anything else is looked at (#222). The reference's
@@ -250,6 +262,21 @@ prose, and where the two disagree the suite wins.
   missing and still check `k.mdtbl`.
 
 ### Fixed
+
+- **xlsx export saves every number with all its digits** (#269). openpyxl
+  writes a number cell as `%.16g`, one digit short of binary64, so a stored
+  `0.30000000000000004` was saved as `0.3`, and `-0.0` as `-0`, which reads
+  back as the integer `0`. The exporter's workbook now saves each finite float
+  with `repr`, in both modes, by replacing openpyxl's number-to-string step for
+  the length of the save, and those saves hold a lock so that one thread's
+  save cannot end another's. The cells in memory keep their real values. That
+  step is private to openpyxl, so the `xlsx` extra now requires
+  `openpyxl>=3.1,<3.2`, and a test fails if a save stops going through it.
+
+- **`python -m rowspec_xlsx` parses its arguments with argparse.** `-h` now
+  prints help and exits 0, an option is never matched by an abbreviation, and
+  a source path beginning with `-` must follow `--`. A usage error still exits
+  2.
 
 - **`rowspec check` and `rowspec eval` refuse an empty path as a usage
   error** (#250), exit 2, as the editing commands do. They reported it

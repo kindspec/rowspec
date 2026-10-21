@@ -5,7 +5,8 @@ rowspec is licensed per directory. This is deliberate, not an oversight.
   conformance/cases/,
   conformance/cases-csv/,
   conformance/reserved/     CC0-1.0
-  conformance/*.py          MIT
+  conformance/*.py,
+  conformance/*.md          MIT
   reference/, export/,
   tests/, action.yml,
   .github/workflows/,

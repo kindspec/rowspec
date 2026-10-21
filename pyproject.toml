@@ -29,8 +29,13 @@ classifiers = [
 # implementation of a table format must not be required to read xlsx. The
 # exporter therefore lives in `export/`, outside `reference/`, and
 # `tests/test_boundary.py` fails if anything under `reference/` ever imports it.
+#
+# Below 3.2 because the exporter replaces `openpyxl.cell._writer.safe_string`
+# for the length of a save, to write numbers to all 17 digits (#269). That is
+# a private module; a minor release may move it, so moving this bound is a
+# deliberate change, made with `just test-xlsx` green.
 [project.optional-dependencies]
-xlsx = ["openpyxl>=3.1"]
+xlsx = ["openpyxl>=3.1,<3.2"]
 
 [project.urls]
 Homepage = "https://github.com/kindspec/rowspec"
