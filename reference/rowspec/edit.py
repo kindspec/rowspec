@@ -398,9 +398,9 @@ def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=
     the last row when `end` is true. With none of the three, the row goes where
     its key sorts if the rows are already in key order, and after the last row
     otherwise. `values` maps column names to cell text; a stored column it
-    omits is blank. The row's id is `row_key`, or the key column's entry in
-    `values`, or a generated `r_` and six hex digits. Returns (text, id), and
-    id is None for a table with no key.
+    omits is blank. The row's key is `row_key`, or the key column's entry in
+    `values`, or a generated `r_` and six hex digits. Returns (text, row_key),
+    and row_key is None for a table with no key.
 
     The diff is one added line."""
     d = _Doc(text)
@@ -416,13 +416,15 @@ def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=
             )
     if d.key is None:
         if row_key is not None:
-            raise EditRefused("no-key", "the table declares no `key`, so a row has no id")
+            raise EditRefused("no-key", "the table declares no `key`, so a row has no row key")
     elif d.key in vals:
         if row_key is not None and _nfc(row_key) != vals[d.key]:
-            raise EditRefused("conflicting-id", f"two ids given: {row_key!r} and {vals[d.key]!r}")
+            raise EditRefused(
+                "conflicting-id", f"two row keys given: {row_key!r} and {vals[d.key]!r}"
+            )
         row_key = vals[d.key]
     elif row_key is not None:
-        row_key = _cell_value(row_key, "id")
+        row_key = _cell_value(row_key, "row_key")
     else:
         taken = {_nfc(split_row(d.lines[i])[d.cols.index(d.key)]) for i in d.data}
         row_key = "r_" + secrets.token_hex(3)
