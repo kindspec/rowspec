@@ -26,7 +26,7 @@ with a GitHub Action.
     0 failures                just conform-csv
     85 killed, 3 equivalent   just mutants-csv (csv profile)
     41 killed, 0 equivalent   just mutants-csv (sidecar profile)
-    1613 passed, 2 skipped    just test
+    1642 passed, 2 skipped    just test
     62 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
@@ -36,6 +36,23 @@ The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
+
+## On main, not yet released
+
+The next release has no version yet; until it ships, PyPI and the Action
+`v0.4.0` have none of this. See the CHANGELOG's Unreleased section for the full
+list.
+
+**`rowspec.edit`, an editing API** (#198, #201), with the `rowspec add-column`,
+`delete-column` and `rename-column` subcommands over it and `add-row` now able
+to place a row beside a key. Each edit changes only the lines it is about. It
+was reviewed before release (#203), and the rulings from that review are
+applied (#271). One defect is open against it: `set_formula` centres a formula
+padded on both sides (#272).
+
+**xlsx `--values`** (#89), an export of `rowspec eval`'s values, exactly, in
+place of formulas, including a stored number that needs 17 digits (#269). Both
+landed in #270.
 
 ## Shipped in 0.4.0
 
@@ -102,9 +119,13 @@ that consumer.* It survived, on every number. Recording the criterion next to
 the result is the point — a bar that is deleted once it is cleared is a bar
 that could have moved.
 
-**And the second half of it is still open.** rowspec is the only consumer.
-"Fitted to that consumer" cannot be answered until blockspec or nodespec runs
-on the kit, and nothing here settles it.
+**And the second half of it now has a second consumer to answer it.**
+blockspec's conformance CI runs kindkit's case-tree validator and runner,
+checked out at a pinned commit, as rowspec's does. Whether the kit was fitted to
+rowspec is for that use to show, and nothing here settles it. kindkit is not on
+PyPI, so a `conformance` extra that would let `pip install` run the suite waits
+on it (#47); until then the README and `conformance/README.md` say to run it
+through `uv sync` (#268).
 
 **This is load-bearing**, so it takes more than one independent review pass.
 
@@ -121,13 +142,14 @@ with real structured references and `SUBTOTAL` aggregates recalculating in
 LibreOffice. Both are now built, in two parts. #35 writes the formulas, and
 refuses what a spreadsheet cannot say: `cumulative`, `prior`, `delta` and any
 `where` predicate. #36 recalculates the export in LibreOffice and compares it
-with `rowspec eval`. Still open:
+with `rowspec eval`. A values export (#89) is done on main, pending the next
+release: `--values` writes `rowspec eval`'s values, exactly, in place of
+formulas, and is the exact mode while the two gaps below stay open in the
+default one. Still open:
 - **Summation (#83).** Left-to-right addition cancels `sum` and `avg` where
   §7's exact sum does not, at ordinary magnitudes as well as near `1e308`.
 - **Comparison (#88).** Tolerant comparison and subtraction flip `if`
   branches.
-- **A values export (#89)** is built: `--values` writes `rowspec eval`'s
-  values, exactly, in place of formulas.
 - **Filtered and group aggregates (#35).** A `where` predicate with an
   exact-text spreadsheet form is not designed yet.
 
