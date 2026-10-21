@@ -159,7 +159,9 @@ An edit is refused, with nothing returned, in four ways:
 2. **The request cannot be written.** These are refused before any text is
    built, and carry an API reason rather than a §9 identifier:
    - `no-such-row`, `no-such-column`, `no-such-declaration`;
-   - `no-key`: an id, or a position relative to a key, on a table with no key;
+   - `no-key`: an id, or a position relative to a key, on a table with no
+     key. `rowspec add-row` also refuses a table with no key this way when
+     it is given neither, since it always gives the new row a key;
    - `bad-position`: more than one of `after=`, `before=` and `end=True`;
    - `conflicting-id`: a `row_key=` that differs from the key column's entry
      in the values;
@@ -177,6 +179,10 @@ An edit is refused, with nothing returned, in four ways:
    - `rename-changes-values`: renaming onto a name spelled like a number where
      the column is used as an operand, which would then read as that number
      (§4.2 rule 7).
+
+   `rowspec add-row` has one refusal of its own, which the Python API does
+   not raise: `value-count`, for a number of values other than one per
+   stored column besides the key.
 3. **The result is refused.** The new text is evaluated in full, so every §9
    refusal applies to it: a duplicate id, a bad identifier, a duplicate column
    (renaming onto an existing name), a value in a computed cell, a malformed
@@ -198,9 +204,10 @@ names it finds are compared in NFC.
 
 Errors are `rowspec.Malformed`, whose `refusal` attribute is the §9
 identifier when there is one. `rowspec.edit.EditRefused` is the subclass for
-the API's own reasons, with the reason in `reason`. An API reason never takes
-the spelling of a SPEC.md §9 identifier, so the two can share the bracketed
-code the editing commands print.
+the API's own reasons, with the reason in `reason`, and `rowspec add-row`
+raises it for `value-count` too. Neither an API reason nor `value-count`
+ever takes the spelling of a SPEC.md §9 identifier, so all of them can share
+the bracketed code the editing commands print.
 
 ## What still collides
 
