@@ -321,6 +321,36 @@ def test_a_request_that_cannot_be_written_is_refused_with_a_reason(call, reason)
     assert e.value.reason == reason
 
 
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: edit.add_row(text=BASE),
+        lambda: edit.delete_row(BASE, row_key="r_01"),
+        lambda: edit.add_column(BASE, name="n"),
+        lambda: edit.delete_column(BASE, name="region"),
+        lambda: edit.rename_column(BASE, "item", new="thing"),
+        lambda: edit.set_formula(BASE, "total", formula="qty"),
+        lambda: edit.set_declaration(BASE, "g", rhs="sum(qty)"),
+        lambda: edit.delete_declaration(BASE, name="grand"),
+    ],
+    ids=[
+        "add_row",
+        "delete_row",
+        "add_column",
+        "delete_column",
+        "rename_column",
+        "set_formula",
+        "set_declaration",
+        "delete_declaration",
+    ],
+)
+def test_the_text_and_the_subject_are_positional_only(call):
+    """Their names differ from function to function for the same thing, so
+    none of them is part of the contract."""
+    with pytest.raises(TypeError, match="positional-only"):
+        call()
+
+
 def test_renaming_onto_a_number_says_where_it_would_be_read_as_one():
     with pytest.raises(edit.EditRefused) as e:
         edit.rename_column(BASE, "qty", "3")

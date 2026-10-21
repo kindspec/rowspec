@@ -29,7 +29,8 @@ prose, and where the two disagree the suite wins.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
   `add_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
-  `delete_declaration`. Each one is text in, text out, and changes only the
+  `delete_declaration`, whose text and required arguments are
+  positional-only. Each one is text in, text out, and changes only the
   lines its operation is about. Inserting, deleting or replacing a row or a
   declaration changes one line, a rename changes the header and each
   declaration naming the column, and adding or deleting a column changes

@@ -85,6 +85,8 @@ text = edit.set_declaration(text, "grand", "sum(total)")
 text = edit.delete_declaration(text, "grand")
 ```
 
+- `text` and each function's required arguments are positional-only (`/`),
+  so their names are not part of the interface.
 - A function reads nothing and writes nothing. The caller reads the file with
   `newline=""` so terminators survive, and writes the result back. A refused
   edit raises before the caller has anything to write.

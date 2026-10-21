@@ -393,7 +393,7 @@ def _sorted_position(d, rid):
     return later[0] if later else max(d.table_lines()) + 1
 
 
-def add_row(text, values=None, *, row_key=None, after=None, before=None, end=False):
+def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=False):
     """Insert one row, after or before the row keyed `after`/`before`, or after
     the last row when `end` is true. With none of the three, the row goes where
     its key sorts if the rows are already in key order, and after the last row
@@ -445,7 +445,7 @@ def add_row(text, values=None, *, row_key=None, after=None, before=None, end=Fal
     return out, row_key
 
 
-def delete_row(text, row_key):
+def delete_row(text, row_key, /):
     """Delete the row keyed `row_key`. The diff is one removed line."""
     d = _Doc(text)
     d.remove(d.row(row_key))
@@ -453,7 +453,7 @@ def delete_row(text, row_key):
 
 
 def add_column(
-    text, name, *, formula=None, value="", values=None, after=None, before=None, align="---"
+    text, name, /, *, formula=None, value="", values=None, after=None, before=None, align="---"
 ):
     """Add a column after or before the column `after`/`before`, or last. A
     stored column's cells hold `value`, or `values[id]` for the row keyed `id`;
@@ -511,7 +511,7 @@ def add_column(
     return out
 
 
-def delete_column(text, name):
+def delete_column(text, name, /):
     """Delete a column that no formula or declaration names. The diff is every
     table line, as for `add_column`."""
     d = _Doc(text)
@@ -552,7 +552,7 @@ def _values_under(text, old, new):
     return rows, {k: v(x) for k, x in aggs.items()}
 
 
-def rename_column(text, old, new):
+def rename_column(text, old, new, /):
     """Rename a column in the header, in every formula and in every declaration
     that names it, and nowhere else: not in a string literal, a function name,
     a numeric literal or an annotation. The diff is the header line and each
@@ -614,7 +614,7 @@ def rename_column(text, old, new):
     return out
 
 
-def set_formula(text, column, formula):
+def set_formula(text, column, formula, /):
     """Replace a computed column's formula. The diff is the header line."""
     d = _Doc(text)
     k = d.column(column)
@@ -636,7 +636,7 @@ def set_formula(text, column, formula):
     return out
 
 
-def set_declaration(text, name, rhs):
+def set_declaration(text, name, rhs, /):
     """Set `name := rhs`: in place, keeping the line's spacing and annotation,
     when the name is declared, and otherwise after the last declaration. `key`
     and `order` are names like any other here. The diff is one line."""
@@ -667,7 +667,7 @@ def set_declaration(text, name, rhs):
     return out
 
 
-def delete_declaration(text, name):
+def delete_declaration(text, name, /):
     """Delete the declaration of `name`. The diff is one removed line."""
     d = _Doc(text)
     decls = d.declarations()
