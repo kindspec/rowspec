@@ -147,15 +147,21 @@ just eval FILE  # print computed values and FAIL on any #REF!
 A real `git` binary is required. The suite's central claim is about what stock
 git does, so it uses stock git.
 
-**From the source archive (sdist), run the suite through uv, not pip.** The
-sdist ships the fixture tree and the runner, but the runner needs
-[kindkit](https://github.com/kindspec/kindkit), which is in the `dev`
-dependency group. Dependency groups are not package metadata, so
-`pip install rowspec-X.tar.gz` cannot install it, and
-`python conformance/run_cases.py` then fails with `No module named 'kindkit'`.
-Unpack the archive and run `uv sync` (or `just setup`) in it, then
-`just conform`. kindkit is not on PyPI yet. Once it is, a `conformance` extra
-can make pip enough (#47).
+**From the source archive (sdist), install the `conformance` extra.** The
+sdist ships the fixture tree and the runner, and the runner needs
+[kindkit](https://github.com/kindspec/kindkit). The extra declares it, so pip
+is enough (#47). Unpack the archive, then, at its top level:
+
+```sh
+python -m venv .venv && . .venv/bin/activate
+pip install '.[conformance]'
+cd conformance && python run_cases.py     # cases/; add --profile csv for cases-csv/
+```
+
+Without the extra, the runner stops at its kindkit import with
+`ModuleNotFoundError: No module named 'kindkit'`. `uv sync` (or `just setup`)
+then `just conform` works too: the `dev` group pins the exact kindkit release
+CI runs, and the extra admits that release.
 
 ## Edit a table
 

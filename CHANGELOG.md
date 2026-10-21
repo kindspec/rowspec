@@ -9,6 +9,15 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **A `conformance` extra, so pip can run the suite the sdist ships** (#47).
+  `rowspec[conformance]` requires `kindkit>=0.2.0,<0.3`. In an unpacked
+  sdist, `pip install '.[conformance]'` then `cd conformance && python
+  run_cases.py` runs the suite; before, kindkit was only in the `dev`
+  dependency group, which is not package metadata, so the runner failed with
+  `No module named 'kindkit'` unless uv installed it. The extra is a range
+  where the dev group is exact; `tests/test_boundary.py` fails unless its
+  floor is the release the dev group pins and the range admits it.
+
 - **xlsx export takes `--values`** (#89). `python -m rowspec_xlsx --values`,
   or `to_workbook(text, values=True)`, writes `rowspec eval`'s computed values
   in place of formulas. Each number is written at full binary64 precision, and
@@ -103,6 +112,15 @@ prose, and where the two disagree the suite wins.
   `alignment-row-in-data`. The floor is now 630 cases.
 
 ### Changed
+
+- **kindkit is pinned to its 0.2.0 release on PyPI** (`kindkit==0.2.0`),
+  from the git commit `8e21b55`. The `kind` job calls kindkit's workflow at
+  `4764461`, the commit `v0.2.0` was tagged from. `8e21b55` is an ancestor of
+  it, and the only change to the `kindkit` package between them is
+  `__version__`; `kind.yml` itself is unchanged. The PyPI wheel holds the same
+  package source as the tag. `tests/test_pins.py` now requires an exact `==`
+  pin, and records the commit each pinned release was tagged from, so the
+  workflow ref and the package still cannot move apart.
 
 - The three `lone-cr` parse cases now list what SPEC.md §9.15 gives
   them once a lone CR is decided before any line is classified:

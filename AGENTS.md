@@ -25,13 +25,19 @@ implementation exists so the suite has something to check.
 - A real `git` binary is a hard dependency of the conformance suite.
 - **[kindkit](https://github.com/kindspec/kindkit)** is the conformance runner
   and the mutation gate, shared with every kindspec kind. It is a *dev*
-  dependency pinned to a commit, used only under `conformance/`; nothing in
-  `reference/` may reach for it, which is what `tests/test_boundary.py`
-  enforces. Move the pin deliberately and re-measure the suite and the gate
-  when you do. CI runs the suite, the second implementation and the gate
-  through kindkit's reusable workflow, the `kind` job in
-  `.github/workflows/check.yml`, whose `uses:` names a kindkit commit too.
-  Move both in one change: `tests/test_pins.py` fails when they differ.
+  dependency pinned to one PyPI release (`kindkit==X.Y.Z`), used only under
+  `conformance/`; nothing in `reference/` may reach for it, which is what
+  `tests/test_boundary.py` enforces. The `conformance` extra declares the
+  same dependency for pip users as a range whose floor is that release. Move
+  the pin deliberately and re-measure the suite and the gate when you do.
+  CI runs the suite, the second implementation and the gate through
+  kindkit's reusable workflow, the `kind` job in `.github/workflows/check.yml`,
+  whose `uses:` names the commit the release was tagged from. Moving the pin
+  is four edits in one change: the dev pin, the extra's range, the
+  `KINDKIT_RELEASES` entry in `tests/test_pins.py` (its value is what
+  `git ls-remote https://github.com/kindspec/kindkit 'refs/tags/vX.Y.Z^{}'`
+  prints), and the `uses:` ref. `tests/test_pins.py` and
+  `tests/test_boundary.py` fail when they disagree.
 - **The mutation gate is POSIX-only.** It holds an `fcntl` lock for the whole
   run, so two gates in one tree take turns (#81), and `tests/test_conformance.py`
   imports `fcntl` too. Neither runs on Windows; CI is Linux.

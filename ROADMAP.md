@@ -57,6 +57,10 @@ place of formulas. In both modes the export now saves every number with all
 its digits (#269), and the `xlsx` extra requires `openpyxl>=3.1,<3.2`. Both
 landed in #270.
 
+**A `rowspec[conformance]` extra** (#47), so plain `pip` can run the suite the
+sdist ships: kindkit 0.2.0 is on PyPI, and on main rowspec pins that release
+in its dev group rather than a commit. See the CHANGELOG's Unreleased section.
+
 ## Shipped in 0.4.0
 
 **Breaking:** every SPEC.md §9 refusal now has a stable identifier, such as
@@ -126,10 +130,10 @@ that could have moved.
 answer it.**
 blockspec's conformance CI runs kindkit's case-tree validator and runner,
 checked out at a pinned commit, as rowspec's does. Whether the kit was fitted to
-rowspec is for that use to show, and nothing here settles it. kindkit is not on
-PyPI, so a `conformance` extra that would let `pip install` run the suite waits
-on it (#47); until then the README and, since #268, `conformance/README.md`
-say to run it through `uv sync`.
+rowspec is for that use to show, and nothing here settles it. In this
+release kindkit was a dev dependency pinned to a commit, so `pip` could not
+install it for the suite the sdist ships (#47); see "On main, not yet
+released" for the change.
 
 **This is load-bearing**, so it takes more than one independent review pass.
 
