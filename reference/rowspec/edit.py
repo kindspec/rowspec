@@ -621,6 +621,8 @@ def set_formula(text, column, formula, /):
             f"{column!r} is a stored column; giving it a formula would empty every cell",
         )
     formula = _text_value(formula, "formula").strip(WSP)
+    if formula == d.formulas[column]:
+        return text
     body = d.body(d.header)
     a, b = _spans(body)[k]
     inner = body[a:b]
