@@ -45,7 +45,7 @@ else:
 from openpyxl.cell import _writer as cell_writer  # noqa: E402
 from openpyxl.compat import safe_string as openpyxl_safe_string  # noqa: E402
 from rowspec.table import Malformed, evaluate, parse  # noqa: E402
-from rowspec_xlsx import NotExpressible, _static, export_file, to_workbook  # noqa: E402
+from rowspec_xlsx import NotExpressible, _exact, _static, export_file, to_workbook  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -666,3 +666,17 @@ def test_concurrent_saves_are_each_exact(tmp_path):
         sys.setswitchinterval(old)
     assert not errors, errors
     assert cell_writer.safe_string is openpyxl_safe_string
+
+
+def test_a_float_subclass_is_spelled_as_a_float():
+    """`numpy.float64` is a float whose own `repr` is `np.float64(0.1)`. A
+    plain openpyxl save running while the override is installed hands such
+    values to `_exact`, which must spell the number, not the object."""
+
+    class Labelled(float):
+        def __repr__(self):
+            return f"Labelled({float(self)!r})"
+
+    assert repr(Labelled(0.1)) != "0.1"
+    assert _exact(Labelled(0.1)) == "0.1"
+    assert _exact(Labelled(0.30000000000000004)) == "0.30000000000000004"

@@ -229,10 +229,13 @@ _SAFE_STRING = _cell_writer.safe_string
 
 
 def _exact(value):
-    """`repr` for a finite float: the shortest spelling that reads back as the
-    same double. Everything else is openpyxl's own spelling."""
+    """`float.__repr__` for a finite float: the shortest spelling that reads
+    back as the same double. Everything else is openpyxl's own spelling.
+
+    `float.__repr__`, not `repr`: a float subclass may spell itself otherwise,
+    and `numpy.float64` is `np.float64(0.1)`, which is not a number in XML."""
     if isinstance(value, float) and math.isfinite(value):
-        return repr(value)
+        return float.__repr__(value)
     return _SAFE_STRING(value)
 
 
@@ -248,8 +251,11 @@ class _Workbook(Workbook):
     The override of openpyxl's number-to-string step lasts only for the save,
     so the cells in memory keep their real values. `_Workbook` saves are
     serialized by `_SAVE_LOCK`. A plain openpyxl save running at the same
-    moment in another thread also sees the override and spells its floats
-    with `repr`, which is harmless: those digits are exact too.
+    moment in another thread also sees the override, so its finite floats get
+    the same exact spelling instead of openpyxl's 16 digits.
+
+    Only this `save` installs the override. Calling openpyxl's
+    `save_workbook(wb, ...)` directly bypasses it and writes 16 digits.
     """
 
     def save(self, filename):
