@@ -344,11 +344,12 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
     def change(text):
         cols, formulas, _r, _d, _o, key = parse(text)
         if key is None:
-            raise Malformed("no `key :=` declaration, so there is no id to mint")
+            raise edit.EditRefused("no-key", "no `key :=` declaration, so there is no id to mint")
         fillable = [c for c in cols if c != key and c not in formulas]
         if len(values) != len(fillable):
-            raise Malformed(
-                f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}"
+            raise edit.EditRefused(
+                "value-count",
+                f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}",
             )
         new, got = edit.add_row(
             text,

@@ -54,7 +54,9 @@ prose, and where the two disagree the suite wins.
   end, where two concurrent appends always conflict. **`rowspec add-column`,
   `delete-column` and `rename-column`** edit a file through `rowspec.edit`.
   A refused edit leaves the file untouched and prints the refusal's
-  identifier in brackets.
+  identifier in brackets. `add-row`'s own refusals are `[no-key]` for a
+  table with no key, which it still refuses, and `[value-count]` for the
+  wrong number of values.
 
 - **The CSV mutation gate covers the quoted-LF and empty `order` name
   cases** (#192). Three mutants in `csvmode.py`: a date matched with

@@ -74,6 +74,7 @@ def test_add_row_before_a_key(table):
         (["add-row", "{}", "x", "1", "1", "--id", "r_01"], "[duplicate-row-id]"),
         (["add-row", "{}", "x", "1", "1", "--after", "r_99"], "[no-such-row]"),
         (["add-row", "{}", "x", "1"], "expected 3 value(s)"),
+        (["add-row", "{}", "x", "1"], "[value-count]"),
         (["add-column", "{}", "qty"], "[duplicate-column]"),
         (["add-column", "{}", "t2", "--formula", "qty ^ 2"], "[malformed-formula]"),
         (["delete-column", "{}", "unit"], "[column-referenced]"),
@@ -86,6 +87,15 @@ def test_a_refused_edit_leaves_the_file_untouched(table, capsys, args, code):
     assert cli.main([a.format(table) for a in args]) == 1
     assert code in capsys.readouterr().err
     assert table.read_bytes() == SRC.encode()
+
+
+def test_add_row_refuses_a_table_with_no_key_with_an_identifier(tmp_path, capsys):
+    p = tmp_path / "nokey.mdtbl"
+    src = b"| a |\n| - |\n| 1 |\n"
+    p.write_bytes(src)
+    assert cli.main(["add-row", str(p), "2"]) == 1
+    assert capsys.readouterr().err.endswith(" [no-key]\n")
+    assert p.read_bytes() == src
 
 
 def test_add_column(table):
