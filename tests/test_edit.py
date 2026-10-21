@@ -214,6 +214,16 @@ def test_a_padded_formula_cell_keeps_its_width():
     assert "| total = qty          |" in edit.set_formula(src, "total", "qty")
 
 
+def test_a_formula_padded_on_both_sides_is_not_centred():
+    """docs/editing-api.md rule 3 (#272): a padded formula cell keeps its
+    width, and the new formula follows `= ` as in every other rewritten
+    cell. Spaces on both sides of the old formula are not read as centring."""
+    src = "| id | qty | total =  qty * 2  |\n|----|-----|------|\n| a  | 1   |      |\n"
+    out = edit.set_formula(src, "total", "qty")
+    assert out.splitlines()[0] == "| id | qty | total = qty       |"
+    assert out.splitlines()[1:] == src.splitlines()[1:]
+
+
 def test_a_padded_table_gets_a_padded_column():
     out = edit.add_column(PADDED, "n", after="id", value="1", align="--:")
     assert out.splitlines()[:3] == [
