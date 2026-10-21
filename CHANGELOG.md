@@ -263,6 +263,13 @@ prose, and where the two disagree the suite wins.
 
 ### Fixed
 
+- **`edit.set_formula` no longer centres a formula padded on both sides**
+  (#272). It refilled only the text after `=`, so spaces on both sides of
+  the old formula read as a centred cell, and `| total =  qty * 2  |`
+  became `| total =    qty    |`. It now refills the whole header cell, as
+  `rename_column` does, and the cell keeps its width with the new formula
+  after `= `: `| total = qty       |`.
+
 - **xlsx export saves every number with all its digits** (#269). openpyxl
   writes a number cell as `%.16g`, one digit short of binary64, so a stored
   `0.30000000000000004` was saved as `0.3`, and `-0.0` as `-0`, which reads
