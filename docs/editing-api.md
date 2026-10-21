@@ -35,9 +35,14 @@ disjoint edits into a conflict.
 3. **Within a changed line, change only the cell or span concerned.** A
    renamed column rewrites the name and the formula spans that name it, and
    leaves the other cells of the header line as they were. A rewritten
-   header cell, a renamed column or a replaced formula, keeps its padding,
-   and keeps its width when the new text fits. No operation rewrites a data
-   cell in place: see "What the API does not change".
+   header cell, a renamed column or a replaced formula, keeps its width
+   only when it was padded, with more than one space beside its text, and
+   the new text fits. A cell with one space on each side, as a column's
+   widest cell often is, is re-rendered to its new text and grows or
+   shrinks with it: `set_formula` turns `| total = qty * 2 |` into
+   `| total = qty |`. A plain name and a formula are treated alike. No
+   operation rewrites a data cell in place: see "What the API does not
+   change".
 4. **Never reflow.** In a padded table, a value wider than its column is
    written wider, and the table's alignment is broken for that line, rather
    than every line being re-padded. A new row or column in a padded table is

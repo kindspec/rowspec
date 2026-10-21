@@ -169,6 +169,51 @@ def test_a_replaced_cell_keeps_its_width_when_it_fits():
     assert wide.splitlines()[0] == "| id   | description | qty | unit  | total = qty * unit |"
 
 
+TIGHT = (
+    "| id   | qty    | total = qty * 2 | note |\n"
+    "| ---- | ------ | --------------: | ---- |\n"
+    "| r_01 | 1      |                 | x    |\n"
+    "\n"
+    "key := id\n"
+)
+
+
+@pytest.mark.parametrize(
+    "op, want",
+    [
+        # A cell with one space each side is written as its new text.
+        (lambda t: edit.set_formula(t, "total", "qty"), "| total = qty |"),
+        (lambda t: edit.rename_column(t, "qty", "q"), "| total = q * 2 |"),
+        (lambda t: edit.rename_column(t, "total", "t"), "| t = qty * 2 |"),
+        (lambda t: edit.rename_column(t, "note", "n"), "| n |"),
+        # A cell with wider padding keeps its width when the new text fits.
+        (lambda t: edit.rename_column(t, "id", "i"), "| i    |"),
+        (lambda t: edit.rename_column(t, "qty", "q"), "| q      |"),
+    ],
+    ids=[
+        "tight formula, set_formula",
+        "tight formula, rename a reference",
+        "tight formula, rename the column",
+        "tight name",
+        "padded name",
+        "padded name, renamed reference",
+    ],
+)
+def test_a_header_cell_keeps_its_width_only_when_it_is_padded(op, want):
+    """docs/editing-api.md rule 3: width is kept for a cell with more than one
+    space beside its text, a formula's or a plain name's alike, and a cell
+    with one space each side is re-rendered to its new text."""
+    assert want in op(TIGHT).splitlines()[0]
+
+
+def test_a_padded_formula_cell_keeps_its_width():
+    src = TIGHT.replace("total = qty * 2 ", "total = qty * 2      ").replace(
+        "| --------------: |", "| -------------------: |"
+    )
+    src = src.replace("|                 |", "|                      |")
+    assert "| total = qty          |" in edit.set_formula(src, "total", "qty")
+
+
 def test_a_padded_table_gets_a_padded_column():
     out = edit.add_column(PADDED, "n", after="id", value="1", align="--:")
     assert out.splitlines()[:3] == [
