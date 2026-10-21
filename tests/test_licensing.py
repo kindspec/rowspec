@@ -65,7 +65,7 @@ def headed_files():
             # The copy-me CI template: CC0 so a user can paste it into their
             # repository without an attribution obligation.
             want[p] = "CC0-1.0"
-        elif fnmatch.fnmatch(p, "conformance/*.py") and p.count("/") == 1:
+        elif p.startswith("conformance/") and p.endswith((".py", ".md")) and p.count("/") == 1:
             want[p] = "MIT"
         elif fnmatch.fnmatch(p, "conformance/reserved/*.md"):
             want[p] = "CC0-1.0"
@@ -93,6 +93,7 @@ def test_the_scan_reads_the_files_it_claims_to():
     for p in (
         "SPEC.md",
         "conformance/run_cases.py",
+        "conformance/README.md",
         "action.yml",
         "justfile",
         ".github/workflows/check.yml",
