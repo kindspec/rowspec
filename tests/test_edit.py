@@ -351,6 +351,24 @@ def test_the_text_and_the_subject_are_positional_only(call):
         call()
 
 
+@pytest.mark.parametrize(
+    "call",
+    [
+        lambda: edit.add_row(BASE, {"qty": 4}),
+        lambda: edit.add_row(BASE, {"qty": 0.1}),
+        lambda: edit.add_row(BASE, {"item": "x"}, row_key=9),
+        lambda: edit.add_column(BASE, "n", value=0),
+        lambda: edit.set_declaration(BASE, "g", 3),
+    ],
+    ids=["int value", "float value", "int row_key", "int column value", "int declaration"],
+)
+def test_a_value_that_is_not_a_str_is_a_type_error(call):
+    """Not coerced: `str()` would choose a number's spelling for the caller,
+    `0.30000000000000004` for `0.1 + 0.2`, in a format whose numbers are text."""
+    with pytest.raises(TypeError, match="must be a str"):
+        call()
+
+
 def test_add_column_takes_no_per_row_values():
     """`values` names a row's cells by column in add_row; add_column gives
     every cell `value` and has no second meaning for the word."""
