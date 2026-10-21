@@ -249,6 +249,26 @@ def test_the_xlsx_extra_declares_openpyxl():
     assert any(r.startswith("openpyxl") for r in extras["xlsx"]), extras["xlsx"]
 
 
+def test_the_conformance_extra_admits_the_kindkit_ci_measures():
+    """`pip install '.[conformance]'` must be able to install the kit the suite is run on.
+
+    The dev group pins kindkit exactly, and that is the kit every CI run of the
+    suite uses. An extra whose range excluded it would hand pip users a kit
+    nothing here had measured; a direct URL in it is metadata PyPI refuses.
+    """
+    from packaging.requirements import Requirement
+
+    extras = pyproject()["project"].get("optional-dependencies", {})
+    assert "conformance" in extras, "the sdist's suite cannot be installed by pip without this"
+    (req,) = [Requirement(r) for r in extras["conformance"]]
+    assert req.name == "kindkit" and req.url is None, req
+    (pin,) = [
+        Requirement(d) for d in pyproject()["dependency-groups"]["dev"] if d.startswith("kindkit")
+    ]
+    (version,) = [s.version for s in pin.specifier if s.operator == "=="]
+    assert req.specifier.contains(version), f"{req} excludes the dev group's {pin}"
+
+
 def test_the_extra_ships_the_code_that_needs_it():
     """An extra that installs openpyxl and no exporter is an extra that does nothing."""
     packages = pyproject()["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]

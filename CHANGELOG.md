@@ -9,6 +9,15 @@ prose, and where the two disagree the suite wins.
 
 ### Added
 
+- **A `conformance` extra, so pip can run the suite the sdist ships** (#47).
+  `rowspec[conformance]` requires `kindkit>=0.2.0,<0.3`. In an unpacked
+  sdist, `pip install '.[conformance]'` then `cd conformance && python
+  run_cases.py` runs the suite; before, kindkit was only in the `dev`
+  dependency group, which is not package metadata, so the runner failed with
+  `No module named 'kindkit'` unless uv installed it. The extra is a range
+  where the dev group is exact; `tests/test_boundary.py` fails if the range
+  stops admitting the release the dev group pins.
+
 - **xlsx export takes `--values`** (#89). `python -m rowspec_xlsx --values`,
   or `to_workbook(text, values=True)`, writes `rowspec eval`'s computed values
   in place of formulas. Each number is written at full binary64 precision, and

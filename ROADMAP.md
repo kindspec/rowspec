@@ -126,10 +126,10 @@ that could have moved.
 answer it.**
 blockspec's conformance CI runs kindkit's case-tree validator and runner,
 checked out at a pinned commit, as rowspec's does. Whether the kit was fitted to
-rowspec is for that use to show, and nothing here settles it. kindkit is not on
-PyPI, so a `conformance` extra that would let `pip install` run the suite waits
-on it (#47); until then the README and, since #268, `conformance/README.md`
-say to run it through `uv sync`.
+rowspec is for that use to show, and nothing here settles it. kindkit 0.2.0 is
+on PyPI, and rowspec now pins that release rather than a commit, so the
+`rowspec[conformance]` extra lets plain `pip` run the suite the sdist ships
+(#47).
 
 **This is load-bearing**, so it takes more than one independent review pass.
 

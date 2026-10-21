@@ -34,8 +34,18 @@ classifiers = [
 # for the length of a save, to write numbers to all 17 digits (#269). That is
 # a private module; a minor release may move it, so moving this bound is a
 # deliberate change, made with `just test-xlsx` green.
+#
+# `conformance` is what the sdist's shipped suite needs under plain pip (#47):
+# `pip install '.[conformance]'` in an unpacked sdist, then
+# `cd conformance && python run_cases.py`. The dev group below cannot do that,
+# because dependency groups are not package metadata. It is a range, where the
+# dev group is exact, because it is installed beside whatever else a user has:
+# 0.2.0 is the floor, the release CI measures, and kindkit is pre-1.0, so the
+# next minor may break the runner's API. tests/test_boundary.py fails if the
+# range ever stops admitting the dev group's pin.
 [project.optional-dependencies]
 xlsx = ["openpyxl>=3.1,<3.2"]
+conformance = ["kindkit>=0.2.0,<0.3"]
 
 [project.urls]
 Homepage = "https://github.com/kindspec/rowspec"
@@ -81,7 +91,8 @@ include = [
 # than duplicated. It is a DEV dependency, deliberately: `dependencies` above
 # stays empty, so `pip install rowspec` still pulls nothing and `reference/`
 # still imports the standard library and nothing else. Only `conformance/`
-# reaches for it, and `tests/test_boundary.py` is what holds that line.
+# reaches for it, and `tests/test_boundary.py` is what holds that line. The
+# `conformance` extra above is the same dependency for a pip user.
 #
 # Pinned to an EXACT PyPI release, not a range, a branch or a tag: a gate that
 # moves under the suite it gates is the failure this project keeps finding in
