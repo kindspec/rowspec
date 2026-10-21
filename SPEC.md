@@ -1399,7 +1399,13 @@ An implementation MUST refuse:
 14. `bad-encoding`: bytes that are not well-formed UTF-8 (§3). A property of
     the bytes, decided before any line is classified. A leading BOM is §9.26,
     not this entry
-15. `lone-cr`: a lone `CR` (§3)
+15. `lone-cr`: a lone `CR` (§3). Like §9.14 it is a property of the bytes,
+    decided before any line is classified, so in a `.mdtbl` file a lone `CR`
+    is never also a character of the line holding it: that line is
+    classified as though the `CR` were not there. Without this, every lone
+    `CR` in a `.mdtbl` file would also be §9.12, §9.18 or §9.19, because
+    `char` excludes `CR` and the line holding one matches no alternative of
+    `line`. A CSV is not read this way (§13)
 16. `bad-identifier`: an identifier — column name, aggregate name, `key`/`order`
     argument, or a value of the key column — that is empty, or that contains
     whitespace, a `Cf` format character, or any character outside `ident`
@@ -1514,6 +1520,11 @@ not functions of the input. A conformance case that names one identifier is
 therefore a case in which exactly one refusal applies; where several apply, the
 case names each of them, and reporting any one passes.
 
+Three entries name a particular case of a broader one: §9.7 of §9.21, §9.18
+of §9.19, and §9.24 of §9.20. A file that meets the narrower entry always
+meets the broader one too, so either identifier is a correct report, and no
+conformance case asserts the narrower one alone.
+
 **Reject when degrading could yield a plausible VALUE; preserve and warn when it
 could only lose DECORATION.**
 
@@ -1594,7 +1605,10 @@ relaxation**, and the difference must be stated rather than discovered:
 - refusals 26 (`leading-bom`) and 15 (`lone-cr`) are **warnings** in CSV
   mode; 14 (`bad-encoding`) is still refused. Enforcing the two would reject
   70 of 72 files in one well-maintained public registry on first run, and 8
-  of 20 in another — measured, not estimated.
+  of 20 in another — measured, not estimated. A lone `CR` is not removed
+  before records are split, as §9.15 removes it from a `.mdtbl` line:
+  outside a quoted field it ends a record, as it does for a CSV reader, and
+  inside one it is part of the field.
 - refusals covering alignment rows, formulas and aggregates cannot apply,
   because a CSV has none of those constructs.
 - **refusal 5 (`duplicate-row-id`) requires a sidecar** declaring which column is

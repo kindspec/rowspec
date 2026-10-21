@@ -243,7 +243,9 @@ def test_a_warning_carries_no_identifier(tmp_path, data):
 # SPEC.md §13 defines the per-file sidecar only. A directory file that is not
 # a JSON object, and an entry's own declarations, are refused as a per-file
 # sidecar's are, with its identifier. The two refusals only the directory
-# form can make carry none until §13 gives them one (#255).
+# form can make carry none: §13 puts a declaration source other than the
+# per-file sidecar outside the profile, so a refusal about that source
+# itself is not a CSV-mode refusal (#255).
 
 
 def _dir_check(tmp_path, table, data=b"id\nr1\n"):
