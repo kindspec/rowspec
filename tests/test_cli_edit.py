@@ -74,6 +74,7 @@ def test_add_row_before_a_key(table):
         (["add-row", "{}", "x", "1", "1", "--id", "r_01"], "[duplicate-row-id]"),
         (["add-row", "{}", "x", "1", "1", "--after", "r_99"], "[no-such-row]"),
         (["add-row", "{}", "x", "1"], "expected 3 value(s)"),
+        (["add-row", "{}", "x", "1"], "[value-count]"),
         (["add-column", "{}", "qty"], "[duplicate-column]"),
         (["add-column", "{}", "t2", "--formula", "qty ^ 2"], "[malformed-formula]"),
         (["delete-column", "{}", "unit"], "[column-referenced]"),
@@ -86,6 +87,15 @@ def test_a_refused_edit_leaves_the_file_untouched(table, capsys, args, code):
     assert cli.main([a.format(table) for a in args]) == 1
     assert code in capsys.readouterr().err
     assert table.read_bytes() == SRC.encode()
+
+
+def test_add_row_refuses_a_table_with_no_key_with_an_identifier(tmp_path, capsys):
+    p = tmp_path / "nokey.mdtbl"
+    src = b"| a |\n| - |\n| 1 |\n"
+    p.write_bytes(src)
+    assert cli.main(["add-row", str(p), "2"]) == 1
+    assert capsys.readouterr().err.endswith(" [no-key]\n")
+    assert p.read_bytes() == src
 
 
 def test_add_column(table):
@@ -117,6 +127,24 @@ def test_rename_column(table, capsys):
 
 def test_check_is_still_the_default_command(table):
     assert cli.main([str(table)]) == 0
+
+
+@pytest.mark.parametrize("name", ["delete-row", "rename-colum", "set-formula"])
+def test_an_unknown_command_is_refused_not_checked(table, capsys, name):
+    assert cli.main([name, str(table), "r_01"]) == 2
+    out, err = capsys.readouterr()
+    assert f"unknown command {name!r}" in err
+    assert "add-row" in err
+    assert "checked" not in out + err
+    assert table.read_bytes() == SRC.encode()
+
+
+def test_a_path_shaped_like_a_command_is_still_checked(table, capsys, monkeypatch):
+    monkeypatch.chdir(table.parent)
+    os.mkdir("old-tables")
+    os.rename(table, os.path.join("old-tables", "t.mdtbl"))
+    assert cli.main(["old-tables"]) == 0
+    assert "1 file(s) checked" in capsys.readouterr().out
 
 
 def test_add_row_goes_where_its_key_sorts_by_default(table):

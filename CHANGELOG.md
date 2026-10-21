@@ -39,9 +39,10 @@ prose, and where the two disagree the suite wins.
   implementation. Two mutants of `evaluate_bytes` are killed by it. The
   floor is now 631 cases.
 - **`rowspec.edit`, an editing API for `.mdtbl` files**:
-  `insert_row`, `delete_row`, `add_column`, `delete_column`,
+  `add_row`, `delete_row`, `add_column`, `delete_column`,
   `rename_column`, `set_formula`, `set_declaration` and
-  `delete_declaration`. Each one is text in, text out, and changes only the
+  `delete_declaration`, whose text and required arguments are
+  positional-only. Each one is text in, text out, and changes only the
   lines its operation is about. Inserting, deleting or replacing a row or a
   declaration changes one line, a rename changes the header and each
   declaration naming the column, and adding or deleting a column changes
@@ -245,6 +246,20 @@ prose, and where the two disagree the suite wins.
   cell trim it away. **It refuses a file that `rowspec eval` refuses**,
   with that refusal's identifier, where it used to read only the table's
   shape and write a row into a file that was already refused.
+
+- **`rowspec add-row`'s own refusals carry an identifier**: `[no-key]`
+  for a table with no key, which it still refuses, and `[value-count]`
+  for the wrong number of values. Both messages used to end without one.
+
+- **`rowspec` refuses an unknown command instead of checking it as a
+  path**, exit 2, when the first argument is spelled like a command,
+  lowercase words joined by `-`, and no such path exists.
+  `rowspec delete-row k.mdtbl r_1` used to check three paths and report
+  two of them missing. A first argument that is not shaped like a
+  command, or that exists, is still checked. A missing path that is shaped
+  like a command is the one case that changes: `rowspec my-table k.mdtbl`
+  now exits 2 and checks nothing, where it used to report `my-table`
+  missing and still check `k.mdtbl`.
 
 ### Fixed
 

@@ -393,14 +393,14 @@ def _sorted_position(d, rid):
     return later[0] if later else max(d.table_lines()) + 1
 
 
-def insert_row(text, values=None, *, id=None, after=None, before=None, end=False):
+def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=False):
     """Insert one row, after or before the row keyed `after`/`before`, or after
     the last row when `end` is true. With none of the three, the row goes where
     its key sorts if the rows are already in key order, and after the last row
     otherwise. `values` maps column names to cell text; a stored column it
-    omits is blank. The row's id is `id`, or the key column's entry in
-    `values`, or a generated `r_` and six hex digits. Returns (text, id), and
-    id is None for a table with no key.
+    omits is blank. The row's key is `row_key`, or the key column's entry in
+    `values`, or a generated `r_` and six hex digits. Returns (text, row_key),
+    and row_key is None for a table with no key.
 
     The diff is one added line."""
     d = _Doc(text)
@@ -415,50 +415,49 @@ def insert_row(text, values=None, *, id=None, after=None, before=None, end=False
                 refusal="value-in-computed-cell",
             )
     if d.key is None:
-        if id is not None:
-            raise EditRefused("no-key", "the table declares no `key`, so a row has no id")
+        if row_key is not None:
+            raise EditRefused("no-key", "the table declares no `key`, so a row has no row key")
     elif d.key in vals:
-        if id is not None and _nfc(id) != vals[d.key]:
-            raise EditRefused("conflicting-id", f"two ids given: {id!r} and {vals[d.key]!r}")
-        id = vals[d.key]
-    elif id is not None:
-        id = _cell_value(id, "id")
+        if row_key is not None and _nfc(row_key) != vals[d.key]:
+            raise EditRefused(
+                "conflicting-id", f"two row keys given: {row_key!r} and {vals[d.key]!r}"
+            )
+        row_key = vals[d.key]
+    elif row_key is not None:
+        row_key = _cell_value(row_key, "row_key")
     else:
         taken = {_nfc(split_row(d.lines[i])[d.cols.index(d.key)]) for i in d.data}
-        id = "r_" + secrets.token_hex(3)
-        while id in taken:
-            id = "r_" + secrets.token_hex(3)
+        row_key = "r_" + secrets.token_hex(3)
+        while row_key in taken:
+            row_key = "r_" + secrets.token_hex(3)
     if d.key is not None:
-        vals[d.key] = id
+        vals[d.key] = row_key
     cells = [vals.get(c, "") for c in d.cols]
     if end and (after is not None or before is not None):
         raise EditRefused("bad-position", "give one of after=, before= and end=")
     if end or after is not None or before is not None:
         at = _row_position(d, after, before)
     else:
-        at = _sorted_position(d, id)
+        at = _sorted_position(d, row_key)
     d.insert(at, _row_body(d, cells, at - 1))
     out = d.result()
     got = split_row(d.lines[at])
     if got != cells:
         raise EditRefused("not-representable", f"the row would read back as {got!r}")
-    return out, id
+    return out, row_key
 
 
-def delete_row(text, id):
-    """Delete the row keyed `id`. The diff is one removed line."""
+def delete_row(text, row_key, /):
+    """Delete the row keyed `row_key`. The diff is one removed line."""
     d = _Doc(text)
-    d.remove(d.row(id))
+    d.remove(d.row(row_key))
     return d.result()
 
 
-def add_column(
-    text, name, *, formula=None, value="", values=None, after=None, before=None, align="---"
-):
+def add_column(text, name, /, *, formula=None, value="", after=None, before=None, align="---"):
     """Add a column after or before the column `after`/`before`, or last. A
-    stored column's cells hold `value`, or `values[id]` for the row keyed `id`;
-    a computed column (`formula` given) has empty cells. `align` is the new
-    alignment cell.
+    stored column's cells hold `value`; a computed column (`formula` given)
+    has empty cells. `align` is the new alignment cell.
 
     The diff is every table line: §9.6 gives each row the header's field
     count, so no writer can add a column in fewer."""
@@ -467,12 +466,9 @@ def add_column(
     _check_ident(name, "column name")
     align = _text_value(align, "alignment cell").strip(WSP)
     value = _cell_value(value, "value")
-    per_row = {}
-    for rid, v in (values or {}).items():
-        per_row[d.row(rid)] = _cell_value(v, f"value for row {rid!r}")
     if formula is not None:
         formula = _text_value(formula, "formula").strip(WSP)
-        if value != "" or per_row:
+        if value != "":
             raise Malformed(
                 f"{name!r} is a computed column; its cells are empty (§5)",
                 refusal="value-in-computed-cell",
@@ -488,7 +484,7 @@ def add_column(
         k = d.column(before) if before is not None else len(d.cols)
     cells = {d.header: head, d.align: align}
     for i in d.data:
-        cells[i] = per_row.get(i, value)
+        cells[i] = value
     lay = d.layout()
     if lay:
         width = max(len(escape_cell(c)) for c in cells.values()) + 2
@@ -511,7 +507,7 @@ def add_column(
     return out
 
 
-def delete_column(text, name):
+def delete_column(text, name, /):
     """Delete a column that no formula or declaration names. The diff is every
     table line, as for `add_column`."""
     d = _Doc(text)
@@ -552,7 +548,7 @@ def _values_under(text, old, new):
     return rows, {k: v(x) for k, x in aggs.items()}
 
 
-def rename_column(text, old, new):
+def rename_column(text, old, new, /):
     """Rename a column in the header, in every formula and in every declaration
     that names it, and nowhere else: not in a string literal, a function name,
     a numeric literal or an annotation. The diff is the header line and each
@@ -614,7 +610,7 @@ def rename_column(text, old, new):
     return out
 
 
-def set_formula(text, column, formula):
+def set_formula(text, column, formula, /):
     """Replace a computed column's formula. The diff is the header line."""
     d = _Doc(text)
     k = d.column(column)
@@ -636,7 +632,7 @@ def set_formula(text, column, formula):
     return out
 
 
-def set_declaration(text, name, rhs):
+def set_declaration(text, name, rhs, /):
     """Set `name := rhs`: in place, keeping the line's spacing and annotation,
     when the name is declared, and otherwise after the last declaration. `key`
     and `order` are names like any other here. The diff is one line."""
@@ -667,7 +663,7 @@ def set_declaration(text, name, rhs):
     return out
 
 
-def delete_declaration(text, name):
+def delete_declaration(text, name, /):
     """Delete the declaration of `name`. The diff is one removed line."""
     d = _Doc(text)
     decls = d.declarations()
@@ -680,10 +676,10 @@ def delete_declaration(text, name):
 __all__ = [
     "EditRefused",
     "add_column",
+    "add_row",
     "delete_column",
     "delete_declaration",
     "delete_row",
-    "insert_row",
     "rename_column",
     "set_declaration",
     "set_formula",

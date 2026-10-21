@@ -13,6 +13,7 @@ line 7 moves the moment anyone else edits the file.
 import argparse
 import errno
 import os
+import re
 import stat
 import sys
 import tempfile
@@ -344,16 +345,17 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
     def change(text):
         cols, formulas, _r, _d, _o, key = parse(text)
         if key is None:
-            raise Malformed("no `key :=` declaration, so there is no id to mint")
+            raise edit.EditRefused("no-key", "no `key :=` declaration, so there is no id to mint")
         fillable = [c for c in cols if c != key and c not in formulas]
         if len(values) != len(fillable):
-            raise Malformed(
-                f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}"
+            raise edit.EditRefused(
+                "value-count",
+                f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}",
             )
-        new, got = edit.insert_row(
+        new, got = edit.add_row(
             text,
             dict(zip(fillable, values, strict=True)),
-            id=rid,
+            row_key=rid,
             after=after,
             before=before,
             end=end,
@@ -371,6 +373,11 @@ COMMANDS = {
     "delete-column": "delete a column that no formula or declaration names",
     "rename-column": "rename a column everywhere a formula or declaration names it",
 }
+
+
+# A word that looks like a command rather than a path: lowercase words joined by
+# `-`, as every editing command is spelled.
+_COMMAND_SHAPE = re.compile(r"[a-z]+(?:-[a-z]+)+")
 
 
 def _help():
@@ -467,6 +474,13 @@ def main(argv: list[str] | None = None) -> int:
     cmd = "check"
     if argv and argv[0] in COMMANDS:
         cmd = argv.pop(0)
+    elif argv and _COMMAND_SHAPE.fullmatch(argv[0]) and not os.path.lexists(argv[0]):
+        # `rowspec delete-row FILE KEY` would otherwise check three paths.
+        print(
+            f"rowspec: unknown command {argv[0]!r}; the commands are {', '.join(COMMANDS)}",
+            file=sys.stderr,
+        )
+        return 2
     p = _parser(cmd)
     a = p.parse_args(argv)
     if getattr(a, "file", None) == "":

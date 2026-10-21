@@ -34,8 +34,15 @@ disjoint edits into a conflict.
    `LF` otherwise, the rule `rowspec add-row` has followed since #200.
 3. **Within a changed line, change only the cell or span concerned.** A
    renamed column rewrites the name and the formula spans that name it, and
-   leaves the other cells of the header line as they were. A replaced cell
-   keeps its padding, and keeps its width when the new text fits.
+   leaves the other cells of the header line as they were. A rewritten
+   header cell, a renamed column or a replaced formula, keeps its width
+   only when it was padded, with more than one space beside its text, and
+   the new text fits. A cell with one space on each side, as a column's
+   widest cell often is, is re-rendered to its new text and grows or
+   shrinks with it: `set_formula` turns `| total = qty * 2 |` into
+   `| total = qty |`. A plain name and a formula are treated alike. No
+   operation rewrites a data cell in place: see "What the API does not
+   change".
 4. **Never reflow.** In a padded table, a value wider than its column is
    written wider, and the table's alignment is broken for that line, rather
    than every line being re-padded. A new row or column in a padded table is
@@ -51,7 +58,7 @@ The resulting shapes, for a table of `N` data rows:
 
 | operation | lines changed |
 | --- | --- |
-| `insert_row` | 1 added |
+| `add_row` | 1 added |
 | `delete_row` | 1 removed |
 | `add_column` | `N + 2` changed: header, alignment row, every data row |
 | `delete_column` | `N + 2` changed |
@@ -74,7 +81,7 @@ Every operation is a pure function from text to text:
 ```python
 from rowspec import edit
 
-text, rid = edit.insert_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
+text, rid = edit.add_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
 text = edit.delete_row(text, "r_0003")
 text = edit.add_column(text, "unit", after="qty")
 text = edit.add_column(text, "total", formula="qty * unit")
@@ -85,6 +92,8 @@ text = edit.set_declaration(text, "grand", "sum(total)")
 text = edit.delete_declaration(text, "grand")
 ```
 
+- `text` and each function's required arguments are positional-only (`/`),
+  so their names are not part of the interface.
 - A function reads nothing and writes nothing. The caller reads the file with
   `newline=""` so terminators survive, and writes the result back. A refused
   edit raises before the caller has anything to write.
@@ -96,11 +105,11 @@ text = edit.delete_declaration(text, "grand")
   or the end.** A row's position is never an input to a value (§6), so
   position is only about the diff: it decides which gap the new line lands
   in, and so which concurrent edits it can collide with. For columns, no
-  position means the end. For `insert_row`, the end is `end=True`, and no
+  position means the end. For `add_row`, the end is `end=True`, and no
   position means the default below. There is no operation that moves a row:
   see "Measured limits".
 - **By default a new row goes where its key sorts.** When the rows are
-  already in key order, compared by code point, `insert_row` with no
+  already in key order, compared by code point, `add_row` with no
   position puts the row before the first row whose key sorts after its own;
   otherwise it appends at the end. This is a convention of this writer,
   chosen for merge behaviour, and not a rule of the format: SPEC.md says
@@ -128,10 +137,10 @@ text = edit.delete_declaration(text, "grand")
 
   The conflicts under the default are pairs whose keys sort into the same
   gap; with no rows there is one gap.
-- `insert_row` takes the id as `id=`. Without one it generates `r_` followed
-  by six hex digits, as `rowspec add-row` does, and returns the id it used.
-  Without a declared `key` there is no id, and only the end position is
-  available.
+- `add_row` takes the id as `row_key=`. Without one it generates `r_`
+  followed by six hex digits, as `rowspec add-row` does, and returns the id
+  it used. Without a declared `key` there is no id, and only the end
+  position is available.
 - `rename_column` renames the column in the header, in every formula and in
   every declaration that names it, and nowhere else: a string literal, a
   function name, a numeric literal and an annotation are left alone.
@@ -150,10 +159,12 @@ An edit is refused, with nothing returned, in four ways:
 2. **The request cannot be written.** These are refused before any text is
    built, and carry an API reason rather than a §9 identifier:
    - `no-such-row`, `no-such-column`, `no-such-declaration`;
-   - `no-key`: an id, or a position relative to a key, on a table with no key;
+   - `no-key`: an id, or a position relative to a key, on a table with no
+     key. `rowspec add-row` also refuses a table with no key this way when
+     it is given neither, since it always gives the new row a key;
    - `bad-position`: more than one of `after=`, `before=` and `end=True`;
-   - `conflicting-id`: an `id=` that differs from the key column's entry in
-     the values;
+   - `conflicting-id`: a `row_key=` that differs from the key column's entry
+     in the values;
    - `line-break`: CR or LF in a value, formula or declaration (§4.1);
    - `not-representable`: a value with leading or trailing space or tab,
      which the cell would trim away (§4.1.4), or a declaration that would be
@@ -168,6 +179,10 @@ An edit is refused, with nothing returned, in four ways:
    - `rename-changes-values`: renaming onto a name spelled like a number where
      the column is used as an operand, which would then read as that number
      (§4.2 rule 7).
+
+   `rowspec add-row` has one refusal of its own, which the Python API does
+   not raise: `value-count`, for a number of values other than one per
+   stored column besides the key.
 3. **The result is refused.** The new text is evaluated in full, so every §9
    refusal applies to it: a duplicate id, a bad identifier, a duplicate column
    (renaming onto an existing name), a value in a computed cell, a malformed
@@ -189,7 +204,10 @@ names it finds are compared in NFC.
 
 Errors are `rowspec.Malformed`, whose `refusal` attribute is the §9
 identifier when there is one. `rowspec.edit.EditRefused` is the subclass for
-the API's own reasons, with the reason in `reason`.
+the API's own reasons, with the reason in `reason`, and `rowspec add-row`
+raises it for `value-count` too. Neither an API reason nor `value-count`
+ever takes the spelling of a SPEC.md §9 identifier, so all of them can share
+the bracketed code the editing commands print.
 
 ## What still collides
 
@@ -248,3 +266,9 @@ declaration.
 
 The API adds functions. It does not change SPEC.md, the canonical form, the
 grammar, or any existing function; `set_cell` is unchanged.
+
+There is no edit of a single data cell in this release. The released
+`rowspec.set_cell(st, row_key, col, value)` changes a parsed structure, and
+rendering it writes the whole row unpadded. The name
+`edit.set_cell(text, row_key, column, value)` is reserved for that edit in a
+later release, with its arguments in the released function's order.
