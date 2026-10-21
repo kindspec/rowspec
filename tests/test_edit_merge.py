@@ -59,7 +59,7 @@ def ins(after=None, before=None, rid=None, item="new", end=False):
     """An insertion with a fixed id, so that applying it twice, once on a
     branch and once serially, inserts the same row."""
     rid = rid or f"r_{next(_IDS)}"
-    return lambda t: edit.insert_row(
+    return lambda t: edit.add_row(
         t,
         {"item": item, "region": "EU", "qty": "1", "unit": "1"},
         id=rid,
@@ -373,7 +373,7 @@ def test_a_merge_that_means_neither_order_is_reported(tmp_path):
     calls = iter(["1", "2", "2", "2"])
 
     def a(t):
-        return edit.insert_row(t, {"qty": next(calls), "unit": "1"}, id="r_99")[0]
+        return edit.add_row(t, {"qty": next(calls), "unit": "1"}, id="r_99")[0]
 
     got, _detail = merge(tmp_path, BASE, a, lambda t: edit.delete_row(t, "r_02"))
     assert got == "silently-wrong"
@@ -382,7 +382,7 @@ def test_a_merge_that_means_neither_order_is_reported(tmp_path):
 def measure_concurrent_inserts(tmp, ids, rng, pairs=100, end=False):
     """{outcome: count} for `pairs` pairs of rows inserted on two branches of a
     table whose rows have `ids`, in that order, each new row with a random id of
-    the shape `insert_row` generates, placed by default or at the end."""
+    the shape `add_row` generates, placed by default or at the end."""
     import pathlib
 
     base = "| id | qty |\n| --- | --: |\n" + "".join(f"| {i} | 1 |\n" for i in ids)
@@ -390,7 +390,7 @@ def measure_concurrent_inserts(tmp, ids, rng, pairs=100, end=False):
     counts = {}
     for n in range(pairs):
         a, b = (f"r_{rng.getrandbits(24):06x}" for _ in range(2))
-        ops = [(lambda t, r=r: edit.insert_row(t, {"qty": "1"}, id=r, end=end)[0]) for r in (a, b)]
+        ops = [(lambda t, r=r: edit.add_row(t, {"qty": "1"}, id=r, end=end)[0]) for r in (a, b)]
         d = pathlib.Path(tmp) / f"{id(counts)}-{n}"
         d.mkdir()
         got, _ = merge(d, base, *ops)

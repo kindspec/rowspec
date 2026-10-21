@@ -350,7 +350,7 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
             raise Malformed(
                 f"expected {len(fillable)} value(s) for {', '.join(fillable)}; got {len(values)}"
             )
-        new, got = edit.insert_row(
+        new, got = edit.add_row(
             text,
             dict(zip(fillable, values, strict=True)),
             id=rid,

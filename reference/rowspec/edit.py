@@ -393,7 +393,7 @@ def _sorted_position(d, rid):
     return later[0] if later else max(d.table_lines()) + 1
 
 
-def insert_row(text, values=None, *, id=None, after=None, before=None, end=False):
+def add_row(text, values=None, *, id=None, after=None, before=None, end=False):
     """Insert one row, after or before the row keyed `after`/`before`, or after
     the last row when `end` is true. With none of the three, the row goes where
     its key sorts if the rows are already in key order, and after the last row
@@ -680,10 +680,10 @@ def delete_declaration(text, name):
 __all__ = [
     "EditRefused",
     "add_column",
+    "add_row",
     "delete_column",
     "delete_declaration",
     "delete_row",
-    "insert_row",
     "rename_column",
     "set_declaration",
     "set_formula",

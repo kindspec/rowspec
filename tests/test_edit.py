@@ -67,10 +67,10 @@ def values(text):
 
 
 OPS = {
-    "insert_row after": lambda t: edit.insert_row(t, {"item": "cog", "qty": "1"}, after="r_02")[0],
-    "insert_row before": lambda t: edit.insert_row(t, {"item": "cog"}, before="r_01")[0],
-    "insert_row end": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_09", end=True)[0],
-    "insert_row by key": lambda t: edit.insert_row(t, {"item": "cog"}, id="r_015")[0],
+    "add_row after": lambda t: edit.add_row(t, {"item": "cog", "qty": "1"}, after="r_02")[0],
+    "add_row before": lambda t: edit.add_row(t, {"item": "cog"}, before="r_01")[0],
+    "add_row end": lambda t: edit.add_row(t, {"item": "cog"}, id="r_09", end=True)[0],
+    "add_row by key": lambda t: edit.add_row(t, {"item": "cog"}, id="r_015")[0],
     "delete_row": lambda t: edit.delete_row(t, "r_02"),
     "rename_column": lambda t: edit.rename_column(t, "qty", "quantity"),
     "set_formula": lambda t: edit.set_formula(t, "total", "qty * unit * 2"),
@@ -84,10 +84,10 @@ OPS = {
 
 # (removed, added) for a table of N data rows.
 WANT = {
-    "insert_row after": lambda n: (0, 1),
-    "insert_row before": lambda n: (0, 1),
-    "insert_row end": lambda n: (0, 1),
-    "insert_row by key": lambda n: (0, 1),
+    "add_row after": lambda n: (0, 1),
+    "add_row before": lambda n: (0, 1),
+    "add_row end": lambda n: (0, 1),
+    "add_row by key": lambda n: (0, 1),
     "delete_row": lambda n: (1, 0),
     "rename_column": lambda n: (1, 1),
     "set_formula": lambda n: (1, 1),
@@ -122,7 +122,7 @@ def test_a_crlf_file_stays_crlf(op):
     "src, op",
     [
         (BASE.rstrip("\n"), lambda t: edit.set_declaration(t, "n", "count(id)")),
-        ("| a | b |\n| - | - |\n| 1 | 2 |", lambda t: edit.insert_row(t, {"a": "3"})[0]),
+        ("| a | b |\n| - | - |\n| 1 | 2 |", lambda t: edit.add_row(t, {"a": "3"})[0]),
     ],
     ids=["declaration", "row"],
 )
@@ -132,8 +132,8 @@ def test_a_missing_final_terminator_stays_missing(src, op):
     assert shape(src, out) == (1, 2)  # the old last line gains a terminator
 
 
-def test_insert_row_writes_the_row_asked_for():
-    out, rid = edit.insert_row(BASE, {"item": "a | b", "qty": "5"}, after="r_01")
+def test_add_row_writes_the_row_asked_for():
+    out, rid = edit.add_row(BASE, {"item": "a | b", "qty": "5"}, after="r_01")
     assert rid == "r_" + rid[2:] and re.fullmatch(r"r_[0-9a-f]{6}", rid)
     rows, _ = values(out)
     assert rows[rid]["item"] == "a | b" and rows[rid]["qty"] == "5"
@@ -142,22 +142,22 @@ def test_insert_row_writes_the_row_asked_for():
     assert lines[lines.index("| r_01 | widget | EU | 10 | 12.00 |  |") + 1].startswith(f"| {rid} ")
 
 
-def test_insert_row_takes_the_id_from_values_or_id():
-    a, ra = edit.insert_row(BASE, {"id": "r_10", "item": "x"})
-    b, rb = edit.insert_row(BASE, {"item": "x"}, id="r_10")
+def test_add_row_takes_the_id_from_values_or_id():
+    a, ra = edit.add_row(BASE, {"id": "r_10", "item": "x"})
+    b, rb = edit.add_row(BASE, {"item": "x"}, id="r_10")
     assert ra == rb == "r_10" and a == b
 
 
-def test_insert_row_without_a_key_has_no_id():
+def test_add_row_without_a_key_has_no_id():
     src = "| a | b |\n| - | - |\n| 1 | 2 |\n"
-    out, rid = edit.insert_row(src, {"a": "3"})
+    out, rid = edit.add_row(src, {"a": "3"})
     assert rid is None and out == src + "| 3 |  |\n"
 
 
 def test_a_padded_table_gets_a_padded_row_and_is_never_reflowed():
-    out, _ = edit.insert_row(PADDED, {"item": "cog", "qty": "1", "unit": "2"}, id="r_04")
+    out, _ = edit.add_row(PADDED, {"item": "cog", "qty": "1", "unit": "2"}, id="r_04")
     assert "| r_04 | cog    |   1 |     2 |                    |\n" in out
-    wide, _ = edit.insert_row(PADDED, {"item": "a much longer item"}, id="r_05")
+    wide, _ = edit.add_row(PADDED, {"item": "a much longer item"}, id="r_05")
     assert shape(PADDED, wide) == (0, 1)
     assert "| r_05 | a much longer item |     |       |                    |\n" in wide
 
@@ -253,17 +253,17 @@ def test_a_first_declaration_is_separated_by_a_blank_line():
 
 
 def test_values_are_written_nfc():
-    out, _ = edit.insert_row(BASE, {"item": "café"}, id="r_09")
+    out, _ = edit.add_row(BASE, {"item": "café"}, id="r_09")
     assert "| r_09 | café |" in out
 
 
 @pytest.mark.parametrize(
     "call, refusal",
     [
-        (lambda: edit.insert_row(BASE, {"item": "x"}, id="r_01"), "duplicate-row-id"),
-        (lambda: edit.insert_row(BASE, {"item": "x"}, id="r 9"), "bad-identifier"),
-        (lambda: edit.insert_row(BASE, {"total": "5"}), "value-in-computed-cell"),
-        (lambda: edit.insert_row(BASE, {"item": "---", "id": "---"}), "bad-identifier"),
+        (lambda: edit.add_row(BASE, {"item": "x"}, id="r_01"), "duplicate-row-id"),
+        (lambda: edit.add_row(BASE, {"item": "x"}, id="r 9"), "bad-identifier"),
+        (lambda: edit.add_row(BASE, {"total": "5"}), "value-in-computed-cell"),
+        (lambda: edit.add_row(BASE, {"item": "---", "id": "---"}), "bad-identifier"),
         (lambda: edit.add_column(BASE, "qty"), "duplicate-column"),
         (lambda: edit.add_column(BASE, "a b"), "bad-identifier"),
         (lambda: edit.add_column(BASE, "a=b"), "bad-identifier"),
@@ -290,15 +290,15 @@ def test_a_result_spec_refuses_is_refused_with_its_identifier(call, refusal):
 @pytest.mark.parametrize(
     "call, reason",
     [
-        (lambda: edit.insert_row(BASE, {"item": "a\nb"}), "line-break"),
-        (lambda: edit.insert_row(BASE, {"item": "a\rb"}), "line-break"),
-        (lambda: edit.insert_row(BASE, {"item": " a"}), "not-representable"),
-        (lambda: edit.insert_row(BASE, {"nope": "a"}), "no-such-column"),
-        (lambda: edit.insert_row(BASE, {}, after="r_99"), "no-such-row"),
-        (lambda: edit.insert_row(BASE, {}, after="r_01", before="r_02"), "bad-position"),
-        (lambda: edit.insert_row("| a |\n| - |\n", {}, id="r_1"), "no-key"),
+        (lambda: edit.add_row(BASE, {"item": "a\nb"}), "line-break"),
+        (lambda: edit.add_row(BASE, {"item": "a\rb"}), "line-break"),
+        (lambda: edit.add_row(BASE, {"item": " a"}), "not-representable"),
+        (lambda: edit.add_row(BASE, {"nope": "a"}), "no-such-column"),
+        (lambda: edit.add_row(BASE, {}, after="r_99"), "no-such-row"),
+        (lambda: edit.add_row(BASE, {}, after="r_01", before="r_02"), "bad-position"),
+        (lambda: edit.add_row("| a |\n| - |\n", {}, id="r_1"), "no-key"),
         (lambda: edit.delete_row(BASE, "r_99"), "no-such-row"),
-        (lambda: edit.insert_row(BASE, {"id": "r_10"}, id="r_11"), "conflicting-id"),
+        (lambda: edit.add_row(BASE, {"id": "r_10"}, id="r_11"), "conflicting-id"),
         (lambda: edit.delete_column(BASE, "qty"), "column-referenced"),
         (lambda: edit.delete_column(BASE, "region"), "column-referenced"),
         (lambda: edit.delete_column(BASE, "id"), "column-referenced"),
@@ -343,24 +343,24 @@ def keys_of(text):
 
 
 def test_a_row_goes_where_its_key_sorts_when_the_rows_are_in_key_order():
-    out, _ = edit.insert_row(BASE, {"item": "x"}, id="r_025")
+    out, _ = edit.add_row(BASE, {"item": "x"}, id="r_025")
     assert keys_of(out) == ["r_01", "r_02", "r_025", "r_03", "r_04"]
-    out, _ = edit.insert_row(BASE, {"item": "x"}, id="r_00")
+    out, _ = edit.add_row(BASE, {"item": "x"}, id="r_00")
     assert keys_of(out) == ["r_00", "r_01", "r_02", "r_03", "r_04"]
 
 
 def test_a_row_goes_last_when_the_rows_are_not_in_key_order():
     r01 = "| r_01 | widget | EU | 10 | 12.00 |  |\n"
     src = BASE.replace(r01, "").replace("| r_04 |", r01 + "| r_04 |")
-    out, _ = edit.insert_row(src, {"item": "x"}, id="r_025")
+    out, _ = edit.add_row(src, {"item": "x"}, id="r_025")
     assert keys_of(out) == ["r_02", "r_03", "r_01", "r_04", "r_025"]
 
 
 def test_end_places_a_row_last_whatever_its_key():
-    out, _ = edit.insert_row(BASE, {"item": "x"}, id="r_00", end=True)
+    out, _ = edit.add_row(BASE, {"item": "x"}, id="r_00", end=True)
     assert keys_of(out)[-1] == "r_00"
     with pytest.raises(edit.EditRefused) as e:
-        edit.insert_row(BASE, {"item": "x"}, after="r_01", end=True)
+        edit.add_row(BASE, {"item": "x"}, after="r_01", end=True)
     assert e.value.reason == "bad-position"
 
 
@@ -397,8 +397,8 @@ def test_removing_an_unterminated_last_line_after_a_blank_line_keeps_the_blank_l
         lambda t: edit.set_declaration(t, "n", "count(id)"),
         lambda t: edit.delete_declaration(t, "n"),
         lambda t: edit.rename_column(t, "a", "b"),
-        lambda t: edit.insert_row(t, {"a": "2"}, id="r2")[0],
-        lambda t: edit.insert_row(t, {"a": "2"}, after="r1")[0],
+        lambda t: edit.add_row(t, {"a": "2"}, id="r2")[0],
+        lambda t: edit.add_row(t, {"a": "2"}, after="r1")[0],
         lambda t: edit.delete_row(t, "r1"),
     ],
 )
@@ -419,7 +419,7 @@ def test_a_new_declaration_above_the_table_goes_after_the_last_one():
 def test_untouched_cells_keep_their_bytes_when_not_nfc():
     nfd = unicodedata.normalize("NFD", "caf\u00e9")
     src = f"| id | a | {nfd} |\n| --- | --- | --- |\n| r1 | 1 | {nfd} |\n\nkey := id\n"
-    out, _ = edit.insert_row(src, {"a": "2"}, id="r2")
+    out, _ = edit.add_row(src, {"a": "2"}, id="r2")
     assert out.startswith(src.split("\n\n")[0])
     out = edit.add_column(src, "z")
     assert out.splitlines()[2] == f"| r1 | 1 | {nfd} |  |"
@@ -452,7 +452,7 @@ def test_a_row_that_would_not_read_back_is_refused(monkeypatch):
     forgets to escape a pipe while keeping the field count."""
     monkeypatch.setattr(edit, "escape_cell", lambda c: c.replace("|", "/"))
     with pytest.raises(edit.EditRefused) as e:
-        edit.insert_row(BASE, {"item": "a|b"}, id="r_09")
+        edit.add_row(BASE, {"item": "a|b"}, id="r_09")
     assert e.value.reason == "not-representable"
 
 
@@ -503,5 +503,5 @@ def test_after_an_unterminated_last_row_a_mixed_file_takes_crlf():
     """The row that loses its place as last line takes CRLF if the file has
     any, as `rowspec add-row` has done since #200."""
     src = "key := id\n\n| id | a |\r\n| --- | --- |\r\n| r_1 | x |"
-    out, _ = edit.insert_row(src, {"a": "z"}, id="r_2")
+    out, _ = edit.add_row(src, {"a": "z"}, id="r_2")
     assert out == src + "\r\n| r_2 | z |"

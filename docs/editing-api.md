@@ -51,7 +51,7 @@ The resulting shapes, for a table of `N` data rows:
 
 | operation | lines changed |
 | --- | --- |
-| `insert_row` | 1 added |
+| `add_row` | 1 added |
 | `delete_row` | 1 removed |
 | `add_column` | `N + 2` changed: header, alignment row, every data row |
 | `delete_column` | `N + 2` changed |
@@ -74,7 +74,7 @@ Every operation is a pure function from text to text:
 ```python
 from rowspec import edit
 
-text, rid = edit.insert_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
+text, rid = edit.add_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
 text = edit.delete_row(text, "r_0003")
 text = edit.add_column(text, "unit", after="qty")
 text = edit.add_column(text, "total", formula="qty * unit")
@@ -96,11 +96,11 @@ text = edit.delete_declaration(text, "grand")
   or the end.** A row's position is never an input to a value (§6), so
   position is only about the diff: it decides which gap the new line lands
   in, and so which concurrent edits it can collide with. For columns, no
-  position means the end. For `insert_row`, the end is `end=True`, and no
+  position means the end. For `add_row`, the end is `end=True`, and no
   position means the default below. There is no operation that moves a row:
   see "Measured limits".
 - **By default a new row goes where its key sorts.** When the rows are
-  already in key order, compared by code point, `insert_row` with no
+  already in key order, compared by code point, `add_row` with no
   position puts the row before the first row whose key sorts after its own;
   otherwise it appends at the end. This is a convention of this writer,
   chosen for merge behaviour, and not a rule of the format: SPEC.md says
@@ -128,7 +128,7 @@ text = edit.delete_declaration(text, "grand")
 
   The conflicts under the default are pairs whose keys sort into the same
   gap; with no rows there is one gap.
-- `insert_row` takes the id as `id=`. Without one it generates `r_` followed
+- `add_row` takes the id as `id=`. Without one it generates `r_` followed
   by six hex digits, as `rowspec add-row` does, and returns the id it used.
   Without a declared `key` there is no id, and only the end position is
   available.
