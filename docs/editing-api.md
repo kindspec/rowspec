@@ -191,7 +191,9 @@ names it finds are compared in NFC.
 
 Errors are `rowspec.Malformed`, whose `refusal` attribute is the §9
 identifier when there is one. `rowspec.edit.EditRefused` is the subclass for
-the API's own reasons, with the reason in `reason`.
+the API's own reasons, with the reason in `reason`. An API reason never takes
+the spelling of a SPEC.md §9 identifier, so the two can share the bracketed
+code the editing commands print.
 
 ## What still collides
 
