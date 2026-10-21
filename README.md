@@ -64,7 +64,7 @@ rest. See [docs/csv.md](docs/csv.md), and copy
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: kindspec/rowspec@v0.4.0
+- uses: kindspec/rowspec@v0.5.0
   with:
     paths: data
 ```
@@ -110,8 +110,8 @@ where the two disagreed, the independent implementation was correct and the
 reference was wrong.
 
 **The mutation gate is the other half.** The suite is only worth its green tick
-if it can go red, so the implementation is deliberately broken in 114 specific
-ways. 112 must be caught by a case; the other two carry a recorded claim that no
+if it can go red, so the implementation is deliberately broken in 116 specific
+ways. 114 must be caught by a case; the other two carry a recorded claim that no
 input could distinguish them from the original, and the gate fails the run if a
 case turns out to catch one anyway. No two mutants produce the same mutated
 source, and the gate refuses to run if two do. A mutant that survives is reported as a

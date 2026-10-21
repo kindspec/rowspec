@@ -11,8 +11,8 @@ path.
 
 ## Where it is
 
-**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0` and `v0.4.0` (latest), on PyPI,
-with a GitHub Action.
+**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0` and `v0.5.0`
+(latest), on PyPI, with a GitHub Action.
 
     631 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
@@ -26,7 +26,7 @@ with a GitHub Action.
     0 failures                just conform-csv
     85 killed, 3 equivalent   just mutants-csv (csv profile)
     41 killed, 0 equivalent   just mutants-csv (sidecar profile)
-    1642 passed, 2 skipped    just test
+    1650 passed, 2 skipped    just test
     62 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
@@ -37,29 +37,30 @@ written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
 
-## On main, not yet released
-
-The next release has no version yet; until it ships, PyPI and the Action
-`v0.4.0` have none of this. See the CHANGELOG's Unreleased section for the full
-list.
+## Shipped in 0.5.0
 
 **`rowspec.edit`, an editing API** (#198, #201), with the `rowspec add-column`,
 `delete-column` and `rename-column` subcommands over it. `add-row` can place a
 row beside a key, and with no position it now puts the row where its key
 sorts when the rows are in key order, where 0.4.0 always appended; `--end`
-asks for the end. Each edit changes only the lines it is about. It
-was reviewed before release (#203), and the rulings from that review are
-applied (#271). One defect is open against it: `set_formula` centres a formula
-padded on both sides (#272).
+asks for the end. Each edit changes only the lines it is about. It was
+reviewed before release (#203), the rulings from that review are applied
+(#271), and the one defect found after them is fixed (#272).
 
 **xlsx `--values`** (#89), an export of `rowspec eval`'s values, exactly, in
 place of formulas. In both modes the export now saves every number with all
-its digits (#269), and the `xlsx` extra requires `openpyxl>=3.1,<3.2`. Both
-landed in #270.
+its digits (#269), and the `xlsx` extra requires `openpyxl>=3.1,<3.2`.
 
 **A `rowspec[conformance]` extra** (#47), so plain `pip` can run the suite the
-sdist ships: kindkit 0.2.0 is on PyPI, and on main rowspec pins that release
-in its dev group rather than a commit. See the CHANGELOG's Unreleased section.
+sdist ships. kindkit is pinned to its 0.2.0 release on PyPI rather than a
+commit.
+
+**Output a script may match has changed.** `rowspec check` and `rowspec eval`
+end a refusal's line with its §9 identifier in brackets (#101), and every
+CSV-mode refusal now carries one (#103). A malformed entry anywhere in a
+directory `.rowspec.json` refuses every file checked through it (#190). The
+suites grew to 631 `.mdtbl` and 281 CSV cases, written without reading the
+implementation. See the CHANGELOG for the full list.
 
 ## Shipped in 0.4.0
 
@@ -132,8 +133,8 @@ blockspec's conformance CI runs kindkit's case-tree validator and runner,
 checked out at a pinned commit, as rowspec's does. Whether the kit was fitted to
 rowspec is for that use to show, and nothing here settles it. In this
 release kindkit was a dev dependency pinned to a commit, so `pip` could not
-install it for the suite the sdist ships (#47); see "On main, not yet
-released" for the change.
+install it for the suite the sdist ships (#47); see "Shipped in 0.5.0"
+for the change.
 
 **This is load-bearing**, so it takes more than one independent review pass.
 
@@ -150,10 +151,9 @@ with real structured references and `SUBTOTAL` aggregates recalculating in
 LibreOffice. Both are now built, in two parts. #35 writes the formulas, and
 refuses what a spreadsheet cannot say: `cumulative`, `prior`, `delta` and any
 `where` predicate. #36 recalculates the export in LibreOffice and compares it
-with `rowspec eval`. A values export (#89) is done on main, pending the next
-release: `--values` writes `rowspec eval`'s values, exactly, in place of
-formulas, and is the exact mode while the two gaps below stay open in the
-default one. Still open:
+with `rowspec eval`. A values export (#89) shipped in 0.5.0: `--values`
+writes `rowspec eval`'s values, exactly, in place of formulas, and is the exact
+mode while the two gaps below stay open in the default one. Still open:
 - **Summation (#83).** Left-to-right addition cancels `sum` and `avg` where
   §7's exact sum does not, at ordinary magnitudes as well as near `1e308`.
 - **Comparison (#88).** Tolerant comparison and subtraction flip `if`

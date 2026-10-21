@@ -7,6 +7,8 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-21
+
 ### Added
 
 - **A `conformance` extra, so pip can run the suite the sdist ships** (#47).
@@ -83,15 +85,15 @@ prose, and where the two disagree the suite wins.
   final LF; `table.py`'s number pattern anchored with `$` instead of
   `\Z`, patched in from csvmode's import since the gate splices one
   file; and an empty `order` name read as no order. Each is killed on a
-  wrong answer: `mutants.py --profile csv` reports 44 killed, 0
-  survived, 3 equivalent.
+  wrong answer: `mutants.py --profile csv` reported 44 killed, 0
+  survived, 3 equivalent when these landed.
 
 - **The mutation gate covers the two `order` guards** (#202). Two
   mutants in `table.py`: one reads `order := count(a where a = "1")` as an
   aggregate named `order` again, and one accepts `order := by(n)` naming
   no column when the table has no rows. Each undoes one guard added for
-  #202, and the cases added for it kill both: `just mutants` reports 112
-  killed, 0 survived, 2 equivalent.
+  #202, and the cases added for it kill both: `just mutants` reported 112
+  killed, 0 survived, 2 equivalent when these landed.
 
 - **A CSV case for the grouped header**:
   `columns/grouped-header-of-repeated-names-refused`, a header of
@@ -1581,7 +1583,8 @@ actually ran. The two grammars diverged invisibly until differential evaluation
 against 55,681 real spreadsheet cells found it — not a check that could not
 fail, but a check that was never against the specification at all.
 
-[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kindspec/rowspec/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kindspec/rowspec/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kindspec/rowspec/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kindspec/rowspec/compare/v0.1.0...v0.2.0
