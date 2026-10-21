@@ -11,7 +11,11 @@ or not, after YAML comments are stripped -- no YAML parser is a dependency.
 
 Limits: this checks that a ref is a 40-hex commit, not that the commit is the
 one the trailing `# vX.Y.Z` comment names, nor that it belongs to the expected
-owner rather than a fork.
+owner rather than a fork. Nor does it check that a `KINDKIT_RELEASES` entry is
+the commit kindkit's tag really names: a wrong entry with a `uses:` ref that
+matches it stays green. That needs the network, so it is checked by hand when
+an entry is added: `git ls-remote https://github.com/kindspec/kindkit
+'refs/tags/vX.Y.Z^{}'` must print the entry's commit.
 """
 
 import os
