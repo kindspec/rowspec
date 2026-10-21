@@ -214,6 +214,42 @@ def test_a_padded_formula_cell_keeps_its_width():
     assert "| total = qty          |" in edit.set_formula(src, "total", "qty")
 
 
+def test_a_formula_padded_on_both_sides_is_not_centred():
+    """docs/editing-api.md rule 3 (#272): a padded formula cell keeps its
+    width, and the new formula follows `= ` as in every other rewritten
+    cell. Spaces on both sides of the old formula are not read as centring."""
+    src = "| id | qty | total =  qty * 2  |\n|----|-----|------|\n| a  | 1   |      |\n"
+    out = edit.set_formula(src, "total", "qty")
+    assert out.splitlines()[0] == "| id | qty | total = qty       |"
+    assert out.splitlines()[1:] == src.splitlines()[1:]
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "| id | qty | total =  qty * 2  |",
+        "| id | qty |total = qty * 2      |",
+        "| id | qty | total =  qty * 2 |",
+        "| id | qty |      total = qty * 2 |",
+    ],
+)
+def test_set_formula_to_the_same_formula_changes_nothing(header):
+    """docs/editing-api.md rule 1: no line is re-rendered that the operation
+    does not change. Setting a column's formula to the text it already holds
+    returns the file as it was, as renaming a column to its own name does."""
+    src = header + "\n|----|-----|------|\n| a  | 1   |      |\n"
+    assert edit.set_formula(src, "total", "qty * 2") == src
+    assert edit.set_formula(src, "total", " qty * 2 ") == src
+
+
+def test_a_formula_padded_on_the_left_keeps_its_width():
+    """docs/editing-api.md rule 3: a cell padded on the left is padded, and
+    keeps its width when the new formula fits."""
+    src = "| id | qty |      total = qty * 2 |\n|----|-----|------|\n| a  | 1   |      |\n"
+    out = edit.set_formula(src, "total", "qty")
+    assert out.splitlines()[0] == "| id | qty |          total = qty |"
+
+
 def test_a_padded_table_gets_a_padded_column():
     out = edit.add_column(PADDED, "n", after="id", value="1", align="--:")
     assert out.splitlines()[:3] == [
