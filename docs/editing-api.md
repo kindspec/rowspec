@@ -34,8 +34,10 @@ disjoint edits into a conflict.
    `LF` otherwise, the rule `rowspec add-row` has followed since #200.
 3. **Within a changed line, change only the cell or span concerned.** A
    renamed column rewrites the name and the formula spans that name it, and
-   leaves the other cells of the header line as they were. A replaced cell
-   keeps its padding, and keeps its width when the new text fits.
+   leaves the other cells of the header line as they were. A rewritten
+   header cell, a renamed column or a replaced formula, keeps its padding,
+   and keeps its width when the new text fits. No operation rewrites a data
+   cell in place: see "What the API does not change".
 4. **Never reflow.** In a padded table, a value wider than its column is
    written wider, and the table's alignment is broken for that line, rather
    than every line being re-padded. A new row or column in a padded table is
@@ -252,3 +254,9 @@ declaration.
 
 The API adds functions. It does not change SPEC.md, the canonical form, the
 grammar, or any existing function; `set_cell` is unchanged.
+
+There is no edit of a single data cell in this release. The released
+`rowspec.set_cell(st, row_key, col, value)` changes a parsed structure, and
+rendering it writes the whole row unpadded. The name
+`edit.set_cell(text, row_key, column, value)` is reserved for that edit in a
+later release, with its arguments in the released function's order.
