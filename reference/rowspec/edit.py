@@ -393,12 +393,12 @@ def _sorted_position(d, rid):
     return later[0] if later else max(d.table_lines()) + 1
 
 
-def add_row(text, values=None, *, id=None, after=None, before=None, end=False):
+def add_row(text, values=None, *, row_key=None, after=None, before=None, end=False):
     """Insert one row, after or before the row keyed `after`/`before`, or after
     the last row when `end` is true. With none of the three, the row goes where
     its key sorts if the rows are already in key order, and after the last row
     otherwise. `values` maps column names to cell text; a stored column it
-    omits is blank. The row's id is `id`, or the key column's entry in
+    omits is blank. The row's id is `row_key`, or the key column's entry in
     `values`, or a generated `r_` and six hex digits. Returns (text, id), and
     id is None for a table with no key.
 
@@ -415,40 +415,40 @@ def add_row(text, values=None, *, id=None, after=None, before=None, end=False):
                 refusal="value-in-computed-cell",
             )
     if d.key is None:
-        if id is not None:
+        if row_key is not None:
             raise EditRefused("no-key", "the table declares no `key`, so a row has no id")
     elif d.key in vals:
-        if id is not None and _nfc(id) != vals[d.key]:
-            raise EditRefused("conflicting-id", f"two ids given: {id!r} and {vals[d.key]!r}")
-        id = vals[d.key]
-    elif id is not None:
-        id = _cell_value(id, "id")
+        if row_key is not None and _nfc(row_key) != vals[d.key]:
+            raise EditRefused("conflicting-id", f"two ids given: {row_key!r} and {vals[d.key]!r}")
+        row_key = vals[d.key]
+    elif row_key is not None:
+        row_key = _cell_value(row_key, "id")
     else:
         taken = {_nfc(split_row(d.lines[i])[d.cols.index(d.key)]) for i in d.data}
-        id = "r_" + secrets.token_hex(3)
-        while id in taken:
-            id = "r_" + secrets.token_hex(3)
+        row_key = "r_" + secrets.token_hex(3)
+        while row_key in taken:
+            row_key = "r_" + secrets.token_hex(3)
     if d.key is not None:
-        vals[d.key] = id
+        vals[d.key] = row_key
     cells = [vals.get(c, "") for c in d.cols]
     if end and (after is not None or before is not None):
         raise EditRefused("bad-position", "give one of after=, before= and end=")
     if end or after is not None or before is not None:
         at = _row_position(d, after, before)
     else:
-        at = _sorted_position(d, id)
+        at = _sorted_position(d, row_key)
     d.insert(at, _row_body(d, cells, at - 1))
     out = d.result()
     got = split_row(d.lines[at])
     if got != cells:
         raise EditRefused("not-representable", f"the row would read back as {got!r}")
-    return out, id
+    return out, row_key
 
 
-def delete_row(text, id):
-    """Delete the row keyed `id`. The diff is one removed line."""
+def delete_row(text, row_key):
+    """Delete the row keyed `row_key`. The diff is one removed line."""
     d = _Doc(text)
-    d.remove(d.row(id))
+    d.remove(d.row(row_key))
     return d.result()
 
 

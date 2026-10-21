@@ -128,10 +128,10 @@ text = edit.delete_declaration(text, "grand")
 
   The conflicts under the default are pairs whose keys sort into the same
   gap; with no rows there is one gap.
-- `add_row` takes the id as `id=`. Without one it generates `r_` followed
-  by six hex digits, as `rowspec add-row` does, and returns the id it used.
-  Without a declared `key` there is no id, and only the end position is
-  available.
+- `add_row` takes the id as `row_key=`. Without one it generates `r_`
+  followed by six hex digits, as `rowspec add-row` does, and returns the id
+  it used. Without a declared `key` there is no id, and only the end
+  position is available.
 - `rename_column` renames the column in the header, in every formula and in
   every declaration that names it, and nowhere else: a string literal, a
   function name, a numeric literal and an annotation are left alone.
@@ -152,8 +152,8 @@ An edit is refused, with nothing returned, in four ways:
    - `no-such-row`, `no-such-column`, `no-such-declaration`;
    - `no-key`: an id, or a position relative to a key, on a table with no key;
    - `bad-position`: more than one of `after=`, `before=` and `end=True`;
-   - `conflicting-id`: an `id=` that differs from the key column's entry in
-     the values;
+   - `conflicting-id`: a `row_key=` that differs from the key column's entry
+     in the values;
    - `line-break`: CR or LF in a value, formula or declaration (§4.1);
    - `not-representable`: a value with leading or trailing space or tab,
      which the cell would trim away (§4.1.4), or a declaration that would be

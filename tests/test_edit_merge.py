@@ -62,7 +62,7 @@ def ins(after=None, before=None, rid=None, item="new", end=False):
     return lambda t: edit.add_row(
         t,
         {"item": item, "region": "EU", "qty": "1", "unit": "1"},
-        id=rid,
+        row_key=rid,
         after=after,
         before=before,
         end=end,
@@ -373,7 +373,7 @@ def test_a_merge_that_means_neither_order_is_reported(tmp_path):
     calls = iter(["1", "2", "2", "2"])
 
     def a(t):
-        return edit.add_row(t, {"qty": next(calls), "unit": "1"}, id="r_99")[0]
+        return edit.add_row(t, {"qty": next(calls), "unit": "1"}, row_key="r_99")[0]
 
     got, _detail = merge(tmp_path, BASE, a, lambda t: edit.delete_row(t, "r_02"))
     assert got == "silently-wrong"
@@ -390,7 +390,9 @@ def measure_concurrent_inserts(tmp, ids, rng, pairs=100, end=False):
     counts = {}
     for n in range(pairs):
         a, b = (f"r_{rng.getrandbits(24):06x}" for _ in range(2))
-        ops = [(lambda t, r=r: edit.add_row(t, {"qty": "1"}, id=r, end=end)[0]) for r in (a, b)]
+        ops = [
+            (lambda t, r=r: edit.add_row(t, {"qty": "1"}, row_key=r, end=end)[0]) for r in (a, b)
+        ]
         d = pathlib.Path(tmp) / f"{id(counts)}-{n}"
         d.mkdir()
         got, _ = merge(d, base, *ops)

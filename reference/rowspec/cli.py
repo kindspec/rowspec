@@ -353,7 +353,7 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
         new, got = edit.add_row(
             text,
             dict(zip(fillable, values, strict=True)),
-            id=rid,
+            row_key=rid,
             after=after,
             before=before,
             end=end,
