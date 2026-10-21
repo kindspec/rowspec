@@ -91,6 +91,13 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- The three `lone-cr` parse cases now list what SPEC.md §9.15 gives
+  them once a lone CR is decided before any line is classified:
+  `lone-cr-ending-the-last-line-refused` and
+  `lone-cr-inside-an-annotation-refused` are `lone-cr` alone, and
+  `lone-cr-refused` is `lone-cr` and `row-field-count`. Re-derived from
+  SPEC.md at 52be434 by an author who saw no implementation (#99).
+
 - **`rowspec check` and `rowspec eval` print a refused `.mdtbl`'s §9
   identifier** (#101). Plain output ends the line with it in brackets,
   the form the editing commands print:

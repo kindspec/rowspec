@@ -3,7 +3,6 @@
   "kind": "parse",
   "refusal": [
     "lone-cr",
-    "malformed-table-line",
-    "unclassified-line"
+    "row-field-count"
   ]
 }
