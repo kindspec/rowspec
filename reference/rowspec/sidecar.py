@@ -249,9 +249,10 @@ def find(data_path):
                 f"{DIR_NAME}: must be a JSON object of glob -> declarations",
                 refusal="malformed-declaration",
             )
-        # The two refusals below exist only for the directory form, which
-        # SPEC.md §13 does not define, so they carry no identifier until §13
-        # gives them one (#255).
+        # The two refusals below exist only for the directory form. SPEC.md
+        # §13 puts any declaration source but the per-file sidecar outside
+        # the profile, and a refusal about that source itself is not a
+        # CSV-mode refusal, so they carry no identifier (#255).
         #
         # Every entry's declarations are validated, not only the one that
         # applies, so a malformed entry for another file is reported rather

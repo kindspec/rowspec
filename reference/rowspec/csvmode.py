@@ -535,8 +535,8 @@ def check_text(text, name="<input>", side=None, delimiter=","):
         # SPEC.md §9.13 -- a file containing no table. A first record of
         # several blank cells is not that: §13 makes each a column name, all
         # one name, so it is a header of duplicates (§9.2). A first record of
-        # one blank field has no reading §13 states, and is no table until
-        # it does (#254). §13 trims a name of ASCII space and tab only, so a
+        # one blank field is not a header row, so the file is no table: §13
+        # says so (#254). §13 trims a name of ASCII space and tab only, so a
         # U+00A0 header cell is a name.
         raise Malformed("file contains no table: there is no header row", refusal="no-table")
     header = records[0]

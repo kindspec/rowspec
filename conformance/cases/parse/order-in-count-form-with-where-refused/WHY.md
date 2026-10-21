@@ -9,12 +9,12 @@ defines exactly two order states, `order := by(c)` and the line omitted
 entirely; a third spelling is refused rather than degraded into the second."
 `count(...)` is not `by(c)`, so this is a third spelling.
 
-SPEC.md names no identifier for a third spelling that matches `declaration`
-(#225). §4.1.11's list of malformed declarations includes "an unrecognised
-`order` construct such as `order := none()`", but that list is of lines that
-do not match `declaration`, and this one does. The case reads "an
-unrecognised `order` construct" as covering this line too, and names §9.12
-(`malformed-declaration`), the only entry that sentence points to. Reading the
+§4.1.11 names the identifier for a third spelling that matches `declaration`
+(#225): "`order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and
+`arg` is a bare `ident`, whatever `fn` is", with
+`order := count(a where a = "1")` among its examples, and §9.12's list
+includes "an `order :=` in a function form other than `by(c)`". So the case
+names §9.12 (`malformed-declaration`). Reading the
 line as an aggregate named `order` would degrade a failed recognition into a
 different successful one, which §4 forbids: "A reader that cannot recognise a
 construct MUST refuse it, and MUST NOT degrade a failed recognition into a

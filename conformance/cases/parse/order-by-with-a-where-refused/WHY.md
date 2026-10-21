@@ -23,10 +23,11 @@ passes". The reading is the one
 
 - §9.12 `malformed-declaration`. The line is not `by(c)`, so it is a third
   `order` spelling, and §4.1.11's list of malformed declarations includes
-  "an unrecognised `order` construct such as `order := none()`". SPEC.md does
-  not say which identifier refuses a third spelling that matches
-  `declaration` (#225). `malformed-declaration` is the entry that sentence
-  points to.
+  "an unrecognised `order` construct such as `order := none()`". For a third
+  spelling that matches `declaration`, §4.1.11 names the identifier (#225):
+  "`order := fn(arg)` is malformed (§9.12) unless `fn` is `by` and `arg` is a
+  bare `ident`", and "`by` with a `where` is malformed too", with
+  `order := by(a where a = "1")` among its examples.
 - §9.16 `bad-identifier`: "an identifier — column name, aggregate name,
   `key`/`order` argument, or a value of the key column — that is empty, or
   that contains whitespace, a `Cf` format character, or any character outside

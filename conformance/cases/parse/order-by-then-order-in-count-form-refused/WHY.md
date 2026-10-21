@@ -27,8 +27,9 @@ The first declaration is valid on its own: `a` is a stored `number` column
 with no blank or non-finite cell, and `key := id` names a stored column with
 distinct values.
 
-SPEC.md names no identifier for a third `order` spelling that matches
-`declaration` (#225); `malformed-declaration` rests on the reading
+§4.1.11 names `malformed-declaration` for a third `order` spelling that
+matches `declaration` (#225): "`order := fn(arg)` is malformed (§9.12)
+unless `fn` is `by` and `arg` is a bare `ident`", as
 `parse/order-in-count-form-with-where-refused` sets out. §9.16
 (`bad-identifier`) is not listed, for the reason given there: the suite
 reads the text between `by(` and `)` as the `order` argument, and a line in
