@@ -104,6 +104,15 @@ prose, and where the two disagree the suite wins.
 
 ### Changed
 
+- **kindkit is pinned to its 0.2.0 release on PyPI** (`kindkit==0.2.0`),
+  from the git commit `8e21b55`. The `kind` job calls kindkit's workflow at
+  `4764461`, the commit `v0.2.0` was tagged from. `8e21b55` is an ancestor of
+  it, and the only change to the `kindkit` package between them is
+  `__version__`; `kind.yml` itself is unchanged. The PyPI wheel holds the same
+  package source as the tag. `tests/test_pins.py` now requires an exact `==`
+  pin, and records the commit each pinned release was tagged from, so the
+  workflow ref and the package still cannot move apart.
+
 - The three `lone-cr` parse cases now list what SPEC.md §9.15 gives
   them once a lone CR is decided before any line is classified:
   `lone-cr-ending-the-last-line-refused` and

@@ -83,20 +83,21 @@ include = [
 # still imports the standard library and nothing else. Only `conformance/`
 # reaches for it, and `tests/test_boundary.py` is what holds that line.
 #
-# Pinned to a COMMIT, not a branch or a tag: kindkit is pre-release and not on
-# PyPI, a tag can be re-pointed, and a gate that moves under the suite it gates
-# is the failure this project keeps finding in itself. The commit below is
-# kindkit's main after its reusable workflow landed (kindkit#24); kindkit has
-# no tag newer than `v0.1.0`, which lacks the report `root` key and the
-# KINDKIT_REPORT_JSON / KINDKIT_GATE_REPORT variables that workflow reads.
+# Pinned to an EXACT PyPI release, not a range, a branch or a tag: a gate that
+# moves under the suite it gates is the failure this project keeps finding in
+# itself. A PyPI version cannot be re-uploaded, unlike a tag, and uv.lock holds
+# its hashes, so `==` here is as fixed as the commit pin it replaced. 0.2.0 is
+# the first release with the report `root` key and the KINDKIT_REPORT_JSON /
+# KINDKIT_GATE_REPORT variables kindkit's reusable workflow reads.
 # Move the pin deliberately, and re-measure the suite and the gate when you do.
-# The `kind` job in .github/workflows/check.yml calls kindkit's workflow at a
-# commit as well; move it with this pin -- tests/test_pins.py fails otherwise.
+# The `kind` job in .github/workflows/check.yml calls kindkit's workflow at the
+# commit that release was tagged from; move it with this pin, and record the
+# new release's commit in tests/test_pins.py, which fails otherwise.
 [dependency-groups]
 dev = [
   "pytest>=8",
   "ruff>=0.6",
-  "kindkit @ git+https://github.com/kindspec/kindkit@8e21b558c85d5612009f3a1d69a3a68bc0191637",
+  "kindkit==0.2.0",
 ]
 
 [tool.ruff]
