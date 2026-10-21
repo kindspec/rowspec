@@ -254,9 +254,12 @@ def test_the_conformance_extra_admits_the_kindkit_ci_measures():
 
     The dev group pins kindkit exactly, and that is the kit every CI run of the
     suite uses. An extra whose range excluded it would hand pip users a kit
-    nothing here had measured; a direct URL in it is metadata PyPI refuses.
+    nothing here had measured, and one whose floor sat below it would admit
+    older kits nothing here had measured either; a direct URL in it is
+    metadata PyPI refuses.
     """
     from packaging.requirements import Requirement
+    from packaging.version import Version
 
     extras = pyproject()["project"].get("optional-dependencies", {})
     assert "conformance" in extras, "the sdist's suite cannot be installed by pip without this"
@@ -267,6 +270,10 @@ def test_the_conformance_extra_admits_the_kindkit_ci_measures():
     ]
     (version,) = [s.version for s in pin.specifier if s.operator == "=="]
     assert req.specifier.contains(version), f"{req} excludes the dev group's {pin}"
+    floors = [Version(s.version) for s in req.specifier if s.operator == ">="]
+    assert floors == [Version(version)], (
+        f"{req} must have the floor >={version}, the dev group's {pin}"
+    )
 
 
 def test_the_extra_ships_the_code_that_needs_it():

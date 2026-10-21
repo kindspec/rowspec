@@ -15,8 +15,8 @@ prose, and where the two disagree the suite wins.
   run_cases.py` runs the suite; before, kindkit was only in the `dev`
   dependency group, which is not package metadata, so the runner failed with
   `No module named 'kindkit'` unless uv installed it. The extra is a range
-  where the dev group is exact; `tests/test_boundary.py` fails if the range
-  stops admitting the release the dev group pins.
+  where the dev group is exact; `tests/test_boundary.py` fails unless its
+  floor is the release the dev group pins and the range admits it.
 
 - **xlsx export takes `--values`** (#89). `python -m rowspec_xlsx --values`,
   or `to_workbook(text, values=True)`, writes `rowspec eval`'s computed values
