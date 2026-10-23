@@ -264,6 +264,24 @@ SCENARIOS = {
         setc("r_03", "unit", "1.00"),
         "conflict",
     ),
+    "set_cell r_03 qty / set_cell r_03 qty, other values": (
+        BASE,
+        setc("r_03", "qty", "9"),
+        setc("r_03", "qty", "8"),
+        "conflict",
+    ),
+    "set_cell r_03 qty / set_cell r_03 qty, same value": (
+        BASE,
+        setc("r_03", "qty", "9"),
+        setc("r_03", "qty", "9"),
+        "clean",
+    ),
+    "set_cell r_03 qty / delete r_03": (
+        BASE,
+        setc("r_03", "qty", "9"),
+        lambda t: edit.delete_row(t, "r_03"),
+        "conflict",
+    ),
     "set_cell r_01 qty / set_cell r_03 qty": (
         BASE,
         setc("r_01", "qty", "9"),
