@@ -468,6 +468,35 @@ def test_set_cell_refuses_a_row_key_that_is_not_a_str_in_a_table_with_no_rows():
 
 
 @pytest.mark.parametrize(
+    "call",
+    [
+        lambda: edit.set_cell(None, "r_01", "qty", "1"),
+        lambda: edit.set_cell(BASE, 1, "qty", "1"),
+        lambda: edit.set_cell(BASE, "r_01", 3, "1"),
+        lambda: edit.set_cell(BASE, "r_01", "qty", 1),
+    ],
+    ids=["text", "row_key", "column", "value"],
+)
+def test_set_cell_names_an_argument_that_is_not_a_str(call):
+    with pytest.raises(TypeError, match="must be a str"):
+        call()
+
+
+@pytest.mark.parametrize(
+    "column, value",
+    [("total", " 1"), ("id", " r_02")],
+    ids=["computed column", "key that trims to another row's"],
+)
+def test_set_cell_refuses_outer_space_before_the_result_is_built(column, value):
+    """Refusal rule 2: an outer space is refused as `not-representable`
+    before any text is built. Built and evaluated, the first would be a
+    value in a computed cell and the second a duplicate row key."""
+    with pytest.raises(edit.EditRefused) as e:
+        edit.set_cell(BASE, "r_01", column, value)
+    assert e.value.reason == "not-representable"
+
+
+@pytest.mark.parametrize(
     "text, column, value",
     [
         ("| id | item   |\n| --- | ------ |\n| r_1 |nut    |\n\nkey := id\n", "item", "nut"),

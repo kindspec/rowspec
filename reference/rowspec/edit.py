@@ -477,11 +477,13 @@ def set_cell(text, row_key, column, value, /):
     """Set the stored cell of the row keyed `row_key` in `column` to `value`.
     The cell keeps its padding, and its width where the new text fits. The
     diff is the row's line."""
+    # Checked first, not by the parse or the lookups, whose own errors would
+    # not say which argument is wrong, and which a table with no rows never
+    # reaches for the key.
+    for what, v in (("text", text), ("row_key", row_key), ("column", column)):
+        if not isinstance(v, str):
+            raise TypeError(f"{what} must be a str, not {type(v).__name__}")
     d = _Doc(text)
-    # Checked here, not by the lookup: a table with no rows would otherwise
-    # report `no-such-row` for a key that is not a str.
-    if not isinstance(row_key, str):
-        raise TypeError(f"row_key must be a str, not {type(row_key).__name__}")
     k = d.column(column)
     column = d.cols[k]
     value = _cell_value(value, f"value for {column!r}")
