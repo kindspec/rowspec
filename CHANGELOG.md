@@ -7,6 +7,8 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-23
+
 ### Added
 
 - **`rowspec.edit.set_cell(text, row_key, column, value)`**, an edit of one
@@ -24,6 +26,20 @@ prose, and where the two disagree the suite wins.
   `value-in-computed-cell`.
   `rowspec.set_cell` is unchanged, and there is no CLI command for it.
   `docs/editing-api.md` has the rules.
+
+### Known issues
+
+Both are in the reader, both were already in 0.5.0, and the second
+implementation, `rowspec_alt`, reads each line as SPEC.md says.
+
+- **A data cell holding `:=` is refused as `malformed-declaration`**
+  (#278). `|r_1|a:=b|` is a table line under §4.1's classification
+  order, which tries `table-line` before `declaration`, so it should
+  read as a row.
+- **A table line whose last `|` is escaped is accepted** (#279).
+  `| r_1 | x\|` has no closing `|` under §4.1.3, so it is a
+  `malformed-table-line` (§9.18), but the reference reads its cell as
+  `x|`.
 
 ## [0.5.0] — 2026-10-21
 
@@ -1601,7 +1617,8 @@ actually ran. The two grammars diverged invisibly until differential evaluation
 against 55,681 real spreadsheet cells found it — not a check that could not
 fail, but a check that was never against the specification at all.
 
-[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/kindspec/rowspec/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/kindspec/rowspec/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kindspec/rowspec/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kindspec/rowspec/compare/v0.2.0...v0.3.0

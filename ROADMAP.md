@@ -11,8 +11,8 @@ path.
 
 ## Where it is
 
-**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0` and `v0.5.0`
-(latest), on PyPI, with a GitHub Action.
+**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0` and
+`v0.6.0` (latest), on PyPI, with a GitHub Action.
 
     631 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
@@ -26,7 +26,7 @@ path.
     0 failures                just conform-csv
     85 killed, 3 equivalent   just mutants-csv (csv profile)
     41 killed, 0 equivalent   just mutants-csv (sidecar profile)
-    1650 passed, 2 skipped    just test
+    1818 passed, 2 skipped    just test
     62 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \
@@ -36,6 +36,17 @@ The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
+
+## Shipped in 0.6.0
+
+**`rowspec.edit.set_cell`** (#277), the one-cell edit whose name 0.5.0
+reserved. It changes only the cell's span of its row. The cell keeps its
+padding, and its width where the new text fits, and a value that would not
+read back exactly is refused. `rowspec.set_cell` is unchanged.
+
+**Known issues.** Both are in the reader and were already in 0.5.0. A data
+cell holding `:=` is refused (#278), and a table line whose last `|` is
+escaped is accepted (#279). `rowspec_alt` reads each line as SPEC.md says.
 
 ## Shipped in 0.5.0
 
