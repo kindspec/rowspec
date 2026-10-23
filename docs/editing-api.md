@@ -34,19 +34,56 @@ disjoint edits into a conflict.
    `LF` otherwise, the rule `rowspec add-row` has followed since #200.
 3. **Within a changed line, change only the cell or span concerned.** A
    renamed column rewrites the name and the formula spans that name it, and
-   leaves the other cells of the header line as they were. A rewritten
-   header cell, a renamed column or a replaced formula, keeps its width
-   only when it was padded, with more than one space beside its text, and
-   the new text fits. A cell with one space on each side, as a column's
-   widest cell often is, is re-rendered to its new text and grows or
-   shrinks with it: `set_formula` turns `| total = qty * 2 |` into
-   `| total = qty |`. A plain name and a formula are treated alike. No
-   operation rewrites a data cell in place: see "What the API does not
-   change".
+   leaves the other cells of the header line as they were. A cell is
+   padded when it is more than two characters wider than its text, so a
+   cell of three or more spaces is padded, and one of two or fewer is not.
+   Widths are counted in characters (code points), not display columns,
+   and a tab is one character. A rewritten header cell, a renamed column
+   or a replaced formula, keeps its width only when it was padded and the
+   new text fits. Any other header cell, such as a column's widest cell
+   with one space on each side, keeps the spaces it had beside its text
+   and grows or shrinks with the text: `set_formula` turns
+   `| total = qty * 2 |` into `| total = qty |`. A plain name and a formula are treated alike.
+
+   A data cell that `set_cell` rewrites follows the same rule, widened in
+   two ways so that its row keeps the table's alignment where it can:
+
+   - it also keeps its width when the table is padded: every table line has
+     the same cell widths, and at least one cell is padded. A column's
+     widest cell, with one space on each side, then keeps the column's
+     width as well;
+   - a padded cell with text places its new text as its old text was
+     placed: right when only its left side had more than one space,
+     centred when both sides did, and left otherwise. Any other cell that
+     keeps its width, one with no text or one that is not padded, is
+     placed as the column's alignment cell says: `--:` right, `:-:`
+     centred, anything else left. Text placed right or left has exactly
+     one space on its other side, so `|   3|` set to `4` becomes `|  4 |`.
+     Centred text with an odd number of spare spaces has the extra one on
+     its right.
+
+   New text that does not fit with one space on each side is written as one
+   space, the text and one space (rule 4). In a table that is not padded, a
+   cell that is not padded keeps the spaces it had beside its text:
+   `| r_02 | 3 |` becomes `| r_02 | 30 |`, and `|3|` becomes `|30|`. Such
+   a cell with no text is written as one space, the text and one space. In
+   the padded table below, setting `qty` of `r_20` to `11` changes only the
+   digits:
+
+   ```
+   | id   | item   | qty |      | id   | item   | qty |
+   | ---- | ------ | --: |      | ---- | ------ | --: |
+   | r_20 | nut    |  10 |  ->  | r_20 | nut    |  11 |
+   ```
+
+   Text ending in `\` that would stand right before the next `|` gains one
+   space after it, so that it does not escape the `|` (§4.1.3).
 4. **Never reflow.** In a padded table, a value wider than its column is
    written wider, and the table's alignment is broken for that line, rather
    than every line being re-padded. A new row or column in a padded table is
-   padded to the existing widths where it fits, which costs no extra lines.
+   padded to the existing widths where it fits, which costs no extra lines,
+   and a cell set in a padded table keeps the column's width where its new
+   text fits (rule 3).
 5. **A file's lack of a final terminator is kept** (§4.1.1). Appending after
    a last line that has none adds one to it, so that the new line is the one
    without: one changed line and one added. Removing a last line that has
@@ -60,6 +97,7 @@ The resulting shapes, for a table of `N` data rows:
 | --- | --- |
 | `add_row` | 1 added |
 | `delete_row` | 1 removed |
+| `set_cell` | 1 (the row) |
 | `add_column` | `N + 2` changed: header, alignment row, every data row |
 | `delete_column` | `N + 2` changed |
 | `rename_column` | 1 (the header) plus 1 per declaration naming it |
@@ -83,6 +121,7 @@ from rowspec import edit
 
 text, rid = edit.add_row(text, {"item": "bolt", "qty": "4"}, after="r_0007")
 text = edit.delete_row(text, "r_0003")
+text = edit.set_cell(text, "r_0007", "qty", "12")
 text = edit.add_column(text, "unit", after="qty")
 text = edit.add_column(text, "total", formula="qty * unit")
 text = edit.rename_column(text, "qty", "quantity")
@@ -144,6 +183,23 @@ text = edit.delete_declaration(text, "grand")
 - `rename_column` renames the column in the header, in every formula and in
   every declaration that names it, and nowhere else: a string literal, a
   function name, a numeric literal and an annotation are left alone.
+- `set_cell` sets one stored cell, of the row keyed `row_key`, in the
+  column named `column`, to `value`, and returns the new text. Every
+  argument is a `str`, and any other type raises `TypeError`. The value is
+  the cell's text as it will be read, without the cell's padding; a `|` in
+  it is written as `\|`. A `.mdtbl` table declares no column types (only a
+  CSV sidecar can, and the API edits `.mdtbl` text only), so `"12"` is read
+  as a number and `"bolt"` as text, as any cell is (§4.1.6). Any stored
+  column can be set, the key column included, which changes that row's key
+  and so its identity (§6): an edit that still names the old key no longer
+  finds the row. The result is then refused as SPEC.md refuses a duplicate
+  or blank key. A computed column's cells are empty (§5), so a value other
+  than `""` there is refused as a value in a computed cell. Setting a cell
+  to the text it already reads as, `""` in a computed column included,
+  returns the file byte for byte. The comparison is in NFC (§3), so setting
+  a cell that is not NFC to its NFC form keeps the cell's bytes. Only the
+  cell's own span of the row's line changes, under rule 3: the row's other
+  cells, its terminator and every other line stay as they were.
 - `set_formula` replaces the formula of a computed column. It does not turn a
   stored column into a computed one, since that would empty every data cell.
 - `set_declaration` replaces an existing declaration's right-hand side in
@@ -190,7 +246,9 @@ An edit is refused, with nothing returned, in four ways:
    refusal's §9 identifier.
 4. **The result does not say what was asked.** As a last check, a new row,
    header cell, formula or declaration is read back and compared with what
-   was requested, and a rename is checked twice: every reference must name
+   was requested. A set cell's row is read back too, and must hold exactly
+   the requested value in that column and, in every other column, what it
+   held before. A rename is checked twice: every reference must name
    what it named before, under the new name, and the table must evaluate to
    the same values. A mismatch is refused as `not-representable` or
    `rename-changes-values`. The check exists so that a gap in the rules above
@@ -222,6 +280,8 @@ through real merges. In summary, with stock git:
   default (above).
 - An insert after row `K` conflicts with an edit of `K` or of the row after
   it, and an edit or delete of a row conflicts with an edit of its neighbour.
+- A `set_cell` is a row edit, since the row is one line. Two of them on the
+  same row conflict even when they set different columns.
 - A rename merges cleanly with any row edit, insertion or deletion. It
   conflicts with any other change to the header line, which holds every
   column name and formula (§5), and with a change to a declaration that
@@ -265,10 +325,13 @@ declaration.
 ## What the API does not change
 
 The API adds functions. It does not change SPEC.md, the canonical form, the
-grammar, or any existing function; `set_cell` is unchanged.
+grammar, or any existing function; `rowspec.set_cell` is unchanged.
 
-There is no edit of a single data cell in this release. The released
 `rowspec.set_cell(st, row_key, col, value)` changes a parsed structure, and
-rendering it writes the whole row unpadded. The name
-`edit.set_cell(text, row_key, column, value)` is reserved for that edit in a
-later release, with its arguments in the released function's order.
+rendering it writes the whole row unpadded: setting `qty` to `11` in the
+padded row `| r_20 | nut    |  10 |` renders `| r_20 | nut | 11 |`. It also
+accepts a value with leading or trailing space and writes it, and the cell
+then reads back trimmed. `edit.set_cell(text, row_key, column, value)`
+changes one cell in the text instead, under rule 3, refuses such a value as
+`not-representable`, and takes its arguments in the released function's
+order.

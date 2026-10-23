@@ -454,6 +454,58 @@ def delete_row(text, row_key, /):
     return d.result()
 
 
+def _refill_data(old, text, padded_table, align):
+    """`text` in place of a data cell whose raw text was `old`: `_refill`'s
+    rule, widened so that the row keeps the table's alignment where it can. In
+    a padded table the cell keeps its width even with one space each side, and
+    a cell that gives no side is placed as the column's alignment cell says."""
+    lead = len(old) - len(old.lstrip(WSP))
+    trail = len(old) - len(old.rstrip(WSP))
+    if not padded_table and not _padded(old):
+        out = old[:lead] + text + old[len(old) - trail :] if old.strip(WSP) else f" {text} "
+    else:
+        if old.strip(WSP) and _padded(old):
+            side = "center" if lead > 1 and trail > 1 else "right" if lead > 1 else "left"
+        else:
+            side = align
+        out = _pad(text, len(old), side)
+    # A backslash right before a pipe would escape it (§4.1.3).
+    return out + " " if out.endswith("\\") else out
+
+
+def set_cell(text, row_key, column, value, /):
+    """Set the stored cell of the row keyed `row_key` in `column` to `value`.
+    The cell keeps its padding, and its width where the new text fits. The
+    diff is the row's line."""
+    # Checked first, not by the parse or the lookups, whose own errors would
+    # not say which argument is wrong, and which a table with no rows never
+    # reaches for the key.
+    for what, v in (("text", text), ("row_key", row_key), ("column", column)):
+        if not isinstance(v, str):
+            raise TypeError(f"{what} must be a str, not {type(v).__name__}")
+    d = _Doc(text)
+    k = d.column(column)
+    column = d.cols[k]
+    value = _cell_value(value, f"value for {column!r}")
+    i = d.row(row_key)
+    cells = split_row(d.lines[i])
+    if _nfc(cells[k]) == value:
+        return text
+    # A value in a computed cell is refused by the result's own evaluation,
+    # as `value-in-computed-cell` (§5).
+    body = d.body(i)
+    a, b = _spans(body)[k]
+    align = _align_kind(split_row(d.lines[d.align])[k])
+    cell = _refill_data(body[a:b], escape_cell(value), d.layout() is not None, align)
+    d.set_body(i, _replace(body, [(a, b, cell)]))
+    out = d.result()
+    cells[k] = value
+    got = split_row(d.lines[i])
+    if got != cells:
+        raise EditRefused("not-representable", f"the row would read back as {got!r}")
+    return out
+
+
 def add_column(text, name, /, *, formula=None, value="", after=None, before=None, align="---"):
     """Add a column after or before the column `after`/`before`, or last. A
     stored column's cells hold `value`; a computed column (`formula` given)
@@ -687,6 +739,7 @@ __all__ = [
     "delete_declaration",
     "delete_row",
     "rename_column",
+    "set_cell",
     "set_declaration",
     "set_formula",
 ]
