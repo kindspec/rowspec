@@ -53,7 +53,14 @@ disjoint edits into a conflict.
      placed: right when only the left side had more than one space,
      centred when both sides did, and left otherwise. A cell with no text,
      or with one space on each side, is placed as the column's alignment
-     cell says: `--:` right, `:-:` centred, anything else left.
+     cell says: `--:` right, `:-:` centred, anything else left. Text
+     placed right or left has exactly one space on its other side, so
+     `|   3|` set to `4` becomes `|  4 |`. Centred text with an odd number
+     of spare spaces has the extra one on its right.
+
+   A cell is padded when it is more than two characters wider than its
+   text, so a cell of three or more spaces is padded, and one of two or
+   fewer is not.
 
    New text that does not fit with one space on each side is written as one
    space, the text and one space (rule 4). In a table that is not padded, a
@@ -187,7 +194,9 @@ text = edit.delete_declaration(text, "grand")
   refused as SPEC.md refuses a duplicate or blank key. A computed column's
   cells are empty (§5), so a value other than `""` there is refused as a
   value in a computed cell. Setting a cell to the text it already reads as,
-  `""` in a computed column included, returns the file byte for byte. Only
+  `""` in a computed column included, returns the file byte for byte. The
+  comparison is in NFC (§3), so setting a cell that is not NFC to its NFC
+  form keeps the cell's bytes. Only
   the cell's own span of the row's line changes, under rule 3: the row's
   other cells, its terminator and every other line stay as they were.
 - `set_formula` replaces the formula of a computed column. It does not turn a
