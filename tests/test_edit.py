@@ -460,6 +460,59 @@ def test_a_value_that_is_not_a_str_is_a_type_error(call):
         call()
 
 
+def test_set_cell_refuses_a_row_key_that_is_not_a_str_in_a_table_with_no_rows():
+    """With no row to compare it with, a lookup alone would never touch the
+    key, and would report `no-such-row` instead."""
+    with pytest.raises(TypeError, match="must be a str"):
+        edit.set_cell("| id | qty |\n| --- | --: |\n\nkey := id\n", 9, "qty", "1")
+
+
+@pytest.mark.parametrize(
+    "text, column, value",
+    [
+        ("| id | item   |\n| --- | ------ |\n| r_1 |nut    |\n\nkey := id\n", "item", "nut"),
+        ("| id | q | t = q |\n| --- | --- | --- |\n| r_1 | 1 | |\n\nkey := id\n", "t", ""),
+    ],
+    ids=["padded with no space on the left", "computed cell of one space"],
+)
+def test_set_cell_to_the_text_it_holds_keeps_cells_a_refill_would_respace(text, column, value):
+    """Refilled, the first cell would gain a space on its left and the second
+    a second space, so only returning the file unchanged keeps their bytes."""
+    assert edit.set_cell(text, "r_1", column, value) == text
+
+
+@pytest.mark.parametrize(
+    "align, old, value, new",
+    [
+        ("--:", "|   3|", "4", "|  4 |"),
+        ("---", "|x   |", "y", "| y  |"),
+        (":-:", "|  ab  |", "x", "|  x   |"),
+        ("--:", "|   |", "z", "| z |"),
+        ("--:", "|    |", "z", "|  z |"),
+        ("--:", "|  |", "z", "| z |"),
+    ],
+    ids=[
+        "right, no space after",
+        "left, no space before",
+        "centred, odd spare",
+        "three spaces, too narrow",
+        "four spaces, padded",
+        "two spaces, not padded",
+    ],
+)
+def test_set_cell_spacing_the_rule_spells_out(align, old, value, new):
+    """docs/editing-api.md rule 3: one space on the far side, the odd spare
+    space on the right, and a cell padded when more than two characters
+    wider than its text."""
+    text = f"| id | q |\n| --- | {align} |\n| r_1 {old}\n\nkey := id\n"
+    assert edit.set_cell(text, "r_1", "q", value) == text.replace(f"| r_1 {old}", f"| r_1 {new}")
+
+
+def test_set_cell_to_the_nfc_form_of_a_cell_that_is_not_nfc_keeps_its_bytes():
+    text = "| id | q |\n| --- | --- |\n| r_1 | é |\n\nkey := id\n"
+    assert edit.set_cell(text, "r_1", "q", "é") == text
+
+
 def test_add_column_takes_no_per_row_values():
     """`values` names a row's cells by column in add_row; add_column gives
     every cell `value` and has no second meaning for the word."""

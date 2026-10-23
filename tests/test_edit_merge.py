@@ -78,6 +78,10 @@ def cell(rid, col, value):
     return op
 
 
+def setc(rid, col, value):
+    return lambda t: edit.set_cell(t, rid, col, value)
+
+
 def realign(text):
     """Re-pad every table line to the widest cell of each column: what a
     formatter that keeps a table aligned does after any edit."""
@@ -253,6 +257,24 @@ SCENARIOS = {
         lambda t: edit.delete_declaration(t, "eu"),
         lambda t: edit.rename_column(t, "region", "area"),
         "conflict",
+    ),
+    "set_cell r_03 qty / set_cell r_03 unit": (
+        BASE,
+        setc("r_03", "qty", "9"),
+        setc("r_03", "unit", "1.00"),
+        "conflict",
+    ),
+    "set_cell r_01 qty / set_cell r_03 qty": (
+        BASE,
+        setc("r_01", "qty", "9"),
+        setc("r_03", "qty", "9"),
+        "clean",
+    ),
+    "padded: set_cell r_01 qty / set_cell r_03 qty": (
+        PADDED,
+        setc("r_01", "qty", "9"),
+        setc("r_03", "qty", "9999"),
+        "clean",
     ),
     "padded: wide insert after r_01 / insert after r_04": (
         PADDED,
