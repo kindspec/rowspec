@@ -19,7 +19,8 @@ prose, and where the two disagree the suite wins.
   which the cell would trim, is refused as `not-representable`; the released
   function writes it and it reads back trimmed. The row is read back before
   the text is returned. The other refusals are the editing API's own, and a
-  value in a computed column is refused as `value-in-computed-cell`.
+  value other than `""` in a computed column is refused as
+  `value-in-computed-cell`.
   `rowspec.set_cell` is unchanged, and there is no CLI command for it.
   `docs/editing-api.md` has the rules.
 

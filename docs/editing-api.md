@@ -34,33 +34,33 @@ disjoint edits into a conflict.
    `LF` otherwise, the rule `rowspec add-row` has followed since #200.
 3. **Within a changed line, change only the cell or span concerned.** A
    renamed column rewrites the name and the formula spans that name it, and
-   leaves the other cells of the header line as they were. A rewritten
-   header cell, a renamed column or a replaced formula, keeps its width
-   only when it was padded, with more than one space beside its text, and
-   the new text fits. A cell with one space on each side, as a column's
-   widest cell often is, is re-rendered to its new text and grows or
-   shrinks with it: `set_formula` turns `| total = qty * 2 |` into
+   leaves the other cells of the header line as they were. A cell is
+   padded when it is more than two characters wider than its text, so a
+   cell of three or more spaces is padded, and one of two or fewer is not.
+   Widths are counted in characters (code points), not display columns,
+   and a tab is one character. A rewritten header cell, a renamed column
+   or a replaced formula, keeps its width only when it was padded and the
+   new text fits. Any other header cell, such as a column's widest cell
+   with one space on each side, is re-rendered to its new text and grows
+   or shrinks with it: `set_formula` turns `| total = qty * 2 |` into
    `| total = qty |`. A plain name and a formula are treated alike.
 
    A data cell that `set_cell` rewrites follows the same rule, widened in
    two ways so that its row keeps the table's alignment where it can:
 
    - it also keeps its width when the table is padded: every table line has
-     the same cell widths, and at least one cell has more than one space
-     beside its text. A column's widest cell, with one space on each side,
-     then keeps the column's width as well;
-   - a cell that keeps its width places its new text as its old text was
-     placed: right when only the left side had more than one space,
-     centred when both sides did, and left otherwise. A cell with no text,
-     or with one space on each side, is placed as the column's alignment
-     cell says: `--:` right, `:-:` centred, anything else left. Text
-     placed right or left has exactly one space on its other side, so
-     `|   3|` set to `4` becomes `|  4 |`. Centred text with an odd number
-     of spare spaces has the extra one on its right.
-
-   A cell is padded when it is more than two characters wider than its
-   text, so a cell of three or more spaces is padded, and one of two or
-   fewer is not.
+     the same cell widths, and at least one cell is padded. A column's
+     widest cell, with one space on each side, then keeps the column's
+     width as well;
+   - a padded cell with text places its new text as its old text was
+     placed: right when only its left side had more than one space,
+     centred when both sides did, and left otherwise. Any other cell that
+     keeps its width, one with no text or one that is not padded, is
+     placed as the column's alignment cell says: `--:` right, `:-:`
+     centred, anything else left. Text placed right or left has exactly
+     one space on its other side, so `|   3|` set to `4` becomes `|  4 |`.
+     Centred text with an odd number of spare spaces has the extra one on
+     its right.
 
    New text that does not fit with one space on each side is written as one
    space, the text and one space (rule 4). In a table that is not padded, a
@@ -186,7 +186,7 @@ text = edit.delete_declaration(text, "grand")
 - `set_cell` sets one stored cell, of the row keyed `row_key`, in the
   column named `column`, to `value`, and returns the new text. Every
   argument is a `str`, and the value is the cell's text as it will be
-  written and read, without the cell's padding. A `.mdtbl` table declares
+  read, without the cell's padding; a `|` in it is written as `\|`. A `.mdtbl` table declares
   no column types (only a CSV sidecar can, and the API edits `.mdtbl` text
   only), so `"12"` is read as a number and `"bolt"` as text, as any cell
   is (§4.1.6). Any stored column can be set,

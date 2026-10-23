@@ -508,6 +508,16 @@ def test_set_cell_spacing_the_rule_spells_out(align, old, value, new):
     assert edit.set_cell(text, "r_1", "q", value) == text.replace(f"| r_1 {old}", f"| r_1 {new}")
 
 
+def test_a_cell_two_characters_wider_than_its_text_is_not_padded():
+    """One definition of padded for header and data cells: two spaces beside
+    the text are not enough, so such a data cell is placed by the alignment
+    cell, and such a header cell shrinks on a rename."""
+    text = "| id   | qq |\n| ---- |----|\n| r_1  |  33|\n\nkey := id\n"
+    assert edit.set_cell(text, "r_1", "qq", "4") == text.replace("|  33|", "| 4  |")
+    text = "| id |  qq|\n| --- | --- |\n| r_1 | 3 |\n\nkey := id\n"
+    assert edit.rename_column(text, "qq", "q") == text.replace("|  qq|", "|  q|")
+
+
 def test_set_cell_to_the_nfc_form_of_a_cell_that_is_not_nfc_keeps_its_bytes():
     text = "| id | q |\n| --- | --- |\n| r_1 | é |\n\nkey := id\n"
     assert edit.set_cell(text, "r_1", "q", "é") == text
