@@ -41,9 +41,9 @@ disjoint edits into a conflict.
    and a tab is one character. A rewritten header cell, a renamed column
    or a replaced formula, keeps its width only when it was padded and the
    new text fits. Any other header cell, such as a column's widest cell
-   with one space on each side, is re-rendered to its new text and grows
-   or shrinks with it: `set_formula` turns `| total = qty * 2 |` into
-   `| total = qty |`. A plain name and a formula are treated alike.
+   with one space on each side, keeps the spaces it had beside its text
+   and grows or shrinks with the text: `set_formula` turns
+   `| total = qty * 2 |` into `| total = qty |`. A plain name and a formula are treated alike.
 
    A data cell that `set_cell` rewrites follows the same rule, widened in
    two ways so that its row keeps the table's alignment where it can:
@@ -185,20 +185,21 @@ text = edit.delete_declaration(text, "grand")
   function name, a numeric literal and an annotation are left alone.
 - `set_cell` sets one stored cell, of the row keyed `row_key`, in the
   column named `column`, to `value`, and returns the new text. Every
-  argument is a `str`, and the value is the cell's text as it will be
-  read, without the cell's padding; a `|` in it is written as `\|`. A `.mdtbl` table declares
-  no column types (only a CSV sidecar can, and the API edits `.mdtbl` text
-  only), so `"12"` is read as a number and `"bolt"` as text, as any cell
-  is (§4.1.6). Any stored column can be set,
-  the key column included, which changes that row's key; the result is then
-  refused as SPEC.md refuses a duplicate or blank key. A computed column's
-  cells are empty (§5), so a value other than `""` there is refused as a
-  value in a computed cell. Setting a cell to the text it already reads as,
-  `""` in a computed column included, returns the file byte for byte. The
-  comparison is in NFC (§3), so setting a cell that is not NFC to its NFC
-  form keeps the cell's bytes. Only
-  the cell's own span of the row's line changes, under rule 3: the row's
-  other cells, its terminator and every other line stay as they were.
+  argument is a `str`, and any other type raises `TypeError`. The value is
+  the cell's text as it will be read, without the cell's padding; a `|` in
+  it is written as `\|`. A `.mdtbl` table declares no column types (only a
+  CSV sidecar can, and the API edits `.mdtbl` text only), so `"12"` is read
+  as a number and `"bolt"` as text, as any cell is (§4.1.6). Any stored
+  column can be set, the key column included, which changes that row's key
+  and so its identity (§6): an edit that still names the old key no longer
+  finds the row. The result is then refused as SPEC.md refuses a duplicate
+  or blank key. A computed column's cells are empty (§5), so a value other
+  than `""` there is refused as a value in a computed cell. Setting a cell
+  to the text it already reads as, `""` in a computed column included,
+  returns the file byte for byte. The comparison is in NFC (§3), so setting
+  a cell that is not NFC to its NFC form keeps the cell's bytes. Only the
+  cell's own span of the row's line changes, under rule 3: the row's other
+  cells, its terminator and every other line stay as they were.
 - `set_formula` replaces the formula of a computed column. It does not turn a
   stored column into a computed one, since that would empty every data cell.
 - `set_declaration` replaces an existing declaration's right-hand side in

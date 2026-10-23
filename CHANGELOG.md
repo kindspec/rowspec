@@ -11,8 +11,9 @@ prose, and where the two disagree the suite wins.
 
 - **`rowspec.edit.set_cell(text, row_key, column, value)`**, an edit of one
   stored data cell, under the name 0.5.0 reserved for it. The diff is the
-  row's line, and within it only the cell. The cell keeps its padding, and
-  its width where the new text fits, so in the padded row
+  row's line, and within it only the cell. When the cell or the table is
+  padded, the cell keeps its width where the new text fits; otherwise it
+  keeps the spaces it had beside its text. So in the padded row
   `| r_20 | nut    |  10 |`, setting `qty` to `11` gives
   `| r_20 | nut    |  11 |`, where `rowspec.set_cell` and `render` give
   `| r_20 | nut | 11 |`. A value with leading or trailing space or tab,
