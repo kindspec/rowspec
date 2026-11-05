@@ -7,6 +7,19 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Added
+
+- **12 conformance cases for #278 and #279**, written from SPEC.md without
+  the implementation. A data cell holding `:=` is a table line's cell under
+  §4.1's classification order, whatever the padding around it, on an
+  indented line, and inside a header string literal; each asserts the cell's
+  value, with an unpadded control holding no `:=`. A table line whose last
+  `|` is escaped, or is escaped after a literal backslash, is
+  `malformed-table-line` or `unclassified-line`; a header line ending that
+  way, alone in the file, is either of those or `no-table`; and a last cell
+  ending in `\|` before a real closing `|` reads as `x|`. The floor is now
+  643 cases.
+
 ## [0.6.0] — 2026-10-23
 
 ### Added

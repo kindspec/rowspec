@@ -14,7 +14,7 @@ path.
 **Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0` and
 `v0.6.0` (latest), on PyPI, with a GitHub Action.
 
-    631 conformance cases     find conformance/cases -name expect.json | wc -l
+    643 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
     0 failures, second impl   just conform-alt
     114 killed, 0 survived    just mutants
