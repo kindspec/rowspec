@@ -307,7 +307,9 @@ def parse(text):
     tbl = []
     for line in lines:
         if line.strip(WSP).startswith("|"):
-            if not line.strip(WSP).endswith("|"):
+            # §4.1.3: `escaped` wins, so a final `\|` is a cell's pipe and the
+            # line still lacks its closing `|`.
+            if not line.strip(WSP).endswith("|") or line.strip(WSP).endswith("\\|"):
                 raise Malformed(
                     f"table line lacks its closing pipe: {line.strip(WSP)!r}. §4.1.3 "
                     f"requires both, because only the closing pipe reveals a row "
