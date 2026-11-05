@@ -331,7 +331,9 @@ def parse(text):
         if line.lstrip(WSP).startswith("#"):
             continue  # SPEC §9: the ignorable channel, inert whatever it contains
         stripped = _strip_annotation(line)
-        if ":=" not in stripped:
+        # §4.1: `table-line` is tried before `declaration`, so a line opening
+        # with `|` is never a declaration, whatever its cells hold.
+        if ":=" not in stripped or line.strip(WSP).startswith("|"):
             if stripped.strip(WSP) and line not in tbl_set:
                 if stripped.strip(WSP).startswith("|"):
                     raise Malformed(
