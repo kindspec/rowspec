@@ -307,7 +307,9 @@ def parse(text):
     tbl = []
     for line in lines:
         if line.strip(WSP).startswith("|"):
-            if not line.strip(WSP).endswith("|"):
+            # §4.1.3: `escaped` wins, so a final `\|` is a cell's pipe and the
+            # line still lacks its closing `|`.
+            if not line.strip(WSP).endswith("|") or line.strip(WSP).endswith("\\|"):
                 raise Malformed(
                     f"table line lacks its closing pipe: {line.strip(WSP)!r}. §4.1.3 "
                     f"requires both, because only the closing pipe reveals a row "
@@ -331,7 +333,9 @@ def parse(text):
         if line.lstrip(WSP).startswith("#"):
             continue  # SPEC §9: the ignorable channel, inert whatever it contains
         stripped = _strip_annotation(line)
-        if ":=" not in stripped:
+        # §4.1: `table-line` is tried before `declaration`, so a line opening
+        # with `|` is never a declaration, whatever its cells hold.
+        if ":=" not in stripped or line.strip(WSP).startswith("|"):
             if stripped.strip(WSP) and line not in tbl_set:
                 if stripped.strip(WSP).startswith("|"):
                     raise Malformed(

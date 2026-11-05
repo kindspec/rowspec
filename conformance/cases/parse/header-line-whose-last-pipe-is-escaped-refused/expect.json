@@ -1,0 +1,9 @@
+{
+  "accept": false,
+  "kind": "parse",
+  "refusal": [
+    "malformed-table-line",
+    "unclassified-line",
+    "no-table"
+  ]
+}

@@ -417,3 +417,47 @@ the case's `WHY.md`.
   `bad-encoding` alone, and is the first case held as `input.bin`. It was
   written from SPEC.md at rowspec `1786215` and the case-format README, by
   an author who saw no implementation. Its `WHY.md` lists the files read, by sha256.
+- **The cases for #278 and #279** were written by an author who was not
+  the author of either implementation and did not read either, against
+  SPEC.md at `8b98fea` (sha256
+  `7e9fb663c7391f4c393c9d9eb8b5c673f4fb22f221c4b29b3119aaf3a36d3884`), in a
+  directory holding no `.git` and no implementation, made with
+
+      git archive 8b98fea SPEC.md AGENTS.md CONTRIBUTING.md README.md ROADMAP.md CHANGELOG.md justfile conformance/cases conformance/cases-csv conformance/run_cases.py
+
+  plus the text of #278 and #279, with the paragraph of #279 that describes
+  the reference's internals omitted (`ISSUES.md`, sha256
+  `22c29a4d8016f94730089ad1b4479e0ea0794ba25fe90db77b531d2780ea1131`). The
+  issues were read for which behaviours to pin, never for an expected
+  value. The author opened SPEC.md, AGENTS.md, CONTRIBUTING.md, the issue
+  text, this README, `case-body.schema.json`, `conformance/run_cases.py`,
+  the `justfile`, the case names under `parse/`, `rowrel/` and `eval/`, the
+  files of the existing escaped-pipe, missing-closing-pipe, raw-pipe,
+  seven-equals, `if` string-equality, `parse/empty` and
+  `parse/no-alignment-row` cases, and the lines of README.md, ROADMAP.md
+  and CHANGELOG.md that state the case count. Its cases are these, named
+  exactly:
+  - #278, a data cell holding `:=`, read as a cell of a table line:
+    `rowrel/colon-equals-in-an-unpadded-data-cell-is-data`,
+    `rowrel/colon-equals-in-a-padded-data-cell-is-data`,
+    `rowrel/colon-equals-in-a-data-cell-padded-only-around-itself-is-data`,
+    `rowrel/colon-equals-in-a-data-cell-padded-only-before-the-closing-pipe-is-data`,
+    `rowrel/colon-equals-in-an-unpadded-cell-after-a-padded-key-is-data`,
+    `rowrel/colon-equals-in-a-data-cell-on-an-indented-line-is-data` and
+    `rowrel/colon-equals-inside-a-header-string-literal-is-not-a-declaration`;
+    with the control `rowrel/unpadded-data-cell-without-colon-equals-control`.
+  - #279, a table line whose last `|` is escaped:
+    `parse/table-line-whose-last-pipe-is-escaped-refused`,
+    `parse/table-line-ending-in-a-backslash-then-an-escaped-pipe-refused` and
+    `parse/header-line-whose-last-pipe-is-escaped-refused`; with the
+    accepted control
+    `rowrel/escaped-pipe-before-the-closing-pipe-of-the-last-cell`.
+
+  It writes no case for a header *name* holding `:=`, such as
+  `| id | a:=b |`, which §5 splits into the name `a:` and §9.16 refuses
+  under either reading of the line, nor for a data cell holding a bare `=`,
+  which `eval/seven-equals-in-a-cell-is-data` already reaches. Nor for a
+  line holding `:=` that begins with `|` and lacks its closing `|`, which
+  meets §9.18 and §9.19 and, read word for word, §9.12's "a line
+  containing `:=`" too; SPEC.md does not say whether that entry reaches a
+  line §4.1 would have classified as a table line had it been closed.
