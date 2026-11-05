@@ -20,6 +20,20 @@ prose, and where the two disagree the suite wins.
   ending in `\|` before a real closing `|` reads as `x|`. The floor is now
   643 cases.
 
+### Fixed
+
+- **A data cell holding `:=` no longer refuses the file** (#278). The
+  reference read any line containing `:=` as a declaration, so
+  `|r_1|a:=b|` was refused as `malformed-declaration`. §4.1 tries
+  `table-line` before `declaration`, and a line whose first non-`WSP`
+  character is `|` is now never read as a declaration. The mutation gate
+  pins it as `table-line-holding-colon-equals-read-as-declaration`.
+- **A table line whose last `|` is escaped is refused** (#279). The
+  reference took the `|` of a final `\|` as the closing pipe and read
+  `| r_1 | x\|` as a row with a cell `x|`. `escaped` wins (§4.1.3), so the
+  line lacks its closing `|` and is now `malformed-table-line` (§9.18). The
+  mutation gate pins it as `escaped-final-pipe-closes-the-line`.
+
 ## [0.6.0] — 2026-10-23
 
 ### Added

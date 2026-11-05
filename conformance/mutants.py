@@ -547,6 +547,16 @@ for r in seq:
         'return [unescape_cell(c.strip(" \\t")) for c in _UNESCAPED_PIPE.split(body)]',
         'return [c.strip(" \\t") for c in _UNESCAPED_PIPE.split(body)]',
     ),
+    # §4.1's classification order: `table-line` before `declaration` (#278)
+    "table-line-holding-colon-equals-read-as-declaration": (
+        'if ":=" not in stripped or line.strip(WSP).startswith("|"):',
+        'if ":=" not in stripped:',
+    ),
+    # §4.1.3: a final `\|` is `escaped`, not the closing pipe (#279)
+    "escaped-final-pipe-closes-the-line": (
+        'if not line.strip(WSP).endswith("|") or line.strip(WSP).endswith("\\\\|"):',
+        'if not line.strip(WSP).endswith("|"):',
+    ),
     # the carve-out for `count` just moved, so pin it from BOTH sides
     "count-poisons-on-unparseable-text": (
         '    if fn == "count":\n        return len(vals)',

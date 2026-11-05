@@ -17,10 +17,10 @@ path.
     643 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
     0 failures, second impl   just conform-alt
-    114 killed, 0 survived    just mutants
+    116 killed, 0 survived    just mutants
     2 equivalent, 0 stale     just mutants
     0 broken                  just mutants
-    116 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
+    118 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
     281 CSV-profile cases     find conformance/cases-csv -name expect.json | wc -l
     0 failures                just conform-csv
