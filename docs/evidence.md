@@ -53,7 +53,7 @@ because a check that quietly stopped running is the failure this project keeps
 finding in itself.
 
 **Both are [kindkit](https://github.com/kindspec/kindkit)** — the shared
-machinery every kindspec kind runs on. What lives here is the part that knows
+machinery rowspec and blockspec run on. What lives here is the part that knows
 what a rowspec case means; walking the tree, reading fixtures as exact bytes,
 splicing mutants and accounting for the verdicts are the kit's, and rowspec is
 its first consumer.
