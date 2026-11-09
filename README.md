@@ -1,12 +1,15 @@
 # rowspec
 
-A specification and executable conformance suite for tabular data that must
-survive version control.
+A file format and test suite for tables that must survive version control.
 
 A `.mdtbl` file is a markdown table where a computed column carries its formula
-in the header, rows have opaque ids, and nothing is addressed by position. The
-point is that **stock git merges it correctly, or refuses — never quietly
-wrong**, with none of this project's tooling installed.
+in the header, rows have opaque ids, and nothing is addressed by position. So
+**a merge can't leave a formula pointing at the wrong row**, with none of this
+project's tooling installed. `rowspec check` and `rowspec eval` catch a merge
+that duplicates an id or leaves a name undefined. One case nothing flags: a row
+moved on one branch and deleted on the other comes back, as the
+[editing API notes](https://github.com/kindspec/rowspec/blob/main/docs/editing-api.md)
+explain.
 
 ```
 | id     | item   | qty | unit  | total = qty * unit |
@@ -23,44 +26,22 @@ The same table with `A1`-style references merges just as cleanly and reports a
 number that is 27% wrong, with no marker anywhere. That difference is the entire
 project.
 
-## What it does not do, measured
-
-**If your table is a list of facts, you probably do not need this.** We replayed
-7,446 real commits from four public CSV-in-git registries, including 528 real
-three-way merges. Neither `.mdtbl` nor plain CSV ever merged silently wrong.
-For an ordinary sorted registry CSV, **stock git already does what this format
-promises**, and none of those maintainers has wanted a computed column in four
-years.
-
-The format earns its keep when a table **computes** — when a merge can leave a
-total that is quietly wrong, which is the failure a CSV cannot even represent.
-
-**Two branches each adding a column conflict badly**, across most of the file.
-That is inherent to one-row-per-line and it is exactly what happens to a CSV.
-Nothing here fixes it; a column addition rewrites every row either way.
-
-**It is not a data-quality tool.** Whether a country code is in ISO 3166,
-whether a URL resolves, whether a date is plausible — none of that is here, and
-[Frictionless](https://frictionlessdata.io/) does it well. rowspec asks a
-smaller question: will this table survive being edited by several people over
-years?
-
-## It runs on the CSV you already have
+## Quick start
 
 ```sh
-rowspec check data/
+pip install rowspec
+rowspec check .    # will this table survive being edited by several people?
+rowspec eval  .    # does it currently say anything false?
 ```
 
-No migration. On an ordinary `.csv` that alone refuses a committed conflict
-marker — which Python's own `csv` module parses as valid rows without
-complaint — a duplicate column name, a ragged row, invalid UTF-8, and an
-invisible character in a column name. A five-line
-`data/countries.csv.rowspec.json` naming the key and the order column adds the
-rest. See [docs/csv.md](docs/csv.md), and copy
-[docs/ci/rowspec-check.yml](docs/ci/rowspec-check.yml) into
-`.github/workflows/`.
+Run both. `check` finds structural problems, and `eval` computes every table
+and fails on an unresolved value. A misspelled column name passes `check` and
+leaves a wrong total, so `check` alone is not enough.
 
-### In CI, in three lines
+Already have CSV files? `rowspec check data/` works on them with no migration.
+See [CSV mode](https://github.com/kindspec/rowspec/blob/main/docs/csv.md).
+
+## In CI
 
 ```yaml
 - uses: actions/checkout@v7
@@ -69,238 +50,74 @@ rest. See [docs/csv.md](docs/csv.md), and copy
     paths: data
 ```
 
-It runs **both** commands, because that is the whole reason it exists: `check`
-applies the structural refusals, `eval` computes every table and fails on an
-unresolved value, and **neither subsumes the other**. A misspelled column name
-or a pasted `1,299.00` is `#REF!` and correctly *not* a structural refusal, so
-a pipeline with only `check` is green on a broken total.
+The action runs both commands.
 
-The action's own test suite proves that in both directions: one job asserts it
-passes a good tree, and another feeds it a well-formed table whose total is
-`#REF!` and asserts the action **fails** — then runs the same file with
-`eval: false` and asserts it **passes**, so the first assertion is about `eval`
-and not about the file.
+## Edit a table
 
-Or copy [docs/ci/rowspec-check.yml](docs/ci/rowspec-check.yml) if you would
-rather own the workflow.
+```sh
+rowspec add-row parts.mdtbl bolt 4 0.10
+rowspec rename-column parts.mdtbl qty quantity
+rowspec add-column parts.mdtbl note --after item
+```
 
-Run against 1,564 CSVs in three public data repositories it refused 16: two
-grouped-header spreadsheet exports, thirteen truncated CDC snapshots in
-`owid/covid-19-data` whose header declares 14 columns for a 6-field row, and
-one deliberately broken fixture in `iptv-org/database`'s own test suite. No
-false positives.
+Each edit changes only the lines it is about, so edits on two branches merge
+wherever they don't touch neighbouring lines. Programs can call `rowspec.edit`;
+see the [editing API](https://github.com/kindspec/rowspec/blob/main/docs/editing-api.md).
 
-## What is actually shipped
+## Do you need it?
 
-The **conformance suite** is the deliverable. It checks out two branches, runs
-stock `git merge`, evaluates the merged file, and asserts on the computed
-number. No prior art does this. The spec, the validator and the reference
-implementation exist so the suite has something to check.
+**If your table is a list of facts, you probably do not need this.** Across 7,446 real commits
+from four public CSV-in-git registries, including 528 real three-way merges,
+neither `.mdtbl` nor plain CSV ever merged silently wrong.
+
+It earns its keep when a table **computes**, and a merge can leave a total that
+is quietly wrong. It doesn't help when two branches each add a column, which
+conflicts as badly as it does in CSV. It isn't a data-quality tool either; for
+that, use [Frictionless](https://frictionlessdata.io/).
+
+## How it is tested
+
+The test suite is the main deliverable. It checks out two branches, runs stock
+`git merge`, evaluates the merged file and asserts on the computed number. A
+second implementation, written from `SPEC.md` alone, runs against the same
+cases, and a mutation gate breaks the code on purpose to prove the suite
+notices.
 
     643 conformance cases          two implementations, both passing
     118 mutants, all distinct      116 killed, 2 equivalent
                                      0 survived, 0 stale, 0 broken
 
-**The second implementation is the point.** `reference/rowspec_alt/` was written
-from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`, and it
-runs against the same fixture tree in CI on every push. It is the only evidence
-that this document *defines* the format rather than describing one program, and
-it has repeatedly been the half that was right: on the last three questions
-where the two disagreed, the independent implementation was correct and the
-reference was wrong.
+## Documentation
 
-**The mutation gate is the other half.** The suite is only worth its green tick
-if it can go red, so the implementation is deliberately broken in 118 specific
-ways. 116 must be caught by a case; the other two carry a recorded claim that no
-input could distinguish them from the original, and the gate fails the run if a
-case turns out to catch one anyway. No two mutants produce the same mutated
-source, and the gate refuses to run if two do. A mutant that survives is reported as a
-failure, and so is a *stale* one whose pattern no longer matches the source —
-because a check that quietly stopped running is the failure this project keeps
-finding in itself.
+| | |
+|---|---|
+| [SPEC.md](https://github.com/kindspec/rowspec/blob/main/SPEC.md) | the format |
+| [Using rowspec](https://github.com/kindspec/rowspec/blob/main/docs/usage.md) | CSV files, CI, editing and the two commands in full |
+| [Export to xlsx](https://github.com/kindspec/rowspec/blob/main/docs/xlsx.md) | `pip install 'rowspec[xlsx]'`, formulas or values |
+| [What has been measured](https://github.com/kindspec/rowspec/blob/main/docs/evidence.md) | what it does not do, and how the suite is built |
+| [Rationale](https://github.com/kindspec/rowspec/blob/main/docs/rationale.md) | why the format is this way |
 
-**Both are [kindkit](https://github.com/kindspec/kindkit)** — the shared
-machinery every kindspec kind runs on. What lives here is the part that knows
-what a rowspec case means; walking the tree, reading fixtures as exact bytes,
-splicing mutants and accounting for the verdicts are the kit's, and rowspec is
-its first consumer.
+## Develop
 
-Neither number is a claim about correctness in general. See
-[docs/rationale.md](docs/rationale.md) for what has been measured, and what has
-been measured and found wanting.
-
-## Run it
+A real `git` binary is required, because the suite's central claim is about
+what stock git does.
 
 ```sh
 just setup      # uv sync
 just check      # fmt-check + lint
-just test       # everything under tests/: suite, gate, CSV, CLI, boundary
+just test       # everything under tests/
 just conform    # the suite alone, against a stock git binary
-just mutants    # deliberately break the implementation; the suite must notice
-just conform-alt # the SECOND implementation, against the same fixture tree
-just test-xlsx  # the exporter, WITH its optional extra installed
-just test-libreoffice # exported workbooks recalculated by LibreOffice
-just run FILE   # validate an artifact (rowspec check)
-just eval FILE  # print computed values and FAIL on any #REF!
+just mutants    # break the implementation; the suite must notice
 ```
 
-A real `git` binary is required. The suite's central claim is about what stock
-git does, so it uses stock git.
-
-**From the source archive (sdist), install the `conformance` extra.** The
-sdist ships the fixture tree and the runner, and the runner needs
-[kindkit](https://github.com/kindspec/kindkit). The extra declares it, so pip
-is enough (#47). Unpack the archive, then, at its top level:
-
-```sh
-python -m venv .venv && . .venv/bin/activate
-pip install '.[conformance]'
-cd conformance && python run_cases.py     # cases/; add --profile csv for cases-csv/
-```
-
-Without the extra, the runner stops at its kindkit import with
-`ModuleNotFoundError: No module named 'kindkit'`. `uv sync` (or `just setup`)
-then `just conform` works too: the `dev` group pins the exact kindkit release
-CI runs, and the extra admits that release.
-
-## Edit a table
-
-```sh
-rowspec add-row parts.mdtbl bolt 4 0.10                # one added line, where its key sorts
-rowspec add-row parts.mdtbl bolt 4 0.10 --after r_01   # or beside a key
-rowspec add-row parts.mdtbl bolt 4 0.10 --id r_09      # a chosen id
-rowspec rename-column parts.mdtbl qty quantity         # header, formulas, declarations
-rowspec add-column parts.mdtbl note --after item       # every row gains a cell
-rowspec delete-column parts.mdtbl note                 # refused while anything names it
-```
-
-Each edit changes only the lines it is about, so that edits on two branches
-merge wherever they do not touch neighbouring lines, and a refused edit leaves
-the file as it was. A program can call `rowspec.edit` directly;
-[docs/editing-api.md](docs/editing-api.md) has the operations, the diff each
-one makes, and what it refuses.
-
-## Export to xlsx, only if you ask for it
-
-```sh
-pip install rowspec           # no xlsx dependency, and none is coming
-pip install 'rowspec[xlsx]'   # openpyxl, and the exporter that uses it
-python -m rowspec_xlsx table.mdtbl table.xlsx            # formulas, the default
-python -m rowspec_xlsx --values table.mdtbl table.xlsx   # rowspec eval's values
-```
-
-The exporter lives in `export/`, **outside `reference/`**, and that is the
-whole design. `reference/` is standard-library-only because a dependency there
-is a dependency every independent implementation of the format inherits, and an
-independent implementation of a table format must not be required to read xlsx.
-A test fails if anything under `reference/` ever imports outside the standard
-library, so the boundary is a check rather than a convention.
-
-It writes one sheet holding a spreadsheet table named `rowspec`, with the
-declared aggregates below the grid. In both modes every number cell, stored or
-computed, is saved with all the digits its binary64 value needs
-([#269](https://github.com/kindspec/rowspec/issues/269)).
-
-By default, computed columns are live formulas over structured references,
-such as `rowspec[[#This Row],[qty]]`, and the aggregates are `SUBTOTAL` forms.
-No formula holds a coordinate. The formulas are written to
-carry this format's rules rather than the spreadsheet's: a blank operand, text
-in a summed column, or the minimum of nothing is an error, not a `0`. A `#REF!`
-arrives as a spreadsheet error value, though without the name in its
-parentheses.
-
-A formula workbook computes with spreadsheet arithmetic, which is not this format's.
-Tolerant comparison and subtraction can make an `if` take the other branch
-([#88](https://github.com/kindspec/rowspec/issues/88)), and left-to-right
-addition can cancel a total that §7's exact sum keeps
-([#83](https://github.com/kindspec/rowspec/issues/83)). The key column is text,
-so a formula using it as a number is an error in the workbook. Hidden or
-filtered rows drop out of the `SUBTOTAL` aggregates but not out of `count`.
-
-What a spreadsheet formula cannot say, the default export refuses rather than
-approximates, and writes nothing: `cumulative`, `prior` and `delta`; any `where` predicate;
-and a few narrower cases listed in `export/rowspec_xlsx/__init__.py`.
-
-**What is checked is agreement on the conformance tree, not in general.**
-`just test-libreoffice` exports every `.mdtbl` in the conformance tree that
-rowspec accepts and the exporter can express. It recalculates each one in
-headless LibreOffice and compares every computed cell and aggregate with
-`rowspec eval`. Numbers are compared at 15 significant digits, which is all
-LibreOffice saves. CI runs it. Where they disagree, the test pins the value
-LibreOffice gives, so a change in either direction fails it. That covers four
-`sum` and `avg` cases from the tree near `1e308`, plus two tables written for
-the test: `if(c = 0.3, …)` over `0.1 + 0.2` (#88), and `1e16 + 1 - 1e16` (#83).
-Both kinds of disagreement occur at ordinary magnitudes, so a table outside
-the tree can disagree in ways nothing here checks.
-
-**Which mode is exact.** `--values` is exact, and the default is not. The
-default writes formulas, and a spreadsheet recalculates them with its own
-arithmetic, which can disagree with `rowspec eval` as described above
-([#83](https://github.com/kindspec/rowspec/issues/83),
-[#88](https://github.com/kindspec/rowspec/issues/88)). `--values` writes
-`rowspec eval`'s computed values in place of the formulas, at full binary64
-precision, so its computed cells and aggregates are exactly the format's, as
-are its stored numbers
-([#89](https://github.com/kindspec/rowspec/issues/89)). Each `#REF!` is written
-as the spreadsheet error `#REF!`, an error cell and not text, so a spreadsheet
-`SUM` over it is an error rather than skipping it. The name in its parentheses
-is lost, as in the default mode. The cost is that nothing in the workbook
-recalculates: it is the table as it was computed at export, and editing a cell
-in the spreadsheet changes no total.
-
-With no formula to write, `--values` exports `cumulative`, `prior`, `delta`,
-`where` predicates, and the other tables the default refuses only because no
-formula says them. It still refuses what a spreadsheet table cannot hold:
-column names that differ only by case, a table with no rows, and a character
-XML has no place for.
-
-`just test-xlsx` exports every `.mdtbl` in the conformance tree that rowspec
-accepts with `--values`, reads each saved file back, and compares every
-computed cell and aggregate with `rowspec eval`: the same binary64 number, an
-error cell for each `#REF!`, and no formula anywhere. The LibreOffice test
-does not apply to this mode. It checks what a spreadsheet engine recalculates,
-and a values workbook gives it nothing to recalculate. Its comparison also
-stops at 15 significant digits, which is all LibreOffice saves, so it could not
-check the last digits this mode exists to keep.
-
-## Two commands, and you need both
-
-`check` applies the refusals in §9 — the structural ones, the things that make a
-table survive version control. `eval` computes the table and fails on any
-`#REF!`.
-
-**They catch different things and neither subsumes the other.** A misspelled
-column name, a pasted `1,299.00`, or a non-breaking space in a number are all
-`#REF!` under §8 and are correctly *not* §9 refusals — the file is well-formed,
-its total is wrong. `check` alone reports `0 refused` on a table whose total is
-wrong, so a CI recipe built on `check` is green on a broken total.
-
-Run both:
-
-```sh
-rowspec check .    # will this table survive being edited by several people?
-rowspec eval  .    # does it currently say anything false?
-```
-
-A refusal names its §9 identifier, so a program can tell the refusals apart
-without parsing the message. Plain output ends the line with it, and
-`--format github` puts it in the annotation's title:
-
-```
-data/parts.mdtbl: duplicate key id='r_1' [duplicate-row-id]
-::error file=data/parts.mdtbl,title=rowspec [duplicate-row-id]::duplicate key id='r_1'
-```
-
-A refused `.csv` or `.tsv` prints the §9 identifier SPEC.md §13 reads its
-refusal as, in the same two places. Warnings carry no identifier, and
-neither does a warning `--strict` turns into a refusal.
+See [CONTRIBUTING](https://github.com/kindspec/rowspec/blob/main/CONTRIBUTING.md) and `just --list`.
 
 ## Licensing
 
-Per directory, deliberately — see [LICENSE](LICENSE). The fixtures are CC0 so
+Per directory, deliberately. See [LICENSE](https://github.com/kindspec/rowspec/blob/main/LICENSE). The fixtures are CC0 so
 they can be vendored into an implementation in any language under any licence.
 
 ## Credit
 
 Standing on Coopy/daff, ClassSheets, Object Spreadsheets, Lotus Improv and
-org-mode. See [NOTICE](NOTICE).
+org-mode. See [NOTICE](https://github.com/kindspec/rowspec/blob/main/NOTICE).
