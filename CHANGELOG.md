@@ -7,6 +7,16 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-11-09
+
+### Changed
+
+- **A shorter README**, which is also the PyPI page. The detail moved to
+  `docs/usage.md`, `docs/xlsx.md` and `docs/evidence.md`. The opening no longer
+  says a merge is never quietly wrong: a row moved on one branch and deleted on
+  the other comes back with nothing flagging it, as `docs/editing-api.md` says.
+- The package metadata no longer carries an author email address.
+
 ### Added
 
 - **12 conformance cases for #278 and #279**, written from SPEC.md without
@@ -1644,7 +1654,8 @@ actually ran. The two grammars diverged invisibly until differential evaluation
 against 55,681 real spreadsheet cells found it — not a check that could not
 fail, but a check that was never against the specification at all.
 
-[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/kindspec/rowspec/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/kindspec/rowspec/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/kindspec/rowspec/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/kindspec/rowspec/compare/v0.3.0...v0.4.0
