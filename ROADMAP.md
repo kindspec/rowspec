@@ -11,8 +11,8 @@ path.
 
 ## Where it is
 
-**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0` and
-`v0.6.0` (latest), on PyPI, with a GitHub Action.
+**Draft 0**, released as `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`,
+`v0.6.0` and `v0.6.1` (latest), on PyPI, with a GitHub Action.
 
     643 conformance cases     find conformance/cases -name expect.json | wc -l
     0 failures                just conform
@@ -36,6 +36,12 @@ The second implementation is the load-bearing one. `reference/rowspec_alt/` was
 written from `SPEC.md` alone by an author forbidden to read `reference/rowspec/`
 and runs against the same fixture tree in CI on every push. On the last three
 questions where the two disagreed, the independent implementation was right.
+
+## Shipped in 0.6.1
+
+**The reader follows SPEC.md §4.1** on both of 0.6.0's known issues: a data
+cell holding `:=` is read as a cell (#278), and a table line whose last `|` is
+escaped is refused (#279).
 
 ## Shipped in 0.6.0
 

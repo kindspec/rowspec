@@ -6,7 +6,7 @@ A `.mdtbl` file is a markdown table where a computed column carries its formula
 in the header, rows have opaque ids, and nothing is addressed by position. So
 **a merge can't leave a formula pointing at the wrong row**, with none of this
 project's tooling installed. `rowspec check` and `rowspec eval` catch a merge
-that duplicates an id or leaves a name undefined. One case nothing flags: a row
+that duplicates an id or leaves a name undefined. Not every bad merge is flagged: a row
 moved on one branch and deleted on the other comes back, as the
 [editing API notes](https://github.com/kindspec/rowspec/blob/main/docs/editing-api.md)
 explain.
@@ -45,7 +45,7 @@ See [CSV mode](https://github.com/kindspec/rowspec/blob/main/docs/csv.md).
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: kindspec/rowspec@v0.6.0
+- uses: kindspec/rowspec@v0.6.1
   with:
     paths: data
 ```
