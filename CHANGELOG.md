@@ -7,6 +7,11 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+### Changed
+
+- The README's opening states the format's promise again. #284 closes the
+  merge that breaks it.
+
 ## [0.6.1] — 2026-11-09
 
 ### Changed
