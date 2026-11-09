@@ -5,7 +5,7 @@ description = "A specification and conformance suite for tabular data that must 
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
-authors = [{ name = "Cameron Brooks", email = "cambrooks3393@gmail.com" }]
+authors = [{ name = "Cameron Brooks" }]
 keywords = ["csv", "markdown", "git", "merge", "conformance", "specification"]
 # The WHEEL contains `reference/rowspec` and `export/rowspec_xlsx`, both of
 # which are Apache-2.0 OR MIT. The repository as a whole is licensed per
