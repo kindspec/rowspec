@@ -142,8 +142,8 @@ differently from `.mdtbl`, as SPEC.md §13 states:
 - **28, rows out of order**: with a key declared and no `order`, the rows
   follow the key as §4.1.8 orders text. With `order`, they follow the tuple of
   the typed order value and the key. A sidecar that declares neither, and a CSV
-  with no sidecar, has no such rule. `rowspec check --fmt` sorts `.mdtbl` files;
-  a CSV is sorted by whatever produced it.
+  with no sidecar, has no such rule. `rowspec check --fmt --sort-rows` sorts
+  `.mdtbl` files; a CSV is sorted by whatever produced it.
 - **5, duplicate row id**: with a key declared, a key value is also refused
   when it is empty or holds whitespace or a `Cf` character, since any of those
   lets two ids render alike without being equal (§9.16). Only ASCII space and

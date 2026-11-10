@@ -1679,7 +1679,9 @@ def evaluate(text):
     fault = _key_order_fault(rows, key)
     if fault:
         raise Malformed(
-            f"{fault}. Rows stay in key order (§6); `rowspec check --fmt` sorts them",
+            f"{fault}. Rows stay in key order (§6). After a merge, either row may be one "
+            "another branch deleted: check that before sorting with "
+            "`rowspec check --fmt --sort-rows`",
             refusal="rows-out-of-order",
         )
     return seq, out
@@ -1767,8 +1769,9 @@ def render(st):
 def canon(text):
     """Canonical form: single-space delimiters, no alignment padding, and the
     rows in key order, each row's line moved whole. §9.28 is the one refusal
-    this repairs (§10), so it reads the file with `parse`, which leaves that
-    check to `evaluate`; every other refusal still stands.
+    this repairs (§10), so it reads the file with `structure`, which leaves
+    that check to `evaluate`, and evaluates what it wrote: every other refusal
+    still stands.
 
     Padding is a VIEW. Measured: a one-character edit in a padded 2000-row
     table produces a 2002-line / 238,370-byte diff versus 1 line / 413 bytes
@@ -1827,7 +1830,9 @@ def canon(text):
     # form with mixed terminators, which §3 says is not canonical at all, and
     # which made canon's own output something a second reader would canonicalise
     # differently. "Byte-verbatim" is about what a line says, not how it ends.
-    return "".join(out).replace("\r\n", "\n").replace("\r", "\n")
+    result = "".join(out).replace("\r\n", "\n").replace("\r", "\n")
+    evaluate(result)  # §10: every refusal but §9.28 stands, those only `evaluate` finds too
+    return result
 
 
 def set_cell(st, row_key, col, value):
@@ -1849,6 +1854,8 @@ def set_cell(st, row_key, col, value):
     for i, r in enumerate(st["rows"]):
         if str(r.get(key)) == str(row_key):
             if col == key:
+                if any(_key_text(o[key]) == _key_text(value) for o in st["rows"] if o is not r):
+                    raise EditRefused("duplicate-row-id", f"a row already has {key}={value!r} (§6)")
                 keys = [{key: str(value) if o is r else o[key]} for o in st["rows"]]
                 fault = _key_order_fault(keys, key)
                 if fault:

@@ -299,8 +299,9 @@ move is a deletion and an insertion of the same line, and with the move on one
 branch and a deletion of that row on the other, stock git removes the old line,
 keeps the new one and reports no conflict. `rowspec check` refuses the moved
 row as `rows-out-of-order` (§6, §9.28) on the branch that moved it and again
-after the merge, with nothing installed, and `rowspec check --fmt` puts it back
-where its key sorts. A row's position is never an input to a value, so a move
+after the merge, with nothing installed. `rowspec check --fmt --sort-rows` puts
+it back where its key sorts, which also keeps a row another branch deleted, so
+after a merge check that first. A row's position is never an input to a value, so a move
 gains nothing but appearance, and it is not offered.
 
 **Edits to adjacent lines conflict, and the format cannot change that.**

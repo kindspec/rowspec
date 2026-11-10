@@ -383,8 +383,8 @@ def _row_body(d, cells, like):
     return indent + "|" + "|".join(inner) + "|"
 
 
-#: How many ids to draw for a named position before leaving the refusal to
-#: the write. A gap too narrow for this many draws holds almost no ids at all.
+#: How many ids to draw for a named position before refusing it. A gap too
+#: narrow for this many draws holds almost no ids at all.
 _KEY_DRAWS = 4096
 
 
@@ -401,8 +401,8 @@ def _sorted_position(d, rid):
 def _generated_key(d, at):
     """A new `r_` and six hex digits. Where the caller named a position `at`,
     one that sorts there, so that a generated key is not refused for where it
-    happened to fall (§6). When the gap holds no such key after many draws,
-    the last draw is returned and the write refuses it."""
+    happened to fall (§6). A position no generated key can reach is refused,
+    naming the row the caller gave rather than a key it never saw."""
     col = d.cols.index(d.key)
     rows = [(i, _key_text(split_row(d.lines[i])[col])) for i in d.data]
     taken = {k for _, k in rows}
@@ -412,12 +412,14 @@ def _generated_key(d, at):
     def fits(k):
         return (not below or below[-1] < k) and (not above or k < above[0])
 
-    key = "r_" + secrets.token_hex(3)
     for _ in range(_KEY_DRAWS):
-        if key not in taken and fits(key):
-            break
         key = "r_" + secrets.token_hex(3)
-    return key
+        if key not in taken and fits(key):
+            return key
+    raise EditRefused(
+        "out-of-key-order",
+        "no generated key sorts at that position; give the row a key, or no position (§6)",
+    )
 
 
 def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=False):

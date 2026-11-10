@@ -1,4 +1,5 @@
 {
-  "git_outcome": "conflict",
-  "kind": "merge"
+  "git_outcome": "clean",
+  "kind": "merge",
+  "then": "refuse"
 }

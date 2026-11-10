@@ -142,8 +142,8 @@ MUTANTS = {
     # divergence issue #5 reported, the second is a patch that landed in the
     # wrong function, the third is what made issue #7's fixture vacuous.
     "canon-leaves-declaration-terminators-verbatim": (
-        '    return "".join(out).replace("\\r\\n", "\\n").replace("\\r", "\\n")',
-        '    return "".join(out)',
+        '    result = "".join(out).replace("\\r\\n", "\\n").replace("\\r", "\\n")',
+        '    result = "".join(out)',
     ),
     "render-normalises-terminators-like-canon": (
         # Anchored on the line ABOVE the return, which is unique to

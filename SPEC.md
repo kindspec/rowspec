@@ -964,6 +964,11 @@ line, keeps the new one, reports no conflict, and the deleted row comes back.
 No value or marker records that. Requiring key order refuses the moved row on
 the branch that moved it, and again after the merge, with nothing installed.
 
+**A known gap.** Sorting a file that was out of order is itself a move. A branch
+still open from before the sort, which deletes a row the sort moved, merges
+cleanly with the row back, and the result is in key order. Sort a table when no
+branch that deletes its rows is open.
+
 **Order.** Without `order`, the table is a SET and the row-relative operators of
 §7 are refused. With `order := by(c)`:
 
@@ -1571,6 +1576,9 @@ separate explicit operation with `canon(canon(x)) == canon(x)`.
 `canon` also puts the rows in key order, moving each row's line whole. §9.28 is
 the one refusal it repairs: a table that meets §9.28 and no other refusal
 canonicalises, and the result is valid. Every other refused file stays refused.
+A tool MUST NOT apply this repair unless it is asked for by itself: a row out of
+order may be a row another branch deleted (§6), and sorting it makes that row
+valid. An ordinary format step leaves such a file refused.
 The file's final terminator belongs to the file's last line, not to a row: if
 the file ended with no terminator it still does, after the rows have moved.
 
@@ -1728,8 +1736,8 @@ relaxation**, and the difference must be stated rather than discovered:
   file is refused (§9.28). A sidecar that declares neither, and a CSV with no
   sidecar, has no such rule. **A known gap:** a row whose `order` value is
   edited legitimately moves, and can return against a deletion on another
-  branch. A key never changes, so a `.mdtbl` file and a key-only sidecar have
-  no such case. The column is refused (§6, §9.10)
+  branch. A key names the row, so a row given a new key is a new row, and a
+  `.mdtbl` file and a key-only sidecar have no such case. The column is refused (§6, §9.10)
   when it mixes types, **when it is blank in any row**, a cell of spaces or
   tabs included, since blank is none of the three types, and when it holds
   any non-finite spelling §9.10 lists, in any row and whatever the rest of

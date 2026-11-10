@@ -28,7 +28,10 @@ years?
 one, the difference being merges that bring in a reorder already counted on its
 branch. The median such commit moves 1 to 4 rows, depending on the registry, and
 none moves more than half a file (`experiments/D0-dogfood/reorder.py` in the
-research repository).
+research repository). The current file of all four registries is out of key
+order (`reorder-results.txt` beside it): a key-only sidecar means sorting once
+and keeping new rows in place, and a file kept sorted by another column declares
+that column as `order`.
 
 ## What is actually shipped
 

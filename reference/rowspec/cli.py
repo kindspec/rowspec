@@ -366,7 +366,7 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
 
 
 def _sort_rows(path):
-    """`--fmt` on a file §9.28 is the only refusal of (§10): write it back with
+    """`--fmt --sort-rows` on a file §9.28 is the only refusal of (§10): write it back with
     its rows in key order. Returns the finding that stops it, or None."""
     fixed = canon(open(path, encoding="utf-8", newline="").read())
     try:
@@ -414,6 +414,13 @@ def _parser(cmd):
             "--fmt",
             action="store_true",
             help=quiet or "rewrite .mdtbl files into canonical form, rows in key order",
+        )
+        p.add_argument(
+            "--sort-rows",
+            action="store_true",
+            help=quiet
+            or "with --fmt, also sort a table refused only for rows out of key order. "
+            "After a merge, check first that no row was deleted on another branch",
         )
         p.add_argument(
             "--fmt-check",
@@ -536,6 +543,9 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout,
             lambda n: f"renamed column {a.old} to {n}",
         )
+    if a.sort_rows and not a.fmt:
+        print("rowspec check: --sort-rows needs --fmt", file=sys.stderr)
+        return 2
     files = collect(a.paths)
     emit = _print_github if a.format == "github" else _print_plain
     explained: set[str] = set()
@@ -550,7 +560,7 @@ def main(argv: list[str] | None = None) -> int:
             for x in errs:
                 x.level = "refuse"
         if (
-            a.fmt
+            a.sort_rows
             and f.lower().endswith(TABLE_EXT)
             and [getattr(x, "refusal", None) for x in errs] == ["rows-out-of-order"]
         ):

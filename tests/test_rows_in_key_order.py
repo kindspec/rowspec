@@ -78,7 +78,8 @@ def test_the_message_names_the_rows_and_the_repair():
     with pytest.raises(Malformed) as e:
         evaluate(table("r_2", "r_1"))
     assert "r_1" in str(e.value) and "r_2" in str(e.value)
-    assert "rowspec check --fmt" in str(e.value)
+    assert "rowspec check --fmt --sort-rows" in str(e.value)
+    assert "deleted" in str(e.value)
 
 
 # --- canon and --fmt --------------------------------------------------------
@@ -117,9 +118,48 @@ def test_canon_does_not_repair_another_refusal():
 def test_check_fmt_migrates_a_file_out_of_order(tmp_path, capsys):
     f = tmp_path / "t.mdtbl"
     f.write_text(table("r_2", "r_1"), encoding="utf-8")
-    assert main(["check", "--fmt", str(f)]) == 0
+    assert main(["check", "--fmt", "--sort-rows", str(f)]) == 0
     assert "reformatted" in capsys.readouterr().out
     evaluate(f.read_text(encoding="utf-8"))
+
+
+def test_plain_fmt_never_sorts(tmp_path, capsys):
+    """§10: after a merge, sorting would make a row another branch deleted
+    valid, so a routine format step must not do it unasked."""
+    f = tmp_path / "t.mdtbl"
+    f.write_text(table("r_2", "r_1"), encoding="utf-8")
+    before = f.read_bytes()
+    assert main(["check", "--fmt", str(f)]) == 1
+    assert "[rows-out-of-order]" in capsys.readouterr().err
+    assert f.read_bytes() == before
+
+
+def test_sort_rows_needs_fmt(tmp_path):
+    f = tmp_path / "t.mdtbl"
+    f.write_text(table("r_2", "r_1"), encoding="utf-8")
+    before = f.read_bytes()
+    assert main(["check", "--sort-rows", str(f)]) == 2
+    assert f.read_bytes() == before
+
+
+def test_canon_keeps_a_refusal_only_evaluation_finds():
+    with pytest.raises(Malformed) as e:
+        canon(table("r_2", "r_1", tail="\nkey := id\ns := median(qty)\n"))
+    assert e.value.refusal == "unknown-aggregate"
+
+
+def test_a_key_write_to_a_taken_key_is_a_duplicate():
+    t = table("r_1", "r_2", "r_3")
+    with pytest.raises(ed.EditRefused) as e:
+        set_cell(structure(t), "r_1", "id", "r_2")
+    assert e.value.reason == "duplicate-row-id"
+
+
+def test_a_position_no_generated_key_can_reach_is_refused_without_naming_one():
+    t = "| id | a |\n| --- | --- |\n| zeta | x |\n\nkey := id\n"
+    with pytest.raises(ed.EditRefused) as e:
+        ed.add_row(t, {"a": "z"}, end=True)
+    assert "generated" in str(e.value) and "r_" not in str(e.value)
 
 
 def test_check_without_fmt_refuses_and_leaves_the_file(tmp_path, capsys):
@@ -143,7 +183,7 @@ def test_check_fmt_leaves_a_file_with_another_refusal(tmp_path, capsys):
     f = tmp_path / "t.mdtbl"
     f.write_text(table("r_2", "r_1", tail="\nkey := id\ns := median(qty)\n"), encoding="utf-8")
     before = f.read_bytes()
-    assert main(["check", "--fmt", str(f)]) == 1
+    assert main(["check", "--fmt", "--sort-rows", str(f)]) == 1
     assert "[unknown-aggregate]" in capsys.readouterr().err
     assert f.read_bytes() == before
 

@@ -58,9 +58,13 @@ rowspec delete-column parts.mdtbl note                 # refused while anything 
 ```
 
 Rows stay in key order (`SPEC.md` §6), and a table whose rows are out of order
-is refused as `rows-out-of-order`. `rowspec check --fmt` is the migration: it
-rewrites such a file with the rows sorted by key, each line whole, and a file
-with any other refusal stays refused and unchanged.
+is refused as `rows-out-of-order`. `rowspec check --fmt --sort-rows` is the
+migration: it rewrites such a file with the rows sorted by key, each line whole,
+and a file with any other refusal stays refused and unchanged. Plain `--fmt`
+never sorts, so a format step can't do this unasked. After a merge, a row out of
+order may be one another branch deleted, and sorting would keep it: check that
+first. Sort a table when no branch that deletes its rows is open, since the sort
+is itself a move (§6).
 
 Each edit changes only the lines it is about, so that edits on two branches
 merge wherever they do not touch neighbouring lines, and a refused edit leaves
