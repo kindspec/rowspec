@@ -25,7 +25,8 @@ when no open branch deletes its rows.
   other is now refused instead of coming back with nothing flagged.
   `canon` sorts rows by key, a file with no final terminator keeping none,
   and `rowspec check --fmt --sort-rows` is the migration; plain `--fmt` never
-  sorts, since after a merge a row out of order may be one another branch deleted. §9.28 reports only when no other
+  sorts, since after a merge a row out of order may be one another branch
+  deleted. §9.28 reports only when no other
   entry refuses the file.
   `edit.add_row` with no position always goes where its key sorts; a position,
   a key-column `set_cell` or a `key` declaration that would break the order is
