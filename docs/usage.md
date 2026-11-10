@@ -50,12 +50,17 @@ false positives.
 
 ```sh
 rowspec add-row parts.mdtbl bolt 4 0.10                # one added line, where its key sorts
-rowspec add-row parts.mdtbl bolt 4 0.10 --after r_01   # or beside a key
+rowspec add-row parts.mdtbl bolt 4 0.10 --after r_01   # or beside a key, if that keeps key order
 rowspec add-row parts.mdtbl bolt 4 0.10 --id r_09      # a chosen id
 rowspec rename-column parts.mdtbl qty quantity         # header, formulas, declarations
 rowspec add-column parts.mdtbl note --after item       # every row gains a cell
 rowspec delete-column parts.mdtbl note                 # refused while anything names it
 ```
+
+Rows stay in key order (`SPEC.md` §6), and a table whose rows are out of order
+is refused as `rows-out-of-order`. `rowspec check --fmt` is the migration: it
+rewrites such a file with the rows sorted by key, each line whole, and a file
+with any other refusal stays refused and unchanged.
 
 Each edit changes only the lines it is about, so that edits on two branches
 merge wherever they do not touch neighbouring lines, and a refused edit leaves

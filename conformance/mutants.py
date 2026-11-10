@@ -51,6 +51,13 @@ from kindkit.cli import EXIT_FAILURES, EXIT_NO_VERDICT, EXIT_OK
 # `float-accepts-thousands-separators` outlived the mutant it named, excusing
 # nothing, and nothing said so.
 EQUIVALENT = {
+    "no-tiebreak-at-all": (
+        "§6 keeps every accepted file's rows in key order, and Python's sort is "
+        "stable, so rows tied on the order value already stand in key order; a "
+        "file out of key order is refused as §9.28 whatever the tie would have "
+        "given. The key in the tuple is kept because the tiebreak is §6's rule "
+        "and an implementation with an unstable sort does need it"
+    ),
     "a-missing-column-is-blank-under-a-text-comparison": (
         "§4.2 rule 10's header rule makes this unreachable: `_evaluate_columns` "
         "resolves every static name against `cols` BEFORE any row is "
@@ -78,6 +85,25 @@ MUTANTS = {
     # Commissioned by the suite author, who could name the case each should die
     # to without being able to write the mutant -- they may not read the
     # implementation. A guard nothing bites is not a guard.
+    # --- §6's key order and §10's repair of it (#284) -----------------------
+    "rows-out-of-order-not-refused": (
+        "    fault = _key_order_fault(rows, key)\n    if fault:",
+        "    fault = None\n    if fault:",
+    ),
+    "rows-out-of-order-reported-before-other-refusals": (
+        "    else:\n        seq = rows\n    _evaluate_columns(seq, cols, formulas)",
+        "    else:\n        seq = rows\n    if _key_order_fault(rows, key):\n"
+        '        raise Malformed("x", refusal="rows-out-of-order")\n'
+        "    _evaluate_columns(seq, cols, formulas)",
+    ),
+    "canon-does-not-sort-the-rows": (
+        'rows = sorted(st["rows"], key=lambda r: _key_text(r[key])) if key else st["rows"]',
+        'rows = st["rows"]',
+    ),
+    "canon-adds-a-final-terminator": (
+        'if not text.endswith("\\n") and out[-1].endswith("\\n"):',
+        "if False:",
+    ),
     "signed-drops-the-minus": (
         "            sign = -1.0",
         "            sign = 1.0",
@@ -876,6 +902,31 @@ CSV_EQUIVALENT = {
 }
 
 CSV_MUTANTS = {
+    # --- §13's row order and §9.28 (#284) -----------------------------------
+    "csv-rows-out-of-order-not-refused": (
+        "findings += _row_order(body, names, side, key_idx)",
+        "findings += []",
+    ),
+    "csv-rows-out-of-order-has-no-identifier": (
+        '"rows-out-of-order": "rows-out-of-order"',
+        '"rows-out-of-order": None',
+    ),
+    "csv-rows-out-of-order-reported-beside-other-refusals": (
+        "        if not findings:\n            findings += _row_order(",
+        "        if True:\n            findings += _row_order(",
+    ),
+    "csv-row-order-has-no-key-tiebreak": (
+        '(_order_value(rec[at].strip(" \\t"), kind), _key_value(rec, key_idx))',
+        '(_order_value(rec[at].strip(" \\t"), kind), "")',
+    ),
+    "csv-row-order-reads-numbers-as-text": (
+        '    if kind == "number":\n        return float(v)',
+        '    if kind == "never":\n        return float(v)',
+    ),
+    "csv-row-order-reads-dates-as-text": (
+        '    if kind == "date":\n        return tuple(',
+        '    if kind == "never":\n        return tuple(',
+    ),
     # --- §9.1 / §4.1.12: conflict markers --------------------------------------
     "csv-conflict-markers-ignored": (
         "        if not _MARKER.match(line):\n            continue",

@@ -849,6 +849,15 @@ class Structure:
 
 
 def structure(text):
+    st = read_table(text)
+    check_key_order(st)
+    return st
+
+
+def read_table(text):
+    """Every check but §9.28, which is the one refusal `canon` repairs (§10).
+    Nothing refused here is repaired, so `canon` starts from this and every
+    other refused file stays refused."""
     st = Structure()
 
     # §9.26 -- a leading BOM. The caller decodes, so a BOM survives as
@@ -1187,6 +1196,42 @@ def validate(st):
             )
 
 
+def key_value(st, ln):
+    """§6: the cell's value, compared as §4.1.8 compares the row-key tiebreak
+    -- by code point over the NFC-normalised, trimmed value.  §6 says only "the
+    cell's value"; NFC is read in from §3 and §4.1.8, and it is what §9.5 uses,
+    so a pair §9.5 calls one key cannot be reported here as two."""
+    return nfc(cell_value(ln.cells[st.col_index[st.key]]))
+
+
+def check_key_order(st):
+    """§9.28.  Run last, after §9.5, because two rows holding one key are §9.5
+    and not this (§6).  `order := by(c)` does not relax it: that declares the
+    order a computation reads the rows in, never the order of the lines."""
+    if st.key is None:
+        return
+    prev = None
+    for ln in st.row_lines:
+        cur = key_value(st, ln)
+        if prev is not None and cur <= prev:
+            raise Malformed(
+                "rows-out-of-order",
+                f"row key {cur!r} does not sort after the key above it, {prev!r} (§9.28)",
+            )
+        prev = cur
+
+
+def sort_rows(st):
+    """§10: rows into key order, each row's line moved whole.  The data rows
+    are one contiguous run of `st.lines` (§4.1.2), so the run is replaced in
+    place.  A table with no key has no key order (§6) and is left alone."""
+    if st.key is None or not st.row_lines:
+        return
+    first = st.lines.index(st.row_lines[0])
+    st.row_lines.sort(key=lambda ln: key_value(st, ln))
+    st.lines[first : first + len(st.row_lines)] = st.row_lines
+
+
 def order_kind(s, col):
     if s == "":
         return "blank"
@@ -1227,18 +1272,23 @@ def canon_align(cell):
 
 
 def canon(text):
-    """§10.  Single-space delimiters, no alignment padding.
+    """§10.  Single-space delimiters, no alignment padding, rows in key order.
 
-    §4.1.1: canon terminates every table line it emits and leaves annotations
-    and declarations byte-verbatim.  §3/§10: the canonical form is LF -- read
-    here as normalising every terminator, since a "canonical form" with two
-    line endings in it is not canonical.  See the findings: the two sentences
-    do not agree and no fixture separates them.
+    §4.1.1: every terminator in the file is normalised to LF and annotations
+    and declarations otherwise stay byte-verbatim.  The one exception is the
+    file's last line, whose terminator stays present or absent as it was.
+
+    §10: §9.28 is the one refusal canon repairs, so it starts from `read_table`
+    and not from `structure`.  The final terminator belongs to the file's last
+    line and not to a row, so it is read before the rows move and given to
+    whichever line ends the file afterwards.
     """
-    st = structure(text)
+    st = read_table(text)
+    final_term = "\n" if st.lines[-1].term else ""
+    sort_rows(st)
     for ln in st.lines:
+        ln.term = "\n"
         if ln.cells is None:
-            ln.term = "\n" if ln.term else ln.term
             continue
         if ln.kind == "align":
             cells = [canon_align(c) for c in ln.cells]
@@ -1249,7 +1299,7 @@ def canon(text):
         ln.cells = [" " + c + " " for c in cells]
         ln.head = ""
         ln.tail = ""
-        ln.term = "\n"
+    st.lines[-1].term = final_term
     return render(st)
 
 

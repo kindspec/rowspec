@@ -120,10 +120,11 @@ profile: what it cannot apply, and how it reads §9.16, RFC 4180's records and
 | 13 | `no-table`: no table | ● | | |
 | 25 | `order-without-key`: `order` with no `key` | | ● | |
 | 27 | `column-type-mismatch`: value not of its declared type | | ● | |
+| 28 | `rows-out-of-order`: rows not in the declared order | | ● | |
 
-Four, six and five. §3's encoding rules add two more to the bare-CSV column —
+Four, seven and five. §3's encoding rules add two more to the bare-CSV column —
 invalid UTF-8, and a `Cf` format character inside a column name — for six
-checks on a file with no declarations at all. Three rows read the CSV
+checks on a file with no declarations at all. Four rows read the CSV
 differently from `.mdtbl`, as SPEC.md §13 states:
 
 - **1, conflict markers**: §4.1.12 unchanged. A line whose first seven
@@ -138,6 +139,11 @@ differently from `.mdtbl`, as SPEC.md §13 states:
   `"` inside a field that does not start with one, like `5" pipe`, or text
   after a closing quote, like `"a"b`. RFC 4180 §2 allows neither, and readers
   disagree about what such a field holds.
+- **28, rows out of order**: with a key declared and no `order`, the rows
+  follow the key as §4.1.8 orders text. With `order`, they follow the tuple of
+  the typed order value and the key. A sidecar that declares neither, and a CSV
+  with no sidecar, has no such rule. `rowspec check --fmt` sorts `.mdtbl` files;
+  a CSV is sorted by whatever produced it.
 - **5, duplicate row id**: with a key declared, a key value is also refused
   when it is empty or holds whitespace or a `Cf` character, since any of those
   lets two ids render alike without being equal (§9.16). Only ASCII space and

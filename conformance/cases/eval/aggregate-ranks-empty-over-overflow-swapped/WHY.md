@@ -1,9 +1,9 @@
 # Why this case exists
 
-The group aggregate `g = min(v where k = @k)` is `#REF!(empty)` in `r_1`:
+The group aggregate `g = min(v where k = @k)` is `#REF!(empty)` in `r_2`:
 its group `p` holds only a blank `v`, "A blank cell is skipped by `sum`,
 `min`, `max` and `avg`", and "`min`, `max` and `avg` of nothing are
-`#REF!(empty)`" (§7). It is `#REF!(overflow)` in `r_2`, whose group holds
+`#REF!(empty)`" (§7). It is `#REF!(overflow)` in `r_1`, whose group holds
 9×10^313 (§8). `s := sum(g)` holds both.
 
 §8: "**When its operands hold several different `#REF!` values, an aggregate
@@ -14,7 +14,7 @@ first by row, in the file or in the declared order".
 
 `empty` ranks before `overflow`, so `s` is `#REF!(empty)`.
 
-This case and its twin hold the same rows with the two data lines swapped. §6:
-"Shuffling every line leaves all values unchanged." Both expect the same value.
+This case and its twin hold the same rows with the two data lines swapped. §6 keeps the
+ids in key order, so the ids are what the two files share. Both expect the same value.
 
 The twin is `eval/aggregate-ranks-empty-over-overflow`.

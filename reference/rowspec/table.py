@@ -30,6 +30,15 @@ class Malformed(Exception):
         self.refusal = refusal
 
 
+class EditRefused(Malformed):
+    """An edit the API will not make for a reason of its own, not one of SPEC.md
+    §9's refusals. `reason` names it; `refusal` stays None."""
+
+    def __init__(self, reason, message):
+        super().__init__(message)
+        self.reason = reason
+
+
 CONFLICT = ("<<<<<<<", "=======", ">>>>>>>", "|||||||")
 ROWREL = {"cumulative", "prior", "delta"}
 INF = float("inf")
@@ -288,6 +297,25 @@ def _near_marker(lines, n):
     if cells[0]:
         return f" near row {_escape(names[0])}={_show(cells[0])}"
     return ""
+
+
+def _key_text(v):
+    """A key as §4.1.8 orders text: by code point over the NFC-normalised,
+    trimmed value. Python compares strings by code point."""
+    return unicodedata.normalize("NFC", str(v)).strip(WSP)
+
+
+def _key_order_fault(rows, key):
+    """The first row whose key does not sort after the key of the row above it
+    (§6, §9.28), described by name, or None."""
+    if key:
+        for above, row in zip(rows, rows[1:], strict=False):
+            if _key_text(row[key]) <= _key_text(above[key]):
+                return (
+                    f"row {key}={row[key]!r} is out of key order: it does not sort after "
+                    f"{above[key]!r}, the row above it"
+                )
+    return None
 
 
 def parse(text):
@@ -1646,6 +1674,14 @@ def evaluate(text):
         vals = [r.get(col) for r in rows_]
         out[nm] = _agg(fn, vals, col)
 
+    # §9.28 is reported only when no other entry refuses the file, so it is
+    # checked after every other refusal. `canon` repairs it, and nothing else.
+    fault = _key_order_fault(rows, key)
+    if fault:
+        raise Malformed(
+            f"{fault}. Rows stay in key order (§6); `rowspec check --fmt` sorts them",
+            refusal="rows-out-of-order",
+        )
     return seq, out
 
 
@@ -1729,7 +1765,10 @@ def render(st):
 
 
 def canon(text):
-    """Canonical form: single-space delimiters, no alignment padding.
+    """Canonical form: single-space delimiters, no alignment padding, and the
+    rows in key order, each row's line moved whole. §9.28 is the one refusal
+    this repairs (§10), so it reads the file with `parse`, which leaves that
+    check to `evaluate`; every other refusal still stands.
 
     Padding is a VIEW. Measured: a one-character edit in a padded 2000-row
     table produces a 2002-line / 238,370-byte diff versus 1 line / 413 bytes
@@ -1767,7 +1806,9 @@ def canon(text):
             )
             + "\n"
         )
-    for r in st["rows"]:
+    key = st["key"]
+    rows = sorted(st["rows"], key=lambda r: _key_text(r[key])) if key else st["rows"]
+    for r in rows:
         out.append(
             row(
                 [str(r.get(c, "")) if not isinstance(r.get(c), float) else "" for c in cols]
@@ -1775,6 +1816,11 @@ def canon(text):
             + "\n"
         )
     out += st["tail"]
+    # §4.1.1 and §10: the final terminator belongs to the file's last line,
+    # not to a row, so a file that ended without one still does, whichever
+    # row now stands last.
+    if not text.endswith("\n") and out[-1].endswith("\n"):
+        out[-1] = out[-1][:-1]
     # §4.1.1: canon normalises EVERY terminator to LF. `prefix` and `tail` carry
     # annotations and declarations through byte-verbatim, which on a CRLF file
     # left them CRLF while the table lines emitted above are LF -- a canonical
@@ -1802,6 +1848,11 @@ def set_cell(st, row_key, col, value):
     idx = st["cols"].index(col)
     for i, r in enumerate(st["rows"]):
         if str(r.get(key)) == str(row_key):
+            if col == key:
+                keys = [{key: str(value) if o is r else o[key]} for o in st["rows"]]
+                fault = _key_order_fault(keys, key)
+                if fault:
+                    raise EditRefused("out-of-key-order", f"{fault}; rows stay in key order (§6)")
             r[col] = str(value)
             raw = st["row_raws"][i]
             cells = split_row(raw)

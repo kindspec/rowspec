@@ -140,7 +140,7 @@ skipped line is a missing row, and a missing row is a plausible smaller total.
 **1. Lines.** `LF` and `CRLF` are both `eol` and both round-trip byte-exactly
 (§3). The terminator on the file's last line is optional; its presence or
 absence is part of the file's bytes, is preserved by `render` **and by `canon`,
-which never adds one**, and never changes the parse. `canon` terminates every table line it emits, **normalises every terminator in
+which never adds one**, and never changes the parse. `canon` terminates every table line it emits except the file's last line, **normalises every terminator in
 the file to `LF`**, and otherwise leaves the content of annotations and
 declarations byte-verbatim.
 
@@ -160,8 +160,8 @@ terminator is not something an annotation *says*, and nothing in it can reach a
 computed value either way.
 
 **2. The table.** The table is the *maximal contiguous run* of `table-line`s.
-Annotations and blank lines may precede and follow it; they may not appear
-inside it. A `#` line between two data rows therefore ends the run, and the next
+Annotations, declarations and blank lines may precede and follow it; they may
+not appear inside it. A `#` line between two data rows therefore ends the run, and the next
 table line is a table line after the table, which is refused (§9.19). A file has
 exactly one table. **[CHOICE]** — §9 defines the ignorable channel as "outside
 the table" and §4 calls the run contiguous, but the two readings left open
@@ -952,8 +952,8 @@ duplication; content hashes split one row into two; only an opaque id survives
 all four. Every failure was silent.
 
 **Rows stay in key order.** Where a key is declared, each data row's key MUST
-sort after the key of the row above it, compared by Unicode code point on the
-cell's value. A table whose rows are not in that order is refused (§9.28), and
+sort after the key of the row above it, compared as §4.1.8 orders text: by
+Unicode code point over the NFC-normalised, trimmed value. A table whose rows are not in that order is refused (§9.28), and
 two rows holding one key are §9.5, not this. `order := by(c)` does not relax the
 rule: it declares the order a computation reads the rows in, never the order of
 the lines. A table with no key has no row identity, and the rule does not apply.
@@ -1490,9 +1490,12 @@ An implementation MUST refuse:
     check, and a program counting type errors should not have to merge two
     identifiers
 28. `rows-out-of-order`: a table that declares a key, and a row whose key does
-    not sort after the key of the row above it, by code point (§6). In §13's
+    not sort after the key of the row above it, as §4.1.8 orders text (§6). In §13's
     CSV profile, rows that do not follow the sidecar's `order`, or its `key`
-    where it declares no `order` (§13)
+    where it declares no `order` (§13). It is the exception to the rule below
+    that any applicable refusal may be reported: a file that any other entry
+    refuses is reported under that entry, since only this entry is repairable
+    by `canon`, and two rows holding one key are always §9.5
 
 **Every refusal is reported with its identifier.** The identifier is the
 code-formatted name that opens each entry above, and an implementation MUST
@@ -1519,7 +1522,7 @@ retired. A retired identifier is listed below so it is never reused.
 
 Retired: none.
 
-**The numbering is not a precedence order.** When one file violates several
+**The numbering is not a precedence order.** Apart from §9.28, when one file violates several
 refusals, *which* is reported is deliberately unspecified: the implementation
 reports the identifier of any one that applies, and a case such as the
 `parse/two-refusals-*` ones names every identifier that does. The reason is
@@ -1533,8 +1536,9 @@ agree on the identifier buys nothing and outlaws the streaming reader. What an
 implementation MUST be is **deterministic**: the same bytes must yield the same
 refusal, with the same identifier, on every run, or `render` and `canon` are
 not functions of the input. A conformance case that names one identifier is
-therefore a case in which exactly one refusal applies; where several apply, the
-case names each of them, and reporting any one passes.
+therefore a case in which exactly one refusal applies, §9.28 not counted where
+another applies; where several apply, the case names each of them, and reporting
+any one passes.
 
 Three entries name a particular case of a broader one: §9.7 of §9.21, §9.18
 of §9.19, and §9.24 of §9.20. A file that meets the narrower entry always
@@ -1567,6 +1571,8 @@ separate explicit operation with `canon(canon(x)) == canon(x)`.
 `canon` also puts the rows in key order, moving each row's line whole. §9.28 is
 the one refusal it repairs: a table that meets §9.28 and no other refusal
 canonicalises, and the result is valid. Every other refused file stays refused.
+The file's final terminator belongs to the file's last line, not to a row: if
+the file ended with no terminator it still does, after the rows have moved.
 
 Measured on 2,000 rows, changing one cell from `9` to `1000`:
 
@@ -1715,12 +1721,15 @@ relaxation**, and the difference must be stated rather than discovered:
   otherwise; no value matches both. So `1e3`, `+5` and `٥` are text, and
   `2024-13-45` is a date, as in `.mdtbl`. The rows MUST be in ascending order
   of the tuple `(typed value of the column, key)`, numbers by value, dates by
-  year, month and day, text and the key by code point, or the file is refused
+  year, month and day, text and the key as §4.1.8 orders text, or the file is refused
   (§9.28). A row may hold the same order value as the row above it, when its
   key sorts after that row's. Where the sidecar declares `key` and no `order`,
-  the rows MUST be in ascending code-point order of the key's value, or the
+  the rows MUST be in ascending order of the key's value as §4.1.8 orders text, or the
   file is refused (§9.28). A sidecar that declares neither, and a CSV with no
-  sidecar, has no such rule. The column is refused (§6, §9.10)
+  sidecar, has no such rule. **A known gap:** a row whose `order` value is
+  edited legitimately moves, and can return against a deletion on another
+  branch. A key never changes, so a `.mdtbl` file and a key-only sidecar have
+  no such case. The column is refused (§6, §9.10)
   when it mixes types, **when it is blank in any row**, a cell of spaces or
   tabs included, since blank is none of the three types, and when it holds
   any non-finite spelling §9.10 lists, in any row and whatever the rest of
@@ -1863,7 +1872,7 @@ A refusal that comes from a declaration source outside this profile
 itself, rather than from a declaration it supplies (above), is not a
 CSV-mode refusal, and is not read as a §9 entry here.
 
-A file can meet more than one of these, and then each applies, as §9 says:
+A file can meet more than one of these, and then each applies, as §9 says, §9.28 apart:
 an order column of mixed types under an `order_type`, or under a `columns`
 type, meets both §9.10 and §9.27, because some of its values are not of the
 declared type.

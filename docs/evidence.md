@@ -23,6 +23,13 @@ whether a URL resolves, whether a date is plausible — none of that is here, an
 smaller question: will this table survive being edited by several people over
 years?
 
+**Keeping rows in key order has a measured cost.** Across those 7,446 commits,
+367 (4.93%) reorder rows against every parent, and 457 (6.14%) against at least
+one, the difference being merges that bring in a reorder already counted on its
+branch. The median such commit moves 1 to 4 rows, depending on the registry, and
+none moves more than half a file (`experiments/D0-dogfood/reorder.py` in the
+research repository).
+
 ## What is actually shipped
 
 The **conformance suite** is the deliverable. It checks out two branches, runs
@@ -30,8 +37,8 @@ stock `git merge`, evaluates the merged file, and asserts on the computed
 number. No prior art does this. The spec, the validator and the reference
 implementation exist so the suite has something to check.
 
-    643 conformance cases          two implementations, both passing
-    118 mutants, all distinct      116 killed, 2 equivalent
+    703 conformance cases          two implementations, both passing
+    122 mutants, all distinct      119 killed, 3 equivalent
                                      0 survived, 0 stale, 0 broken
 
 **The second implementation is the point.** `reference/rowspec_alt/` was written

@@ -1,6 +1,6 @@
 # Why this case exists
 
-Ordered by `n`, the first row is `r_1`, whose stored `v` is the text `x`.
+Ordered by `n`, the first row is `r_2`, whose stored `v` is the text `x`.
 
 §7: "In the first row, which has no preceding row, `delta(c)` is blank
 only when `c` is a number, and otherwise carries the error `c` gives

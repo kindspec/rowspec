@@ -14,7 +14,7 @@ first by row, in the file or in the declared order".
 cell `x` and a stored cell beyond binary64 is `#REF!(a)` whichever line comes
 first". All four coercing aggregates are asserted.
 
-This case and its twin hold the same rows with the two data lines swapped. §6:
-"Shuffling every line leaves all values unchanged." Both expect the same value.
+This case and its twin hold the same rows with the two data lines swapped. §6 keeps the
+ids in key order, so the ids are what the two files share. Both expect the same value.
 
 The twin is `eval/aggregate-ranks-a-name-over-overflow-swapped`.

@@ -55,16 +55,19 @@ def test_top_level_help_lists_every_command(flag, capsys):
 
 def test_add_row_with_a_chosen_id_and_position(table, capsys):
     assert (
-        cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_09", "--after", "r_01"])
+        cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_015", "--after", "r_01"])
         == 0
     )
-    assert "added id=r_09" in capsys.readouterr().out
+    assert "added id=r_015" in capsys.readouterr().out
     lines = table.read_bytes().decode().split("\r\n")
-    assert lines[3] == "| r_09 | bolt | 4 | 0.10 |  |"
+    assert lines[3] == "| r_015 | bolt | 4 | 0.10 |  |"
 
 
 def test_add_row_before_a_key(table):
-    assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--before", "r_01"]) == 0
+    assert (
+        cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_00", "--before", "r_01"])
+        == 0
+    )
     assert parse(table.read_text(encoding="utf-8"))[2][0]["item"] == "bolt"
 
 
@@ -157,8 +160,8 @@ def test_add_row_goes_where_its_key_sorts_by_default(table):
 
 
 def test_add_row_end_places_it_last(table):
-    assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_00", "--end"]) == 0
-    assert [r["id"] for r in parse(table.read_text(encoding="utf-8"))[2]][-1] == "r_00"
+    assert cli.main(["add-row", str(table), "bolt", "4", "0.10", "--id", "r_09", "--end"]) == 0
+    assert [r["id"] for r in parse(table.read_text(encoding="utf-8"))[2]][-1] == "r_09"
 
 
 def test_add_row_refuses_a_file_eval_refuses(tmp_path, capsys):

@@ -1,8 +1,8 @@
 # Why this case exists
 
-§7's [CHOICE] paragraph names the mechanism: "A merge reorders rows. So
-without this rule a total can change because of a merge that lost no data and
-conflicted on nothing." This case is that sentence as a fixture.
+§7's [CHOICE] paragraph names the mechanism: "without this rule a total could
+change because of the ids rows happen to hold, or a merge that lost no data
+and conflicted on nothing." This case is that sentence as a fixture.
 
 The base ledger's huge amounts interleave (`1e308` first, `-1e308` last, small
 rows between), so a left-to-right accumulator survives it. `theirs` inserts a

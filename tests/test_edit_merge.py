@@ -58,7 +58,15 @@ _IDS = iter(range(10, 1000))
 def ins(after=None, before=None, rid=None, item="new", end=False):
     """An insertion with a fixed id, so that applying it twice, once on a
     branch and once serially, inserts the same row."""
-    rid = rid or f"r_{next(_IDS)}"
+    n = next(_IDS)
+    if rid is None:
+        # An id that sorts into the gap asked for: rows stay in key order (§6).
+        if after is not None:
+            rid = f"{after}_{n}"
+        elif before is not None:
+            rid = f"r_{int(before[2:]) - 1:02d}_{n}"
+        else:
+            rid = f"r_{n}"
     return lambda t: edit.add_row(
         t,
         {"item": item, "region": "EU", "qty": "1", "unit": "1"},
@@ -115,11 +123,11 @@ SCENARIOS = {
         ins(rid="r_025"),
         "conflict",
     ),
-    "insert r_07 after r_01 / insert r_07 after r_04": (
+    "one key added twice, into one gap": (
         BASE,
-        ins("r_01", rid="r_07"),
-        ins("r_04", rid="r_07", item="x"),
-        "refused",
+        ins(rid="r_07"),
+        ins(rid="r_07", item="x"),
+        "conflict",
     ),
     "insert after r_03 / edit r_03": (BASE, ins("r_03"), cell("r_03", "qty", "9"), "conflict"),
     "insert after r_03 / edit r_04": (BASE, ins("r_03"), cell("r_04", "qty", "9"), "conflict"),
@@ -429,7 +437,10 @@ def measure_concurrent_inserts(tmp, ids, rng, pairs=100, end=False):
     base += "\nkey := id\ns := sum(qty)\n"
     counts = {}
     for n in range(pairs):
-        a, b = (f"r_{rng.getrandbits(24):06x}" for _ in range(2))
+        # `end=True` is refused unless the key sorts last (§6), so an append
+        # takes an id that does.
+        prefix = "zz_" if end else "r_"
+        a, b = (f"{prefix}{rng.getrandbits(24):06x}" for _ in range(2))
         ops = [
             (lambda t, r=r: edit.add_row(t, {"qty": "1"}, row_key=r, end=end)[0]) for r in (a, b)
         ]
@@ -463,13 +474,8 @@ def concurrent_insert_table(tmp):
         )
     rng = random.Random(1)
     rand = sorted(f"r_{rng.getrandbits(24):06x}" for _ in range(50))
-    swapped = list(rand)
-    swapped[10], swapped[11] = swapped[11], swapped[10]
-    appended = [f"r_{rng.getrandbits(24):06x}" for _ in range(50)]
     for label, ids in (
         ("50 sequential ids r_0001..r_0050, by key", [f"r_{i:04d}" for i in range(1, 51)]),
-        ("50 random-shape ids, one adjacent pair swapped, by key", swapped),
-        ("50 random-shape ids in the order they were appended, by key", appended),
         ("no rows, by key", []),
     ):
         out.append((label, measure_concurrent_inserts(tmp, ids, rng)))

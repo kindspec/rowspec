@@ -147,21 +147,17 @@ text = edit.delete_declaration(text, "grand")
   position means the end. For `add_row`, the end is `end=True`, and no
   position means the default below. There is no operation that moves a row:
   see "Measured limits".
-- **By default a new row goes where its key sorts.** When the rows are
-  already in key order, compared by code point, `add_row` with no
-  position puts the row before the first row whose key sorts after its own;
-  otherwise it appends at the end. This is a convention of this writer,
-  chosen for merge behaviour, and not a rule of the format: SPEC.md says
-  nothing about row order in the file, and a table in any order stays valid.
-  It helps only under two conditions, both of which have to hold already:
-  the existing rows are in key order, and the ids are random-shaped, so that
-  new ids spread across the gaps. A table whose rows are out of key order
-  gets every new row at the end, so one insert placed with `after=`,
-  `before=` or `end=True` out of key order turns the default off for that
-  table until its rows are put back in order. Sequential ids are in key
-  order, but a random-shaped new id sorts after all of them. Measured by
-  `uv run python tests/test_edit_merge.py`, 100 pairs of concurrent inserts
-  per row, each new row with a random id of the generated shape:
+- **By default a new row goes where its key sorts.** Rows stay in key order
+  (§6), compared as §4.1.8 orders text, so `add_row` with no position puts the
+  row before the first row whose key sorts after its own. `after=`, `before=`
+  and `end=True` are accepted only where they would keep that order. Placing a
+  row anywhere else is refused as `out-of-key-order`. The default helps a
+  merge only when the ids are random-shaped, so that new ids spread across the
+  gaps: sequential ids are in key order, but a random-shaped new id sorts after
+  all of them. Measured by `uv run python tests/test_edit_merge.py`, 100
+  pairs of concurrent inserts per row, each new row with a random id of the
+  generated shape, except that an insert at the end takes an id that sorts
+  last:
 
   | existing rows | placement | clean | conflict |
   | --- | --- | --- | --- |
@@ -170,8 +166,6 @@ text = edit.delete_declaration(text, "grand")
   | 50 random-shape ids in key order, seed 7 | at the end | 0 | 100 |
   | 50 random-shape ids in key order, seed 7 | default | 91 | 9 |
   | 50 sequential ids `r_0001`..`r_0050` | default | 0 | 100 |
-  | 50 random-shape ids, one adjacent pair swapped | default | 0 | 100 |
-  | 50 random-shape ids in the order they were appended | default | 0 | 100 |
   | no rows | default | 0 | 100 |
 
   The conflicts under the default are pairs whose keys sort into the same
@@ -219,6 +213,10 @@ An edit is refused, with nothing returned, in four ways:
      key. `rowspec add-row` also refuses a table with no key this way when
      it is given neither, since it always gives the new row a key;
    - `bad-position`: more than one of `after=`, `before=` and `end=True`;
+   - `out-of-key-order`: a position, `set_cell` on the key column, or a change
+     of the `key` declaration that would leave the rows out of key order (§6).
+     No file is written, so the §9 identifier the reader would give the result
+     never appears;
    - `conflicting-id`: a `row_key=` that differs from the key column's entry
      in the values;
    - `line-break`: CR or LF in a value, formula or declaration (§4.1);
@@ -240,7 +238,7 @@ An edit is refused, with nothing returned, in four ways:
    not raise: `value-count`, for a number of values other than one per
    stored column besides the key.
 3. **The result is refused.** The new text is evaluated in full, so every §9
-   refusal applies to it: a duplicate id, a bad identifier, a duplicate column
+   refusal applies to it, `rows-out-of-order` excepted, which is 2 above: a duplicate id, a bad identifier, a duplicate column
    (renaming onto an existing name), a value in a computed cell, a malformed
    formula or declaration, an alignment-style row. The error carries that
    refusal's §9 identifier.
@@ -296,15 +294,14 @@ through real merges. In summary, with stock git:
 
 ## Measured limits
 
-**There is no `move_row`, because a moved row can come back after a delete.**
-A move is a deletion and an insertion of the same line. Moving `r_06` to the
-top on one branch while the other branch deletes `r_06` merges cleanly in
-stock git: the deletion removes the old line and the insertion survives, so
-the merged table still has `r_06`, which applying the two edits in either
-order would not give. The same happens with the move on either side and the
-row moved to the end. No `#REF!` and no refusal says so. A row's position is
-never an input to a value (§6), so a move gains nothing but appearance, and
-it is not offered.
+**There is no `move_row`, because a row's line is where its key puts it.** A
+move is a deletion and an insertion of the same line, and with the move on one
+branch and a deletion of that row on the other, stock git removes the old line,
+keeps the new one and reports no conflict. `rowspec check` refuses the moved
+row as `rows-out-of-order` (§6, §9.28) on the branch that moved it and again
+after the merge, with nothing installed, and `rowspec check --fmt` puts it back
+where its key sorts. A row's position is never an input to a value, so a move
+gains nothing but appearance, and it is not offered.
 
 **Edits to adjacent lines conflict, and the format cannot change that.**
 Git's merge treats two changes as overlapping unless an unchanged line lies
@@ -325,7 +322,9 @@ declaration.
 ## What the API does not change
 
 The API adds functions. It does not change SPEC.md, the canonical form, the
-grammar, or any existing function; `rowspec.set_cell` is unchanged.
+grammar, or any existing function, except that `rowspec.set_cell` now refuses a
+key-column value that would put the rows out of key order (§6), as
+`out-of-key-order`, with `EditRefused`.
 
 `rowspec.set_cell(st, row_key, col, value)` changes a parsed structure, and
 rendering it writes the whole row unpadded: setting `qty` to `11` in the
