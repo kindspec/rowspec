@@ -18,7 +18,7 @@ path.
     0 failures                just conform
     0 failures, second impl   just conform-alt
     119 killed, 0 survived    just mutants
-    2 equivalent, 0 stale     just mutants
+    3 equivalent, 0 stale     just mutants
     0 broken                  just mutants
     118 distinct mutations    just mutants | grep -ciE '^  (killed|equiv|survived|stale|broken|bogus) '
                               (the gate exits 2 if two mutate identically)
