@@ -413,7 +413,7 @@ def _parser(cmd):
         p.add_argument(
             "--fmt",
             action="store_true",
-            help=quiet or "rewrite .mdtbl files into canonical form, rows in key order",
+            help=quiet or "rewrite .mdtbl files into canonical form; never sorts rows",
         )
         p.add_argument(
             "--sort-rows",
@@ -543,8 +543,8 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout,
             lambda n: f"renamed column {a.old} to {n}",
         )
-    if a.sort_rows and not a.fmt:
-        print("rowspec check: --sort-rows needs --fmt", file=sys.stderr)
+    if a.sort_rows and (not a.fmt or a.fmt_check):
+        print("rowspec check: --sort-rows needs --fmt, without --fmt-check", file=sys.stderr)
         return 2
     files = collect(a.paths)
     emit = _print_github if a.format == "github" else _print_plain

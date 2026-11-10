@@ -26,7 +26,7 @@ path.
     0 failures                just conform-csv
     91 killed, 3 equivalent   just mutants-csv (csv profile)
     41 killed, 0 equivalent   just mutants-csv (sidecar profile)
-    1877 passed, 3 skipped    just test
+    1879 passed, 3 skipped    just test
     62 passed                 just test-xlsx
     1 passed                  just test-libreoffice
     305 files compared        ROWSPEC_REQUIRE_LIBREOFFICE=1 uv run --exact --extra xlsx \

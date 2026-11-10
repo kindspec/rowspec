@@ -1679,8 +1679,8 @@ def evaluate(text):
     fault = _key_order_fault(rows, key)
     if fault:
         raise Malformed(
-            f"{fault}. Rows stay in key order (§6). After a merge, either row may be one "
-            "another branch deleted: check that before sorting with "
+            f"{fault}. Rows stay in key order (§6). After a merge, this or any other row "
+            "out of order may be one another branch deleted: check before sorting with "
             "`rowspec check --fmt --sort-rows`",
             refusal="rows-out-of-order",
         )
@@ -1855,7 +1855,7 @@ def set_cell(st, row_key, col, value):
         if str(r.get(key)) == str(row_key):
             if col == key:
                 if any(_key_text(o[key]) == _key_text(value) for o in st["rows"] if o is not r):
-                    raise EditRefused("duplicate-row-id", f"a row already has {key}={value!r} (§6)")
+                    raise Malformed(f"duplicate key {key}={value!r}", refusal="duplicate-row-id")
                 keys = [{key: str(value) if o is r else o[key]} for o in st["rows"]]
                 fault = _key_order_fault(keys, key)
                 if fault:

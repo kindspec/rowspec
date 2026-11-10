@@ -636,7 +636,7 @@ def test_concurrent_saves_are_each_exact(tmp_path):
     sys.setswitchinterval(1e-6)
     text = (
         "| id | a |\n| -- | -: |\n"
-        + "".join(f"| r_{i} | 0.30000000000000004 |\n" for i in range(500))
+        + "".join(f"| r_{i:04d} | 0.30000000000000004 |\n" for i in range(500))
         + "\nkey := id\n"
     )
     books = [to_workbook(text, values=True) for _ in range(8)]

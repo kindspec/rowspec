@@ -14,6 +14,7 @@ the input must be a file SPEC.md accepts, and so must the output.
 import re
 import secrets
 import unicodedata
+from bisect import bisect_left
 
 from .table import (
     _GROUP,
@@ -383,9 +384,8 @@ def _row_body(d, cells, like):
     return indent + "|" + "|".join(inner) + "|"
 
 
-#: How many ids to draw for a named position before refusing it. A gap too
-#: narrow for this many draws holds almost no ids at all.
-_KEY_DRAWS = 4096
+_KEY_FORM = "r_{:06x}"
+_KEY_SPACE = 16**6
 
 
 def _sorted_position(d, rid):
@@ -400,26 +400,33 @@ def _sorted_position(d, rid):
 
 def _generated_key(d, at):
     """A new `r_` and six hex digits. Where the caller named a position `at`,
-    one that sorts there, so that a generated key is not refused for where it
-    happened to fall (§6). A position no generated key can reach is refused,
-    naming the row the caller gave rather than a key it never saw."""
+    one drawn from the keys that sort there, so that a generated key is not
+    refused for where it happened to fall (§6). A position that holds no such
+    key is refused, naming no key the caller never saw."""
     col = d.cols.index(d.key)
     rows = [(i, _key_text(split_row(d.lines[i])[col])) for i in d.data]
-    taken = {k for _, k in rows}
-    below = [k for i, k in rows if i < at] if at is not None else []
-    above = [k for i, k in rows if i >= at] if at is not None else []
-
-    def fits(k):
-        return (not below or below[-1] < k) and (not above or k < above[0])
-
-    for _ in range(_KEY_DRAWS):
-        key = "r_" + secrets.token_hex(3)
-        if key not in taken and fits(key):
-            return key
-    raise EditRefused(
-        "out-of-key-order",
-        "no generated key sorts at that position; give the row a key, or no position (§6)",
+    if at is None:
+        taken = {k for _, k in rows}
+        while True:
+            key = _KEY_FORM.format(secrets.randbelow(_KEY_SPACE))
+            if key not in taken:
+                return key
+    below = [k for i, k in rows if i < at]
+    above = [k for i, k in rows if i >= at]
+    # Fixed-width lowercase hex sorts as its number does, so each bound is a
+    # search over the numbers, and nothing between two neighbours is taken.
+    first = bisect_left(
+        range(_KEY_SPACE), True, key=lambda n: bool(not below or below[-1] < _KEY_FORM.format(n))
     )
+    end = bisect_left(
+        range(_KEY_SPACE), True, key=lambda n: bool(above and above[0] <= _KEY_FORM.format(n))
+    )
+    if first >= end:
+        raise EditRefused(
+            "out-of-key-order",
+            "no generated key sorts at that position; give the row a key, or no position (§6)",
+        )
+    return _KEY_FORM.format(first + secrets.randbelow(end - first))
 
 
 def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=False):

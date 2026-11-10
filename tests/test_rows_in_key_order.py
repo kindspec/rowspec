@@ -134,12 +134,21 @@ def test_plain_fmt_never_sorts(tmp_path, capsys):
     assert f.read_bytes() == before
 
 
-def test_sort_rows_needs_fmt(tmp_path):
+@pytest.mark.parametrize("flags", [["--sort-rows"], ["--fmt", "--fmt-check", "--sort-rows"]])
+def test_sort_rows_needs_fmt_and_no_fmt_check(tmp_path, flags):
     f = tmp_path / "t.mdtbl"
     f.write_text(table("r_2", "r_1"), encoding="utf-8")
     before = f.read_bytes()
-    assert main(["check", "--sort-rows", str(f)]) == 2
+    assert main(["check", *flags, str(f)]) == 2
     assert f.read_bytes() == before
+
+
+def test_a_generated_key_finds_a_narrow_gap_every_time():
+    t = table("r_a00000", "r_a00002")
+    for _ in range(50):
+        out, key = ed.add_row(t, {"qty": "9"}, after="r_a00000")
+        assert key == "r_a00001"
+        evaluate(out)
 
 
 def test_canon_keeps_a_refusal_only_evaluation_finds():
@@ -150,9 +159,9 @@ def test_canon_keeps_a_refusal_only_evaluation_finds():
 
 def test_a_key_write_to_a_taken_key_is_a_duplicate():
     t = table("r_1", "r_2", "r_3")
-    with pytest.raises(ed.EditRefused) as e:
+    with pytest.raises(Malformed) as e:
         set_cell(structure(t), "r_1", "id", "r_2")
-    assert e.value.reason == "duplicate-row-id"
+    assert e.value.refusal == "duplicate-row-id"
 
 
 def test_a_position_no_generated_key_can_reach_is_refused_without_naming_one():
@@ -406,7 +415,7 @@ def test_a_refused_cli_edit_leaves_the_file(tmp_path, capsys):
     assert f.read_bytes() == before
 
 
-def test_a_generated_key_is_never_refused_for_the_position_it_was_given():
+def test_a_generated_key_fits_the_position_it_was_given():
     """`end=True` with no key must draw one that sorts last. A draw that
     ignored the position fails about one call in five here."""
     text = "| id | a |\n| --- | --- |\n| r_3 | x |\n\nkey := id\n"

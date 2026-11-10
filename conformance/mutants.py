@@ -148,8 +148,7 @@ MUTANTS = {
     "render-normalises-terminators-like-canon": (
         # Anchored on the line ABOVE the return, which is unique to
         # `render`. The return alone is not: the matcher compares token
-        # runs, so `return "".join(out)` is a PREFIX of canon's
-        # `return "".join(out).replace(...)` and matches both.
+        # runs, and `"".join(out)` also opens canon's own line.
         '    out += st["row_raws"]\n    out += st["tail"]\n    return "".join(out)',
         '    out += st["row_raws"]\n    out += st["tail"]\n'
         '    return "".join(out).replace("\\r\\n", "\\n")',
