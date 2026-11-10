@@ -10,8 +10,8 @@ there, a blank included, as it does in every later row."
 
 `c` is a number, so `d` in the first row is blank.
 
-The row that comes first in the declared order, `r_1`, is the second line
-of the file, and the first line is `r_2`, where `c` is `1`. A reader that
-takes "first" from file position gives `r_2` the blank and computes `r_1`'s
+The row that comes first in the declared order, `r_2`, is the second line
+of the file, and the first line is `r_1`, where `c` is `1`. A reader that
+takes "first" from file position gives `r_1` the blank and computes `r_2`'s
 `d` as `0.5 - 1`, `-0.5`. §7: row-relative operators are "evaluated over
 the derived order and never over file position".

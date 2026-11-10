@@ -14,6 +14,7 @@ the input must be a file SPEC.md accepts, and so must the output.
 import re
 import secrets
 import unicodedata
+from bisect import bisect_left
 
 from .table import (
     _GROUP,
@@ -23,8 +24,11 @@ from .table import (
     _UNESCAPED_PIPE,
     ROWREL,
     WSP,
+    EditRefused,
     Malformed,
     _check_ident,
+    _key_order_fault,
+    _key_text,
     _strip_annotation,
     escape_cell,
     evaluate,
@@ -32,15 +36,6 @@ from .table import (
     split_lines,
     split_row,
 )
-
-
-class EditRefused(Malformed):
-    """An edit the API will not make for a reason of its own, not one of SPEC.md
-    §9's refusals. `reason` names it; `refusal` stays None."""
-
-    def __init__(self, reason, message):
-        super().__init__(message)
-        self.reason = reason
 
 
 def _nfc(s):
@@ -348,9 +343,20 @@ class _Doc:
         k = self.cols.index(self.key)
         return [_nfc(split_row(self.lines[i])[k]) for i in self.data]
 
-    def result(self):
+    def result(self, hint="rows stay in key order (§6)"):
+        """The edited text, once it is a file SPEC.md accepts. An edit that
+        would leave the rows out of key order is the API's refusal, not the
+        file's: nothing was written, so `--fmt` is no help to the caller."""
         text = "".join(self.lines)
-        evaluate(text)
+        try:
+            evaluate(text)
+        except Malformed as e:
+            if e.refusal != "rows-out-of-order":
+                raise
+            _c, _f, rows, _d, _o, key = parse(text)
+            raise EditRefused(
+                "out-of-key-order", f"{_key_order_fault(rows, key)}; {hint}"
+            ) from None
         return text
 
 
@@ -378,32 +384,64 @@ def _row_body(d, cells, like):
     return indent + "|" + "|".join(inner) + "|"
 
 
+_KEY_FORM = "r_{:06x}"
+_KEY_SPACE = 16**6
+
+
 def _sorted_position(d, rid):
-    """Where a row keyed `rid` sorts, by code point, in a table whose rows are
-    already in key order; otherwise after the last row. A convention for the
-    diff, not a rule of the format: a generated id is random, so two rows
-    added on two branches land in different gaps instead of both at the end,
-    where they always conflict."""
+    """Where a row keyed `rid` sorts, by code point: the rows are already in
+    key order (§6). A table with no key has no such place, and the row goes
+    after the last row."""
     if d.key is None:
         return max(d.table_lines()) + 1
-    keys = d.keys()
-    if keys != sorted(keys):
-        return max(d.table_lines()) + 1
-    later = [i for i, k in zip(d.data, keys, strict=True) if k > rid]
+    later = [i for i, k in zip(d.data, d.keys(), strict=True) if _key_text(k) > _key_text(rid)]
     return later[0] if later else max(d.table_lines()) + 1
 
 
+def _generated_key(d, at):
+    """A new `r_` and six hex digits. Where the caller named a position `at`,
+    one drawn from the keys that sort there, so that a generated key is not
+    refused for where it happened to fall (§6). A position that holds no such
+    key is refused, naming no key the caller never saw."""
+    col = d.cols.index(d.key)
+    rows = [(i, _key_text(split_row(d.lines[i])[col])) for i in d.data]
+    if at is None:
+        taken = {k for _, k in rows}
+        while True:
+            key = _KEY_FORM.format(secrets.randbelow(_KEY_SPACE))
+            if key not in taken:
+                return key
+    below = [k for i, k in rows if i < at]
+    above = [k for i, k in rows if i >= at]
+    # Fixed-width lowercase hex sorts as its number does, so each bound is a
+    # search over the numbers, and nothing between two neighbours is taken.
+    first = bisect_left(
+        range(_KEY_SPACE), True, key=lambda n: bool(not below or below[-1] < _KEY_FORM.format(n))
+    )
+    end = bisect_left(
+        range(_KEY_SPACE), True, key=lambda n: bool(above and above[0] <= _KEY_FORM.format(n))
+    )
+    if first >= end:
+        raise EditRefused(
+            "out-of-key-order",
+            "no generated key sorts at that position; give the row a key, or no position (§6)",
+        )
+    return _KEY_FORM.format(first + secrets.randbelow(end - first))
+
+
 def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=False):
-    """Insert one row, after or before the row keyed `after`/`before`, or after
-    the last row when `end` is true. With none of the three, the row goes where
-    its key sorts if the rows are already in key order, and after the last row
-    otherwise. `values` maps column names to cell text; a stored column it
+    """Insert one row. With no position it goes where its key sorts; a table
+    with no key has no such place, and it goes after the last row. `after`,
+    `before` and `end` place it beside a key or last, and on a table with a
+    key they are refused when that would put the rows out of key order (§6).
+    `values` maps column names to cell text; a stored column it
     omits is blank. The row's key is `row_key`, or the key column's entry in
     `values`, or a generated `r_` and six hex digits. Returns (text, row_key),
     and row_key is None for a table with no key.
 
     The diff is one added line."""
     d = _Doc(text)
+    generated = False
     vals = {}
     for c, v in (values or {}).items():
         c = _nfc(c)
@@ -426,21 +464,20 @@ def add_row(text, /, values=None, *, row_key=None, after=None, before=None, end=
     elif row_key is not None:
         row_key = _cell_value(row_key, "row_key")
     else:
-        taken = {_nfc(split_row(d.lines[i])[d.cols.index(d.key)]) for i in d.data}
-        row_key = "r_" + secrets.token_hex(3)
-        while row_key in taken:
-            row_key = "r_" + secrets.token_hex(3)
+        generated = True
+    if end and (after is not None or before is not None):
+        raise EditRefused("bad-position", "give one of after=, before= and end=")
+    placed = end or after is not None or before is not None
+    at = _row_position(d, after, before) if placed else None
+    if generated:
+        row_key = _generated_key(d, at)
     if d.key is not None:
         vals[d.key] = row_key
     cells = [vals.get(c, "") for c in d.cols]
-    if end and (after is not None or before is not None):
-        raise EditRefused("bad-position", "give one of after=, before= and end=")
-    if end or after is not None or before is not None:
-        at = _row_position(d, after, before)
-    else:
+    if not placed:
         at = _sorted_position(d, row_key)
     d.insert(at, _row_body(d, cells, at - 1))
-    out = d.result()
+    out = d.result("rows stay in key order (§6); give no position and it goes where its key sorts")
     got = split_row(d.lines[at])
     if got != cells:
         raise EditRefused("not-representable", f"the row would read back as {got!r}")

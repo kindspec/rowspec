@@ -14,7 +14,7 @@ first by row, in the file or in the declared order".
 
 `empty` ranks before `overflow`, so `s` is `#REF!(empty)`.
 
-This case and its twin hold the same rows with the two data lines swapped. §6:
-"Shuffling every line leaves all values unchanged." Both expect the same value.
+This case and its twin hold the same rows with the two data lines swapped. §6 keeps the
+ids in key order, so the ids are what the two files share. Both expect the same value.
 
 The twin is `eval/aggregate-ranks-empty-over-overflow-swapped`.

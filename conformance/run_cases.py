@@ -42,6 +42,7 @@ import itertools
 import os
 import re
 import sys
+import unicodedata
 
 from kindkit import EXIT_NO_VERDICT, Adapter, cli, gitmerge
 
@@ -56,11 +57,11 @@ sys.path.insert(0, os.path.join(HERE, "..", "reference"))
 #: most of itself -- a filter, a bad path, a half-checked-out tree. It is a
 #: FLOOR measured with `find conformance/cases -name expect.json | wc -l`, so
 #: adding cases never touches it and removing them has to be deliberate.
-MIN_CASES = 643
+MIN_CASES = 703
 
 #: The same floor for SPEC.md §13's CSV tree, measured the same way over
 #: `conformance/cases-csv`.
-MIN_CSV_CASES = 281
+MIN_CSV_CASES = 337
 
 CANON_CHECKS = {"idempotent", "preserves-values", "removes-padding", "already-canonical"}
 
@@ -76,6 +77,15 @@ ARTIFACT = "a.mdtbl"
 #: suffix: the handler reads the file itself, as bytes, and hands them to the
 #: implementation's `evaluate_bytes`, which decodes and then evaluates.
 MDTBL_BYTES = "input.bin"
+
+
+def table_rows(text):
+    """Every table line's cells, padding removed and NFC-normalised (§3), sorted."""
+    return sorted(
+        [c.strip() for c in ln.strip().strip("|").split("|")]
+        for ln in unicodedata.normalize("NFC", text).splitlines()
+        if ln.lstrip().startswith("|")
+    )
 
 
 def ev_at(ref, text, base):
@@ -212,11 +222,22 @@ def adapter_for(impl):
         c2 = ref.canon(c1)
         if e["check"] == "idempotent" and c1 != c2:
             yield "canon not idempotent"
-        elif (
-            e["check"] == "preserves-values"
-            and ev_at(ref, case.files["input"], case.dir)[1] != ev_at(ref, c1, case.dir)[1]
-        ):
-            yield "canon changed the values"
+        elif e["check"] == "preserves-values":
+            try:
+                before = ev_at(ref, case.files["input"], case.dir)[1]
+            except ref.Malformed as ex:
+                # §9.28 is the one refusal canon repairs, and a file it refuses
+                # has no values as written. §10 moves each row's line whole, so
+                # what is checkable is that the repaired file reads, and holds
+                # exactly the rows the input held.
+                if ex.refusal != "rows-out-of-order":
+                    raise
+                ev_at(ref, c1, case.dir)
+                if table_rows(case.files["input"]) != table_rows(c1):
+                    yield "canon changed the rows"
+                return
+            if before != ev_at(ref, c1, case.dir)[1]:
+                yield "canon changed the values"
         elif e["check"] == "removes-padding":
             body = [ln for ln in c1.splitlines() if ln.startswith("|")]
             padded = [

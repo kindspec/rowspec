@@ -336,10 +336,10 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
 
     The spec insists row ids are machine-generated; before this, they were hand
     typed, which is how a cross-branch id collision got made by hand. `rid`
-    chooses the id instead. With no position the row goes where its key sorts
-    when the rows are already in key order, and at the end otherwise: two
-    concurrent appends at the end always collide. `after`/`before` place it
-    beside a key, and `end` at the end.
+    chooses the id instead. With no position the row goes where its key sorts,
+    as §6 requires, so two concurrent additions land in different gaps instead
+    of both at the end. `after`/`before` place it beside a key, and `end` at
+    the end, each refused where that would break key order.
     """
 
     def change(text):
@@ -363,6 +363,17 @@ def cmd_add_row(path, values, out=None, *, rid=None, after=None, before=None, en
         return new, f"{key}={got}"
 
     return _rewrite(path, change, out, lambda what: f"added {what}")
+
+
+def _sort_rows(path):
+    """`--fmt --sort-rows` on a file §9.28 is the only refusal of (§10): write it back with
+    its rows in key order. Returns the finding that stops it, or None."""
+    fixed = canon(open(path, encoding="utf-8", newline="").read())
+    try:
+        _write(path, fixed)
+    except OSError as e:
+        return _unreadable(path, e)
+    return None
 
 
 COMMANDS = {
@@ -400,7 +411,16 @@ def _parser(cmd):
         quiet = argparse.SUPPRESS if cmd == "eval" else None
         p.add_argument("paths", nargs="+", help="files or directories")
         p.add_argument(
-            "--fmt", action="store_true", help=quiet or "rewrite .mdtbl files into canonical form"
+            "--fmt",
+            action="store_true",
+            help=quiet or "rewrite .mdtbl files into canonical form; never sorts rows",
+        )
+        p.add_argument(
+            "--sort-rows",
+            action="store_true",
+            help=quiet
+            or "with --fmt, also sort a table refused only for rows out of key order. "
+            "After a merge, check first that no row was deleted on another branch",
         )
         p.add_argument(
             "--fmt-check",
@@ -456,8 +476,8 @@ def _parser(cmd):
             where.add_argument(
                 "--end",
                 action="store_true",
-                help="place it last; without a position, it goes where its key sorts "
-                "if the rows are in key order, and last otherwise",
+                help="place it last, refused unless its key sorts last; without a "
+                "position, it goes where its key sorts",
             )
     return p
 
@@ -523,6 +543,9 @@ def main(argv: list[str] | None = None) -> int:
             sys.stdout,
             lambda n: f"renamed column {a.old} to {n}",
         )
+    if a.sort_rows and (not a.fmt or a.fmt_check):
+        print("rowspec check: --sort-rows needs --fmt, without --fmt-check", file=sys.stderr)
+        return 2
     files = collect(a.paths)
     emit = _print_github if a.format == "github" else _print_plain
     explained: set[str] = set()
@@ -536,6 +559,16 @@ def main(argv: list[str] | None = None) -> int:
             errs, warns = errs + warns, []
             for x in errs:
                 x.level = "refuse"
+        if (
+            a.sort_rows
+            and f.lower().endswith(TABLE_EXT)
+            and [getattr(x, "refusal", None) for x in errs] == ["rows-out-of-order"]
+        ):
+            left = _sort_rows(f)
+            if left is None:
+                print(f"{f}: reformatted")
+                continue
+            errs = [left]
         if errs or warns:
             emit(f, errs + warns, explained, sys.stderr)
         if errs:

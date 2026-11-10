@@ -14,7 +14,7 @@ first by row, in the file or in the declared order".
 `#REF!` values actually present compete in it", and both errors are values
 actually present in `c`, so `count(c)` is `#REF!(/0)` as well.
 
-This case and its twin hold the same rows with the two data lines swapped. §6:
-"Shuffling every line leaves all values unchanged." Both expect the same value.
+This case and its twin hold the same rows with the two data lines swapped. §6 keeps the
+ids in key order, so the ids are what the two files share. Both expect the same value.
 
 The twin is `eval/aggregate-ranks-div-zero-over-overflow-swapped`.

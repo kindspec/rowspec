@@ -51,7 +51,8 @@
         "ident-compared-in-if",
         "order-without-key",
         "leading-bom",
-        "column-type-mismatch"
+        "column-type-mismatch",
+        "rows-out-of-order"
       ]
     }
   }

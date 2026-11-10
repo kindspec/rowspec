@@ -1,7 +1,7 @@
 # Why this case exists
 
-The computed `c` is `#REF!(a)` in `r_1` (it selects `a * 1` and `a` is the
-text `x`) and `#REF!(Z)` in `r_2` (it selects `Z * 1` and `Z` is the text
+The computed `c` is `#REF!(a)` in `r_2` (it selects `a * 1` and `a` is the
+text `x`) and `#REF!(Z)` in `r_1` (it selects `Z * 1` and `Z` is the text
 `y`). §8: `#REF!(name)` carries "the column ... whose value would not
 coerce". So `sum(c)` holds two names.
 
@@ -16,7 +16,7 @@ first by row, in the file or in the declared order".
 would the header order, the formula order, or the first row of either
 line order.
 
-This case and its twin hold the same rows with the two data lines swapped. §6:
-"Shuffling every line leaves all values unchanged." Both expect the same value.
+This case and its twin hold the same rows with the two data lines swapped. §6 keeps the
+ids in key order, so the ids are what the two files share. Both expect the same value.
 
 The twin is `eval/aggregate-ranks-names-by-code-point`.

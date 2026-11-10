@@ -1,6 +1,6 @@
 # Why this case exists
 
-Ordered by `n`, the first row is `r_1`, where `c = a / z` is `1 / 0`,
+Ordered by `n`, the first row is `r_2`, where `c = a / z` is `1 / 0`,
 `#REF!(/0)` (§4.2 rule 2).
 
 §7: "In the first row, which has no preceding row, `delta(c)` is blank

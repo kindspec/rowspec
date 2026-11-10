@@ -21,7 +21,7 @@ N, CATS = 700, 7
 
 
 def src(formula):
-    rows = "".join(f"| r_{i} | c{i % CATS} | {i % 2} | {i} |  |\n" for i in range(N))
+    rows = "".join(f"| r_{i:04d} | c{i % CATS} | {i % 2} | {i} |  |\n" for i in range(N))
     return f"| id | cat | g | v | t = {formula} |\n| -- | -- | -- | -: | -: |\n{rows}\nkey := id\n"
 
 

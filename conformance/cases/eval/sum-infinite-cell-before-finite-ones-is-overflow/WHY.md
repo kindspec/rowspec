@@ -13,8 +13,8 @@ poisoned by a `#REF!` among its operands carries THAT error, unchanged."
 Both aggregates are `#REF!(overflow)`.
 
 The row order is the point. §7 defines `sum` and `avg` on the exact
-mathematical sum and mean of the multiset, and §6 says shuffling every line
-leaves all values unchanged, so the answer cannot depend on whether the
+mathematical sum and mean of the multiset, and §6 says a row's position in the
+file is never an input to any computation, so the answer cannot depend on whether the
 infinite cell comes before or after the finite ones. An exact-summation
 routine that receives an infinity first and then more finite values has to
 deal with a non-finite input in its state; one that tries to convert that

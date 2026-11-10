@@ -3,13 +3,14 @@
 values carries one chosen by shape -- cycle, name, `/0`, empty, overflow --
 then by the name that sorts first, never by row position (#115).
 
-Every scenario runs with its rows in both orders, because §6 says shuffling
-the lines changes no value. Unit tests of the two implementations, not
-conformance cases: the cases for this rule come from an author who has not
+Every scenario runs with its two rows' contents in both orders, the ids
+staying in key order (§6), since a row's position is never an input. Unit tests of the two
+implementations, not conformance cases: the cases for this rule come from an author who has not
 read `reference/`.
 """
 
 import importlib
+import re
 
 import pytest
 
@@ -19,7 +20,9 @@ BIG = "1" + "0" * 400  # beyond binary64
 
 def both_orders(impl, header, align, rows, decls):
     out = []
-    for body in (rows, rows[::-1]):
+    swap = {"r_0": "r_1", "r_1": "r_0"}
+    swapped = [re.sub(r"r_[01]", lambda m: swap[m.group()], r) for r in rows[::-1]]
+    for body in (rows, swapped):
         src = f"{header}\n{align}\n" + "".join(f"{r}\n" for r in body) + "\nkey := id\n" + decls
         out.append(importlib.import_module(impl).evaluate(src))
     return out

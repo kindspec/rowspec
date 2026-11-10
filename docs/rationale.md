@@ -67,8 +67,9 @@ clean merge in which a row **neither author touched** changed from −273.80 to
 218.68.
 
 Declaring the order fixes it, because "the previous row" becomes "the row with
-the next-lower key" — a nominal relationship. Physically shuffling every line
-then leaves every computed value unchanged, and a backdated row appended last
+the next-lower key" — a nominal relationship. §6 keeps the lines in key
+order as well, and neither depends on the other: a row's position in the file is
+never an input to any computation, and a backdated row, wherever its key puts it,
 correctly leads a running total.
 
 The first implementation of that got it wrong in an instructive way: the sort

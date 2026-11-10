@@ -1,8 +1,8 @@
 | id | amt | run = cumulative(amt) |
 | --- | --: | --: |
-| r_03 | 5 |  |
 | r_01 | 1 |  |
 | r_02 | 2 |  |
+| r_03 | 5 |  |
 
 key := id
 order := by(id)

@@ -150,9 +150,9 @@ ONE_LINE = {
         BASE,
         "r_02",
         "id",
-        "r_05",
+        "r_025",
         "| r_02 | gadget | US | 3 | 4.50 |  |",
-        "| r_05 | gadget | US | 3 | 4.50 |  |",
+        "| r_025 | gadget | US | 3 | 4.50 |  |",
     ),
 }
 
@@ -603,11 +603,11 @@ def test_setting_a_cell_to_its_own_text_returns_the_file_byte_for_byte(src, row_
 
 
 def test_setting_the_key_column_changes_the_rows_key():
-    out = edit.set_cell(BASE, "r_02", "id", "r_05")
-    assert out == replace_once(BASE, "| r_02 | gadget |", "| r_05 | gadget |")
+    out = edit.set_cell(BASE, "r_02", "id", "r_025")
+    assert out == replace_once(BASE, "| r_02 | gadget |", "| r_025 | gadget |")
     _, old_aggs = values(BASE)
     new_rows, new_aggs = values(out)
-    assert "r_02" not in new_rows and new_rows["r_05"]["item"] == "gadget"
+    assert "r_02" not in new_rows and new_rows["r_025"]["item"] == "gadget"
     assert new_aggs == old_aggs
     with pytest.raises(edit.EditRefused) as e:
         edit.set_cell(out, "r_02", "qty", "1")

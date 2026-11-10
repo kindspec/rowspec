@@ -88,6 +88,17 @@ FINDINGS = [
 ]  # fmt: skip
 
 
+FINDINGS.append(
+    (
+        "rows-out-of-order",
+        b"id\nr2\nr1\n",
+        ID,
+        "rows-out-of-order",
+        "rows-out-of-order",
+    )
+)
+
+
 @pytest.mark.parametrize(
     "data, side, rule, refusal", [f[1:] for f in FINDINGS], ids=[f[0] for f in FINDINGS]
 )

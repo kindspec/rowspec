@@ -26,7 +26,8 @@ and a blank `v`. Each intermediate value, from SPEC.md:
 
 §8 continues: "Never the first by row, in the file or in the declared order".
 This case and its twin hold the same rows with the two data lines swapped
-(§6: "Shuffling every line leaves all values unchanged"), so a reader that
+(§6 keeps
+the ids in key order), so a reader that
 takes the first error by row passes at most one of them.
 
 The tree's other ranking cases put `/0` and `empty` each against `overflow`

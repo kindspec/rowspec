@@ -79,8 +79,8 @@ second implementation, written from `SPEC.md` alone, runs against the same
 cases, and a mutation gate breaks the code on purpose to prove the suite
 notices.
 
-    643 conformance cases          two implementations, both passing
-    118 mutants, all distinct      116 killed, 2 equivalent
+    703 conformance cases          two implementations, both passing
+    122 mutants, all distinct      119 killed, 3 equivalent
                                      0 survived, 0 stale, 0 broken
 
 ## Documentation

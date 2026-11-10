@@ -117,7 +117,7 @@ def test_csv_an_order_column_holding_a_spelling_is_refused(tmp_path, cells):
 @NOT_SPELLED
 def test_csv_an_order_column_of_other_text_is_accepted(tmp_path, cells):
     """Each file also holds `inf` in a column that is not the order column."""
-    assert csv_rules(tmp_path, cells) == []
+    assert csv_rules(tmp_path, sorted(cells)) == []
 
 
 def test_csv_a_spelling_beside_a_number_is_also_mixed_types(tmp_path):

@@ -67,8 +67,10 @@ def values(text):
 
 
 OPS = {
-    "add_row after": lambda t: edit.add_row(t, {"item": "cog", "qty": "1"}, after="r_02")[0],
-    "add_row before": lambda t: edit.add_row(t, {"item": "cog"}, before="r_01")[0],
+    "add_row after": lambda t: edit.add_row(
+        t, {"item": "cog", "qty": "1"}, row_key="r_025", after="r_02"
+    )[0],
+    "add_row before": lambda t: edit.add_row(t, {"item": "cog"}, row_key="r_00", before="r_01")[0],
     "add_row end": lambda t: edit.add_row(t, {"item": "cog"}, row_key="r_09", end=True)[0],
     "add_row by key": lambda t: edit.add_row(t, {"item": "cog"}, row_key="r_015")[0],
     "delete_row": lambda t: edit.delete_row(t, "r_02"),
@@ -133,13 +135,11 @@ def test_a_missing_final_terminator_stays_missing(src, op):
 
 
 def test_add_row_writes_the_row_asked_for():
-    out, rid = edit.add_row(BASE, {"item": "a | b", "qty": "5"}, after="r_01")
+    out, rid = edit.add_row(BASE, {"item": "a | b", "qty": "5"})
     assert rid == "r_" + rid[2:] and re.fullmatch(r"r_[0-9a-f]{6}", rid)
     rows, _ = values(out)
     assert rows[rid]["item"] == "a | b" and rows[rid]["qty"] == "5"
     assert rows[rid]["total"] == "#REF!(unit)"
-    lines = split_lines(out)
-    assert lines[lines.index("| r_01 | widget | EU | 10 | 12.00 |  |") + 1].startswith(f"| {rid} ")
 
 
 def test_add_row_takes_the_id_from_values_or_id():
@@ -587,16 +587,9 @@ def test_a_row_goes_where_its_key_sorts_when_the_rows_are_in_key_order():
     assert keys_of(out) == ["r_00", "r_01", "r_02", "r_03", "r_04"]
 
 
-def test_a_row_goes_last_when_the_rows_are_not_in_key_order():
-    r01 = "| r_01 | widget | EU | 10 | 12.00 |  |\n"
-    src = BASE.replace(r01, "").replace("| r_04 |", r01 + "| r_04 |")
-    out, _ = edit.add_row(src, {"item": "x"}, row_key="r_025")
-    assert keys_of(out) == ["r_02", "r_03", "r_01", "r_04", "r_025"]
-
-
-def test_end_places_a_row_last_whatever_its_key():
-    out, _ = edit.add_row(BASE, {"item": "x"}, row_key="r_00", end=True)
-    assert keys_of(out)[-1] == "r_00"
+def test_end_places_a_row_last_when_its_key_sorts_last():
+    out, _ = edit.add_row(BASE, {"item": "x"}, row_key="r_09", end=True)
+    assert keys_of(out)[-1] == "r_09"
     with pytest.raises(edit.EditRefused) as e:
         edit.add_row(BASE, {"item": "x"}, after="r_01", end=True)
     assert e.value.reason == "bad-position"

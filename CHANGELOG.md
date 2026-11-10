@@ -11,6 +11,19 @@ prose, and where the two disagree the suite wins.
 
 - The README's opening states the format's promise again. #284 closes the
   merge that breaks it.
+- **Rows stay in key order** (#284, SPEC.md §6, §9.28). A table with a key
+  whose rows are not strictly ascending, as §4.1.8 orders text, is refused as
+  `rows-out-of-order`; equal keys stay `duplicate-row-id`. In the CSV profile,
+  rows follow the sidecar's `order` column, then its `key`, or the `key` where
+  no `order` is declared (§13). A row moved on one branch and deleted on the
+  other is now refused instead of coming back with nothing flagged.
+  `canon` sorts rows by key, a file with no final terminator keeping none,
+  and `rowspec check --fmt --sort-rows` is the migration; plain `--fmt` never
+  sorts, since after a merge a row out of order may be one another branch deleted. §9.28 reports only when no other
+  entry refuses the file.
+  `edit.add_row` with no position always goes where its key sorts; a position,
+  a key-column `set_cell` or a `key` declaration that would break the order is
+  refused as `out-of-key-order`.
 
 ## [0.6.1] — 2026-11-09
 

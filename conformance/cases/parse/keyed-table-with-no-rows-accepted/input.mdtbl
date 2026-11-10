@@ -1,0 +1,5 @@
+| id | qty |
+| --- | --: |
+
+key := id
+n := sum(qty)

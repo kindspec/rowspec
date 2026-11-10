@@ -17,11 +17,11 @@ BIG = "1" + "0" * 400  # beyond binary64
 
 
 def first(impl, a, formula="c = a"):
-    # `r_1` sorts first, so the first row is not the first line of the file.
+    # `r_2` comes first by `n`, so the first row is not the first line of the file.
     src = (
-        f"| id | a | {formula} | d = delta(c) |\n| -- | -: | -: | -: |\n"
-        f"| r_2 | 1 |  |  |\n| r_1 | {a} |  |  |\n"
-        "\nkey := id\norder := by(id)\n"
+        f"| id | n | a | {formula} | d = delta(c) |\n| -- | -: | -: | -: | -: |\n"
+        f"| r_1 | 2 | 1 |  |  |\n| r_2 | 1 | {a} |  |  |\n"
+        "\nkey := id\norder := by(n)\n"
     )
     rows, _ = importlib.import_module(impl).evaluate(src)
     return {r["id"]: str(r["d"]) for r in rows}
@@ -40,7 +40,7 @@ def first(impl, a, formula="c = a"):
     ids=["number", "div-by-zero", "unresolved-name", "blank-operand", "overflow"],
 )
 def test_delta_in_the_first_row_over_a_computed_column(impl, a, formula, want):
-    assert first(impl, a, formula)["r_1"] == want
+    assert first(impl, a, formula)["r_2"] == want
 
 
 def stored_first(impl, a):

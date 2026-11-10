@@ -46,6 +46,7 @@ from rowspec.table import (
     Malformed,
     _escape,
     _isnum,
+    _key_text,
     _quote,
     _show,
     _show_bytes,
@@ -76,6 +77,7 @@ REFUSALS = {
     "unterminated-quote": "row-field-count",
     "stray-quote": "row-field-count",
     "duplicate-key": "duplicate-row-id",
+    "rows-out-of-order": "rows-out-of-order",
     "order-blank": "bad-order-column",
     "order-mixed-types": "bad-order-column",
     "order-non-finite": "bad-order-column",
@@ -583,6 +585,8 @@ def check_text(text, name="<input>", side=None, delimiter=","):
     if side:
         findings += _typed_columns(body, names, side, key_idx)
         findings += _order_column(body, names, side, key_idx)
+        if not findings:
+            findings += _row_order(body, names, side, key_idx)
 
     return findings
 
@@ -792,6 +796,53 @@ def _order_column(body, names, side, key_idx):
         "sign, in an order column.",
     )
     return findings
+
+
+def _row_order(body, names, side, key_idx):
+    """SPEC.md §13 and §9.28: the rows follow the sidecar's `order` column,
+    tied by the key, or the key where no `order` is declared. A file with no
+    key has no rule. Reached only with no other finding, since every value
+    then has one well-defined place: one type to the order column, no blank,
+    no non-finite number, and one key to a row."""
+    if key_idx is None:
+        return []
+    if side.order is None:
+        by = _show(names[key_idx])
+        rows = [(n, ("", _key_value(rec, key_idx))) for n, rec in enumerate(body, 1)]
+    else:
+        by = f"{_show(side.order)}, then {_show(names[key_idx])}"
+        at = names.index(side.order)
+        kind = _type_of(body[0][at].strip(" \t")) if body else None
+        rows = [
+            (n, (_order_value(rec[at].strip(" \t"), kind), _key_value(rec, key_idx)))
+            for n, rec in enumerate(body, 1)
+        ]
+    bad = [n for (_m, above), (n, row) in zip(rows, rows[1:], strict=False) if row <= above]
+    findings = []
+    _cap(
+        findings,
+        "rows-out-of-order",
+        bad,
+        lambda n: f"{_name_row(body[n - 1], names, key_idx, n)} is out of order by {by}",
+        "Moving a line is a deletion and an insertion of the same line, so a row moved "
+        "on one branch and deleted on the other comes back with no conflict. Rows in "
+        "their declared order refuse that move.",
+    )
+    return findings
+
+
+def _key_value(rec, key_idx):
+    return _key_text(rec[key_idx])
+
+
+def _order_value(v, kind):
+    """A trimmed order value as §13 sorts it: numbers by value, dates by year,
+    month and day, text by code point over its NFC form (§4.1.8)."""
+    if kind == "number":
+        return float(v)
+    if kind == "date":
+        return tuple(int(x) for x in re.split(r"[-/]", v))
+    return unicodedata.normalize("NFC", v)
 
 
 def _finite(v):

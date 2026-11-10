@@ -1,7 +1,7 @@
 # Why this case exists
 
-The computed `c = a / z` is `#REF!(overflow)` in `r_1` (its operand `a` is
-9×10^313, infinite as binary64, §8) and `#REF!(/0)` in `r_2` (§4.2 rule 2).
+The computed `c = a / z` is `#REF!(overflow)` in `r_2` (its operand `a` is
+9×10^313, infinite as binary64, §8) and `#REF!(/0)` in `r_1` (§4.2 rule 2).
 
 §8: "**When its operands hold several different `#REF!` values, an aggregate
 carries the one whose shape ranks first: `cycle`, then a name, then `/0`, then
@@ -14,7 +14,7 @@ first by row, in the file or in the declared order".
 `#REF!` values actually present compete in it", and both errors are values
 actually present in `c`, so `count(c)` is `#REF!(/0)` as well.
 
-This case and its twin hold the same rows with the two data lines swapped. §6:
-"Shuffling every line leaves all values unchanged." Both expect the same value.
+This case and its twin hold the same rows with the two data lines swapped. §6 keeps the
+ids in key order, so the ids are what the two files share. Both expect the same value.
 
 The twin is `eval/aggregate-ranks-div-zero-over-overflow`.
