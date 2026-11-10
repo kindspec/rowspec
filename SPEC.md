@@ -1153,14 +1153,14 @@ defined as a sequence of binary64 additions, and `avg` is **not** `sum` divided
 by `count`.
 
 **[CHOICE]**, and §6 forces it rather than merely suggesting it. §6 promises
-that "a row's position in the file is never an input to any computation" and
-that "shuffling every line leaves all values unchanged". A left-to-right
+that "a row's position in the file is never an input to any computation". A left-to-right
 accumulation of binary64 additions breaks that promise outright — measured, the
 four rows `1e308`, `1e308`, `-1e308`, `-1e308`, each a finite binary64 whose
 exact sum is `0`, produce **two different totals depending only on the order the
 rows happen to sit in**: `0` when the signs interleave, and an overflow when the
-two positives come first. A merge reorders rows. So without this rule a total
-can change because of a merge that lost no data and conflicted on nothing,
+two positives come first. A row sits where its key puts it, and a key is opaque.
+So without this rule a total could change because of the ids rows happen to hold,
+or a merge that lost no data and conflicted on nothing,
 which is §1's failure with the arithmetic as its mechanism rather than the
 addressing.
 
