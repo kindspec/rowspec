@@ -20,7 +20,7 @@ rest. See [csv.md](csv.md), and copy
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: kindspec/rowspec@v0.6.1
+- uses: kindspec/rowspec@v0.7.0
   with:
     paths: data
 ```
