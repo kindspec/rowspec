@@ -41,7 +41,7 @@ See [CSV mode](https://github.com/kindspec/rowspec/blob/main/docs/csv.md).
 
 ```yaml
 - uses: actions/checkout@v7
-- uses: kindspec/rowspec@v0.6.1
+- uses: kindspec/rowspec@v0.7.0
   with:
     paths: data
 ```

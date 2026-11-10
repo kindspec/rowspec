@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 
 [[package]]
@@ -95,7 +95,7 @@ wheels = [
 
 [[package]]
 name = "rowspec"
-version = "0.6.1"
+version = "0.7.0"
 source = { editable = "." }
 
 [package.optional-dependencies]

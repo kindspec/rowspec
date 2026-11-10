@@ -7,6 +7,12 @@ prose, and where the two disagree the suite wins.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-10
+
+**A table that declares a key can now be refused for the order of its rows.**
+Before upgrading, sort each one with `rowspec check --fmt --sort-rows`, at a time
+when no open branch deletes its rows.
+
 ### Changed
 
 - The README's opening states the format's promise again. #284 closes the
@@ -19,7 +25,8 @@ prose, and where the two disagree the suite wins.
   other is now refused instead of coming back with nothing flagged.
   `canon` sorts rows by key, a file with no final terminator keeping none,
   and `rowspec check --fmt --sort-rows` is the migration; plain `--fmt` never
-  sorts, since after a merge a row out of order may be one another branch deleted. §9.28 reports only when no other
+  sorts, since after a merge a row out of order may be one another branch
+  deleted. §9.28 reports only when no other
   entry refuses the file.
   `edit.add_row` with no position always goes where its key sorts; a position,
   a key-column `set_cell` or a `key` declaration that would break the order is
@@ -1672,7 +1679,8 @@ actually ran. The two grammars diverged invisibly until differential evaluation
 against 55,681 real spreadsheet cells found it — not a check that could not
 fail, but a check that was never against the specification at all.
 
-[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/kindspec/rowspec/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/kindspec/rowspec/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/kindspec/rowspec/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/kindspec/rowspec/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/kindspec/rowspec/compare/v0.4.0...v0.5.0
