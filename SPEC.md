@@ -951,6 +951,19 @@ scenarios, natural keys lose an edit on rename and overwrite a row on
 duplication; content hashes split one row into two; only an opaque id survives
 all four. Every failure was silent.
 
+**Rows stay in key order.** Where a key is declared, each data row's key MUST
+sort after the key of the row above it, compared by Unicode code point on the
+cell's value. A table whose rows are not in that order is refused (§9.28), and
+two rows holding one key are §9.5, not this. `order := by(c)` does not relax the
+rule: it declares the order a computation reads the rows in, never the order of
+the lines. A table with no key has no row identity, and the rule does not apply.
+
+Moving a line is a deletion and an insertion of the same line. With the move on
+one branch and a deletion of that row on the other, stock git removes the old
+line, keeps the new one, reports no conflict, and the deleted row comes back.
+No value or marker records that. Requiring key order refuses the moved row on
+the branch that moved it, and again after the merge, with nothing installed.
+
 **Order.** Without `order`, the table is a SET and the row-relative operators of
 §7 are refused. With `order := by(c)`:
 
@@ -978,9 +991,8 @@ all four. Every failure was silent.
   place in it would put a running total's meaning in the hands of whichever
   reader guessed. Refusing costs an author one cell and costs a reader nothing.
 
-**A row's position in the file is never an input to any computation.** Shuffling
-every line leaves all values unchanged. A backdated row appended last still
-leads a running total.
+**A row's position in the file is never an input to any computation.** A
+backdated row, wherever its key puts it in the file, still leads a running total.
 
 ## 7. Formulas
 
@@ -1477,6 +1489,10 @@ An implementation MUST refuse:
     because a `columns` type on the order column and `order_type` are the same
     check, and a program counting type errors should not have to merge two
     identifiers
+28. `rows-out-of-order`: a table that declares a key, and a row whose key does
+    not sort after the key of the row above it, by code point (§6). In §13's
+    CSV profile, rows that do not follow the sidecar's `order`, or its `key`
+    where it declares no `order` (§13)
 
 **Every refusal is reported with its identifier.** The identifier is the
 code-formatted name that opens each entry above, and an implementation MUST
@@ -1547,6 +1563,10 @@ answer, one differing from a valid file only by a comment.
 Single-space delimiters, **no alignment padding**. Padded input is valid and
 round-trips byte-exactly; it is simply not canonical, and canonicalisation is a
 separate explicit operation with `canon(canon(x)) == canon(x)`.
+
+`canon` also puts the rows in key order, moving each row's line whole. §9.28 is
+the one refusal it repairs: a table that meets §9.28 and no other refusal
+canonicalises, and the result is valid. Every other refused file stays refused.
 
 Measured on 2,000 rows, changing one cell from `9` to `1000`:
 
@@ -1693,7 +1713,14 @@ relaxation**, and the difference must be stated rather than discovered:
   non-ASCII space is part of it. A trimmed value is a `number` if it matches
   §4.1.6's `number`, a `date` if it matches §4.1.7's `date`, and `text`
   otherwise; no value matches both. So `1e3`, `+5` and `٥` are text, and
-  `2024-13-45` is a date, as in `.mdtbl`. The column is refused (§6, §9.10)
+  `2024-13-45` is a date, as in `.mdtbl`. The rows MUST be in ascending order
+  of the tuple `(typed value of the column, key)`, numbers by value, dates by
+  year, month and day, text and the key by code point, or the file is refused
+  (§9.28). A row may hold the same order value as the row above it, when its
+  key sorts after that row's. Where the sidecar declares `key` and no `order`,
+  the rows MUST be in ascending code-point order of the key's value, or the
+  file is refused (§9.28). A sidecar that declares neither, and a CSV with no
+  sidecar, has no such rule. The column is refused (§6, §9.10)
   when it mixes types, **when it is blank in any row**, a cell of spaces or
   tabs included, since blank is none of the three types, and when it holds
   any non-finite spelling §9.10 lists, in any row and whatever the rest of
@@ -1826,6 +1853,8 @@ entry, as follows, and is reported with that entry's identifier:
   types, is blank in any row, or holds a non-finite value: §9.10
   `bad-order-column`, whose "`c` is not a stored column" is the first.
 - `order` without `key`: §9.25 `order-without-key`.
+- rows that do not follow the declared `order`, or the `key` where no `order`
+  is declared: §9.28 `rows-out-of-order`.
 - a value of a column typed by `columns` that is not of that type, and an
   order column holding a value that is not of its `order_type`: §9.27
   `column-type-mismatch`.
